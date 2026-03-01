@@ -1,0 +1,103 @@
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const morgan = require("morgan");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const mongoSanitize = require("express-mongo-sanitize");
+const apiV1Router = require("./routes/apiV1");
+const { performanceLogger } = require("./middleware/performanceLoggingMiddleware");
+const { createOriginGuard, sanitizeRequest } = require("./middleware/requestSecurityMiddleware");
+const { errorHandler, notFound } = require("./middleware/errorMiddleware");
+
+const app = express();
+
+const resolvedClientUrl = String(process.env.CLIENT_URL || process.env.FRONTEND_URL || "http://localhost:3000").trim();
+const allowedOrigins = [resolvedClientUrl];
+const apiWindowMs = Math.max(Number.parseInt(process.env.RATE_LIMIT_WINDOW_MS || "900000", 10) || 900000, 60000);
+const apiMaxRequests = Math.max(Number.parseInt(process.env.RATE_LIMIT_MAX || "600", 10) || 600, 50);
+const authMaxRequests = Math.max(Number.parseInt(process.env.AUTH_RATE_LIMIT_MAX || "25", 10) || 25, 5);
+const paymentWindowMs = Math.max(Number.parseInt(process.env.PAYMENT_RATE_LIMIT_WINDOW_MS || String(apiWindowMs), 10), 60000);
+const paymentMaxRequests = Math.max(Number.parseInt(process.env.PAYMENT_RATE_LIMIT_MAX || "120", 10) || 120, 10);
+
+app.set("trust proxy", 1);
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+  })
+);
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true
+  })
+);
+app.use(createOriginGuard(allowedOrigins));
+app.use(
+  ["/api", "/api/v1"],
+  rateLimit({
+    windowMs: apiWindowMs,
+    max: apiMaxRequests,
+    skip: (req) =>
+      req.path.startsWith("/auth") ||
+      req.path.startsWith("/payment") ||
+      req.originalUrl.startsWith("/api/auth") ||
+      req.originalUrl.startsWith("/api/v1/auth") ||
+      req.originalUrl.startsWith("/api/payment") ||
+      req.originalUrl.startsWith("/api/v1/payment"),
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: "Too many requests. Please try again later." }
+  })
+);
+app.use(
+  ["/api/auth", "/api/v1/auth"],
+  rateLimit({
+    windowMs: apiWindowMs,
+    max: authMaxRequests,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: "Too many authentication attempts. Please try again later." }
+  })
+);
+app.use(
+  ["/api/payment", "/api/v1/payment"],
+  rateLimit({
+    windowMs: paymentWindowMs,
+    max: paymentMaxRequests,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: "Too many payment requests. Please try again later." }
+  })
+);
+
+app.use(express.json({ limit: "5mb" }));
+app.use(express.urlencoded({ extended: true }));
+app.use(
+  mongoSanitize({
+    replaceWith: "_"
+  })
+);
+app.use(sanitizeRequest);
+app.use(performanceLogger);
+
+if (process.env.NODE_ENV === "development" && process.env.DISABLE_MORGAN !== "true") {
+  app.use(morgan("dev"));
+}
+
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
+app.use("/api/v1", apiV1Router);
+app.use("/api", (req, res, next) => {
+  if (req.path === "/v1" || req.path.startsWith("/v1/")) {
+    next();
+    return;
+  }
+
+  apiV1Router(req, res, next);
+});
+
+app.use(notFound);
+app.use(errorHandler);
+
+module.exports = app;

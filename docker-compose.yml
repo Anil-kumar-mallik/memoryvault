@@ -1,0 +1,49 @@
+services:
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  server:
+    build:
+      context: ./server
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-5000}
+      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/memoryvault}
+      JWT_SECRET: ${JWT_SECRET:-replace_with_a_long_secure_secret}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      JWT_ISSUER: ${JWT_ISSUER:-memoryvault-api}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-memoryvault-client}
+      JWT_TREE_ACCESS_AUDIENCE: ${JWT_TREE_ACCESS_AUDIENCE:-memoryvault-tree-access}
+      TREE_ACCESS_TOKEN_TTL: ${TREE_ACCESS_TOKEN_TTL:-20m}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-5}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-600}
+      AUTH_RATE_LIMIT_MAX: ${AUTH_RATE_LIMIT_MAX:-25}
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./server/uploads:/app/uploads
+
+  client:
+    build:
+      context: ./client
+    restart: unless-stopped
+    depends_on:
+      - server
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000/api}
+      NEXT_PUBLIC_UPLOADS_URL: ${NEXT_PUBLIC_UPLOADS_URL:-http://localhost:5000}
+    ports:
+      - "3000:3000"
+
+volumes:
+  mongo_data:

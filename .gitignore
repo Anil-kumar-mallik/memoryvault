@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.*
+!.env.example
+!.env.local.example
+client/.next/
+client/out/
+server/uploads/*
+!server/uploads/.gitkeep
+.DS_Store
+Thumbs.db
