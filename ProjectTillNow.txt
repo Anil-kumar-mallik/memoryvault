@@ -3177,3 +3177,36 @@ Validation/build checks
 Pending tasks
 - Optional: address transitive deprecation warnings (`glob@7/9/10`, `rimraf@3`) when upstream toolchains upgrade.
 - Optional: review `npm audit` high-severity advisories before release hardening.
+
+[2026-03-02 | Hotfix | CSRF Invalid Origin Dynamic CORS Check]
+
+Completed modules
+1) Dynamic CORS origin check in app bootstrap
+- Updated `server/src/app.js` CORS origin logic to allow:
+  - `process.env.CLIENT_URL`
+  - `process.env.FRONTEND_URL`
+  - any origin ending with `.vercel.app`
+- Kept requests without `Origin` header allowed.
+
+2) Error message alignment
+- Updated rejected origin error message to:
+  - `CSRF invalid origin: <origin>`
+
+3) Security constraints preserved
+- CSRF origin guard middleware remains enabled.
+- Auth logic unchanged.
+
+File changes
+- Server
+  - `server/src/app.js`
+- Docs/Progress
+  - `ProjectTillNow.txt`
+
+Database schema state
+- No schema/index/model changes in this phase.
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+
+Pending tasks
+- Optional: if CSRF invalid-origin still appears for unsafe methods from preview URLs, extend origin guard matching for wildcard `.vercel.app` in request-security middleware as a follow-up.

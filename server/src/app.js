@@ -19,7 +19,10 @@ const app = express();
 
 const isProduction = String(process.env.NODE_ENV || "").toLowerCase() === "production";
 
-const allowedOrigins = [process.env.CLIENT_URL, process.env.FRONTEND_URL].filter(Boolean);
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  process.env.FRONTEND_URL
+].filter(Boolean);
 
 /* ===============================
    RATE LIMIT CONFIG
@@ -71,12 +74,12 @@ app.use(
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
 
-      const isVercelPreview = origin.endsWith(".vercel.app");
+      const isVercel = origin.endsWith(".vercel.app");
 
-      if (allowedOrigins.includes(origin) || isVercelPreview) {
+      if (allowedOrigins.includes(origin) || isVercel) {
         callback(null, true);
       } else {
-        callback(new Error(`Not allowed by CORS: ${origin}`));
+        callback(new Error(`CSRF invalid origin: ${origin}`));
       }
     },
     credentials: true
