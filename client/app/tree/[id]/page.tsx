@@ -5,6 +5,7 @@ import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import TreeCanvas from "@/components/TreeCanvas";
+import DateFieldGroup, { ImportantDateItem, ImportantDateType, createImportantDateRow } from "@/components/DateFieldGroup";
 import {
   clearTreeAccessPassword,
   clearTreeAccessToken,
@@ -70,15 +71,6 @@ type AddFormState = {
   addressCurrent: string;
 };
 
-type ImportantDateType = "" | "dob" | "anniversary" | "death" | "custom";
-
-type ImportantDateItem = {
-  id: string;
-  type: ImportantDateType;
-  value: string;
-  customLabel: string;
-};
-
 type DetailModalView = "edit" | "relations" | "delete";
 
 type ToastKind = "success" | "error" | "info";
@@ -99,14 +91,7 @@ const initialAddForm: AddFormState = {
   relationType: "son",
   gender: "",
   note: "",
-  importantDates: [
-    {
-      id: "date-row-1",
-      type: "",
-      value: "",
-      customLabel: ""
-    }
-  ],
+  importantDates: [createImportantDateRow(1)],
   education: "",
   qualification: "",
   designation: "",
@@ -229,15 +214,6 @@ function formatDate(value?: string | null): string {
   }
 
   return date.toLocaleDateString();
-}
-
-function createImportantDateRow(seed: number): ImportantDateItem {
-  return {
-    id: `date-row-${Date.now()}-${seed}`,
-    type: "",
-    value: "",
-    customLabel: ""
-  };
 }
 
 function mapImportantDatesToLegacyFields(entries: ImportantDateItem[]): {
@@ -483,6 +459,7 @@ export default function TreePage() {
   const [detailImageFile, setDetailImageFile] = useState<File | null>(null);
   const [savingDetail, setSavingDetail] = useState(false);
   const [deletingDetail, setDeletingDetail] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [detailModalView, setDetailModalView] = useState<DetailModalView>("edit");
   const [removingRelationKey, setRemovingRelationKey] = useState<string | null>(null);
   const [relationAction, setRelationAction] = useState<RelationMutationAction>("connect");
@@ -806,30 +783,6 @@ export default function TreePage() {
     setIsAddModalOpen(true);
   };
 
-  const addImportantDateRow = () => {
-    setAddForm((current) => ({
-      ...current,
-      importantDates: [...current.importantDates, createImportantDateRow(current.importantDates.length + 1)]
-    }));
-  };
-
-  const updateImportantDateRow = (rowId: string, patch: Partial<ImportantDateItem>) => {
-    setAddForm((current) => ({
-      ...current,
-      importantDates: current.importantDates.map((row) => (row.id === rowId ? { ...row, ...patch } : row))
-    }));
-  };
-
-  const removeImportantDateRow = (rowId: string) => {
-    setAddForm((current) => {
-      const nextRows = current.importantDates.filter((row) => row.id !== rowId);
-      return {
-        ...current,
-        importantDates: nextRows.length ? nextRows : [createImportantDateRow(1)]
-      };
-    });
-  };
-
   const submitAddMember = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -912,6 +865,7 @@ export default function TreePage() {
         setDetailBundle(null);
         setDetailImageFile(null);
         setDetailModalView("edit");
+        setEditMode(false);
         setRemovingRelationKey(null);
         setRelationAction("connect");
         setRelationType("spouse");
@@ -1391,55 +1345,10 @@ export default function TreePage() {
                 onChange={(event) => setAddForm((current) => ({ ...current, note: event.target.value }))}
               />
 
-              <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Important Dates</p>
-                {addForm.importantDates.map((row, index) => (
-                  <div key={row.id} className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_1fr_auto]">
-                    <select
-                      className="field"
-                      value={row.type}
-                      onChange={(event) => updateImportantDateRow(row.id, { type: event.target.value as ImportantDateType })}
-                    >
-                      <option value="">Select Date Type</option>
-                      <option value="dob">Date of Birth</option>
-                      <option value="anniversary">Anniversary</option>
-                      <option value="death">Date of Death</option>
-                      <option value="custom">Custom</option>
-                    </select>
-
-                    <input
-                      className="field"
-                      type="date"
-                      value={row.value}
-                      onChange={(event) => updateImportantDateRow(row.id, { value: event.target.value })}
-                      disabled={!row.type}
-                    />
-
-                    <button
-                      type="button"
-                      className="button-secondary"
-                      onClick={() => removeImportantDateRow(row.id)}
-                      disabled={addForm.importantDates.length === 1 && index === 0}
-                    >
-                      Remove
-                    </button>
-
-                    {row.type === "custom" && (
-                      <input
-                        className="field sm:col-span-3"
-                        type="text"
-                        placeholder="Custom label (e.g., Joined Army)"
-                        value={row.customLabel}
-                        onChange={(event) => updateImportantDateRow(row.id, { customLabel: event.target.value })}
-                      />
-                    )}
-                  </div>
-                ))}
-
-                <button type="button" className="button-secondary w-full" onClick={addImportantDateRow}>
-                  + Add Another Date
-                </button>
-              </div>
+              <DateFieldGroup
+                importantDates={addForm.importantDates}
+                onChange={(importantDates) => setAddForm((current) => ({ ...current, importantDates }))}
+              />
 
               <input
                 className="field"
@@ -1502,11 +1411,11 @@ export default function TreePage() {
 
       {isDetailModalOpen && (
         <div
-          className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-slate-900/65 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/65 p-4"
           onClick={() => setIsDetailModalOpen(false)}
         >
           <div
-            className="max-h-[85vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+            className="relative z-[60] max-h-[85vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="sticky top-0 z-20 -mx-6 -mt-6 mb-4 flex items-center justify-between border-b border-slate-200 bg-white/95 px-6 py-4 backdrop-blur">
@@ -1560,7 +1469,10 @@ export default function TreePage() {
                           ? "bg-brand-500 text-white"
                           : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                       }`}
-                      onClick={() => setDetailModalView("edit")}
+                      onClick={() => {
+                        setDetailModalView("edit");
+                        setEditMode(true);
+                      }}
                     >
                       Edit Member
                     </button>
@@ -1572,7 +1484,10 @@ export default function TreePage() {
                             ? "bg-brand-500 text-white"
                             : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                         }`}
-                        onClick={() => setDetailModalView("relations")}
+                        onClick={() => {
+                          setEditMode(false);
+                          setDetailModalView("relations");
+                        }}
                       >
                         Remove Relationship
                       </button>
@@ -1585,7 +1500,10 @@ export default function TreePage() {
                             ? "bg-red-600 text-white"
                             : "border border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
                         }`}
-                        onClick={() => setDetailModalView("delete")}
+                        onClick={() => {
+                          setEditMode(false);
+                          setDetailModalView("delete");
+                        }}
                       >
                         Delete Member
                       </button>
@@ -1669,73 +1587,89 @@ export default function TreePage() {
                         </div>
                       </div>
 
-                      <input
-                        className="field"
-                        value={detailName}
-                        onChange={(event) => setDetailName(event.target.value)}
-                        placeholder="Name"
-                        required
-                        disabled={!tree?.canEdit}
-                      />
+                      {editMode ? (
+                        <>
+                          <input
+                            className="field"
+                            value={detailName}
+                            onChange={(event) => setDetailName(event.target.value)}
+                            placeholder="Name"
+                            required
+                            disabled={!tree?.canEdit}
+                          />
 
-                      <textarea
-                        className="field min-h-24"
-                        value={detailNote}
-                        onChange={(event) => setDetailNote(event.target.value)}
-                        placeholder="Optional note"
-                        disabled={!tree?.canEdit}
-                      />
+                          <textarea
+                            className="field min-h-24"
+                            value={detailNote}
+                            onChange={(event) => setDetailNote(event.target.value)}
+                            placeholder="Optional note"
+                            disabled={!tree?.canEdit}
+                          />
 
-                      <input
-                        className="field"
-                        type="file"
-                        accept="image/*"
-                        onChange={(event) => setDetailImageFile(event.target.files?.[0] ?? null)}
-                        disabled={!tree?.canEdit}
-                      />
+                          <input
+                            className="field"
+                            type="file"
+                            accept="image/*"
+                            onChange={(event) => setDetailImageFile(event.target.files?.[0] ?? null)}
+                            disabled={!tree?.canEdit}
+                          />
 
-                      <div className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
-                        <p>
-                          <span className="font-semibold">{t("tree.father")}:</span>{" "}
-                          {detailBundle.relations.father ? detailBundle.relations.father.name : t("common.notAvailable")}
-                        </p>
-                        <p>
-                          <span className="font-semibold">{t("tree.mother")}:</span>{" "}
-                          {detailBundle.relations.mother ? detailBundle.relations.mother.name : t("common.notAvailable")}
-                        </p>
-                        <p>
-                          <span className="font-semibold">{t("tree.spouses")}:</span>{" "}
-                          {detailBundle.relations.spouses.map((member) => member.name).join(", ") || "None"}
-                          {detailBundle.relationMeta.spouses.total > detailBundle.relations.spouses.length
-                            ? ` (+${detailBundle.relationMeta.spouses.total - detailBundle.relations.spouses.length} more)`
-                            : ""}
-                        </p>
-                        <p>
-                          <span className="font-semibold">{t("tree.siblings")}:</span>{" "}
-                          {detailBundle.relations.siblings.map((member) => member.name).join(", ") || "None"}
-                          {detailBundle.relationMeta.siblings.total > detailBundle.relations.siblings.length
-                            ? ` (+${detailBundle.relationMeta.siblings.total - detailBundle.relations.siblings.length} more)`
-                            : ""}
-                        </p>
-                        <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                          <p className="text-xs text-slate-600">
-                            <span className="font-semibold text-slate-900">{t("tree.children")}:</span>{" "}
-                            {detailBundle.relationMeta.children.loaded}/{detailBundle.relationMeta.children.total}
-                            {detailBundle.relationMeta.children.hasMore ? " loaded" : ""}
-                          </p>
-                          <VirtualizedMemberList members={detailBundle.relations.children} />
+                          <div className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                            <p>
+                              <span className="font-semibold">{t("tree.father")}:</span>{" "}
+                              {detailBundle.relations.father ? detailBundle.relations.father.name : t("common.notAvailable")}
+                            </p>
+                            <p>
+                              <span className="font-semibold">{t("tree.mother")}:</span>{" "}
+                              {detailBundle.relations.mother ? detailBundle.relations.mother.name : t("common.notAvailable")}
+                            </p>
+                            <p>
+                              <span className="font-semibold">{t("tree.spouses")}:</span>{" "}
+                              {detailBundle.relations.spouses.map((member) => member.name).join(", ") || "None"}
+                              {detailBundle.relationMeta.spouses.total > detailBundle.relations.spouses.length
+                                ? ` (+${detailBundle.relationMeta.spouses.total - detailBundle.relations.spouses.length} more)`
+                                : ""}
+                            </p>
+                            <p>
+                              <span className="font-semibold">{t("tree.siblings")}:</span>{" "}
+                              {detailBundle.relations.siblings.map((member) => member.name).join(", ") || "None"}
+                              {detailBundle.relationMeta.siblings.total > detailBundle.relations.siblings.length
+                                ? ` (+${detailBundle.relationMeta.siblings.total - detailBundle.relations.siblings.length} more)`
+                                : ""}
+                            </p>
+                            <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                              <p className="text-xs text-slate-600">
+                                <span className="font-semibold text-slate-900">{t("tree.children")}:</span>{" "}
+                                {detailBundle.relationMeta.children.loaded}/{detailBundle.relationMeta.children.total}
+                                {detailBundle.relationMeta.children.hasMore ? " loaded" : ""}
+                              </p>
+                              <VirtualizedMemberList members={detailBundle.relations.children} />
+                            </div>
+                          </div>
+
+                          {tree?.canEdit ? (
+                            <button type="submit" className="button-primary w-full" disabled={savingDetail}>
+                              {savingDetail ? "Saving..." : "Update Member"}
+                            </button>
+                          ) : (
+                            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                              Read-only access. Only tree owner/admin can update members.
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <div className="rounded-lg border border-slate-200 bg-white p-3">
+                          {detailCanEdit ? (
+                            <button type="button" className="button-primary w-full" onClick={() => setEditMode(true)}>
+                              Edit Member
+                            </button>
+                          ) : (
+                            <p className="text-xs text-slate-600">
+                              Read-only access. Only tree owner/admin can update members.
+                            </p>
+                          )}
                         </div>
-                      </div>
-
-                    {tree?.canEdit ? (
-                      <button type="submit" className="button-primary w-full" disabled={savingDetail}>
-                        {savingDetail ? "Saving..." : "Update Member"}
-                      </button>
-                    ) : (
-                      <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                        Read-only access. Only tree owner/admin can update members.
-                      </p>
-                    )}
+                      )}
                     </form>
                   )}
 

@@ -3210,3 +3210,53 @@ Validation/build checks
 
 Pending tasks
 - Optional: if CSRF invalid-origin still appears for unsafe methods from preview URLs, extend origin guard matching for wildcard `.vercel.app` in request-security middleware as a follow-up.
+
+[2026-03-02 | UI Fix Patch | Tree Edit Fix + Dynamic Account Date System]
+
+Completed modules
+1) Tree person modal edit-mode fix (frontend only)
+- Added explicit edit state in tree person modal: `const [editMode, setEditMode] = useState(false)`.
+- Ensured edit action enables edit state and shows editable member form.
+- Added safe non-edit state view with a direct edit action (`onClick={() => setEditMode(true)}`).
+- Preserved existing relation/delete flows and tree engine behavior.
+
+2) Tree person modal layering/click safety
+- Updated detail modal overlay to `z-index: 50`.
+- Updated detail modal content to higher stacking level (`z-index: 60` equivalent via `z-[60]`).
+- Kept outside-click close behavior and `stopPropagation()` on content so overlay does not block modal interactions.
+
+3) Reusable dynamic date system component
+- Added shared `DateFieldGroup` component for reusable important-date rows.
+- Supports date-type dropdown, date picker, add another date, remove row, and custom labels.
+- Internal structure remains backward-compatible with existing frontend state model (`importantDates[]`).
+
+4) Account edit date system upgrade (frontend mapping only)
+- Replaced single DOB input in account edit modal with `DateFieldGroup`.
+- Added backward-compatible mapping:
+  - account `dateOfBirth` -> `importantDates` row with type `dob`.
+  - on save, selected `dob` row maps back to existing `dateOfBirth` API payload.
+- No account API route changes.
+
+5) Add Member date system reuse
+- Replaced inline Add Member date-row UI with shared `DateFieldGroup`.
+- Retained legacy payload mapping (`dateOfBirth`, `anniversaryDate`, `dateOfDeath`) and custom date note merge logic.
+- No API contract changes and no backend changes.
+
+File changes
+- Client
+  - `client/components/DateFieldGroup.tsx` (new)
+  - `client/app/account/page.tsx`
+  - `client/app/tree/[id]/page.tsx`
+- Docs/Progress
+  - `ProjectTillNow.txt`
+
+Database schema state
+- No database schema/index/model changes in this patch.
+- Backend APIs and persistence contracts unchanged.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+
+Pending tasks
+- Optional: if account should persist multiple date types beyond DOB, add backend fields/API support in a separate backend-safe phase.
+- Optional: add focused UI test coverage for tree modal edit-mode toggle and date-row interactions.

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { clearToken, getToken, setCurrentUser } from "@/lib/auth";
 import { deleteMyAccount, getMyAccount, updateMyAccount, updateMyPassword } from "@/lib/api";
 import { User } from "@/types";
+import DateFieldGroup, { ImportantDateItem, createImportantDateRow } from "@/components/DateFieldGroup";
 
 const toDateInputValue = (value?: string | null) => {
   if (!value) {
@@ -34,6 +35,21 @@ const toDisplayDate = (value?: string | null) => {
   return date.toLocaleDateString();
 };
 
+const mapDateOfBirthToImportantDates = (value?: string | null): ImportantDateItem[] => {
+  const row = createImportantDateRow(1);
+  const dateOfBirth = toDateInputValue(value);
+
+  if (dateOfBirth) {
+    row.type = "dob";
+    row.value = dateOfBirth;
+  }
+
+  return [row];
+};
+
+const mapImportantDatesToDateOfBirth = (rows: ImportantDateItem[]): string | null =>
+  rows.find((row) => row.type === "dob" && row.value)?.value || null;
+
 export default function AccountPage() {
   const router = useRouter();
   const uploadsBaseUrl = process.env.NEXT_PUBLIC_UPLOADS_URL ?? "http://localhost:5000";
@@ -44,7 +60,7 @@ export default function AccountPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const [name, setName] = useState("");
-  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [importantDates, setImportantDates] = useState<ImportantDateItem[]>([createImportantDateRow(1)]);
   const [education, setEducation] = useState("");
   const [qualification, setQualification] = useState("");
   const [designation, setDesignation] = useState("");
@@ -66,7 +82,7 @@ export default function AccountPage() {
   const syncAccountState = (payload: User) => {
     setAccount(payload);
     setName(payload.name || "");
-    setDateOfBirth(toDateInputValue(payload.dateOfBirth));
+    setImportantDates(mapDateOfBirthToImportantDates(payload.dateOfBirth));
     setEducation(payload.education || "");
     setQualification(payload.qualification || "");
     setDesignation(payload.designation || "");
@@ -120,12 +136,14 @@ export default function AccountPage() {
       return;
     }
 
+    const mappedDateOfBirth = mapImportantDatesToDateOfBirth(importantDates);
+
     try {
       setSavingProfile(true);
       const payload = await updateMyAccount(
         {
           name: nextName,
-          dateOfBirth: dateOfBirth || null,
+          dateOfBirth: mappedDateOfBirth,
           education: education.trim(),
           qualification: qualification.trim(),
           designation: designation.trim(),
@@ -383,13 +401,7 @@ export default function AccountPage() {
                 onChange={(event) => setName(event.target.value)}
                 required
               />
-              <input
-                className="field"
-                type="date"
-                placeholder="Date of birth"
-                value={dateOfBirth}
-                onChange={(event) => setDateOfBirth(event.target.value)}
-              />
+              <DateFieldGroup importantDates={importantDates} onChange={setImportantDates} />
               <input
                 className="field"
                 type="text"
