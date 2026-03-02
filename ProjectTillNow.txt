@@ -2970,3 +2970,35 @@ Validation/build checks
 Pending tasks
 - Set `VERCEL_PREVIEW_URL` in deployment env when using preview frontend URLs.
 - Ensure all production frontend origins are listed in env variables to avoid CSRF origin rejects.
+
+[2026-03-02 | Phase Update | CORS VERCEL SUPPORT TUNING]
+- Scope followed: minimal CORS configuration adjustment in `app.js`; CSRF protection middleware kept enabled.
+
+Completed modules
+1) CORS dynamic origin matching for Vercel
+- Updated CORS origin function to:
+  - allow requests with no `Origin` header,
+  - allow exact matches from `CLIENT_URL` and `FRONTEND_URL`,
+  - allow Vercel preview domains via `origin.endsWith(".vercel.app")`.
+- Rejected origins now return explicit error text: `Not allowed by CORS: <origin>`.
+
+2) Duplicate middleware check
+- Confirmed single CORS middleware remains active.
+
+3) CSRF protection retained
+- Origin guard middleware (`createOriginGuard`) remains in place and unchanged in routing order.
+
+File changes
+- Server
+  - `server/src/app.js`
+- Docs/Progress
+  - `ProjectTillNow.txt`
+
+Database schema state
+- No schema/index/model changes in this phase.
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+
+Pending tasks
+- If additional non-`.vercel.app` frontend origins are needed, add them to `CLIENT_URL`/`FRONTEND_URL`.

@@ -10,7 +10,6 @@ const apiV1Router = require("./routes/apiV1");
 const { performanceLogger } = require("./middleware/performanceLoggingMiddleware");
 const { createOriginGuard, sanitizeRequest } = require("./middleware/requestSecurityMiddleware");
 const { errorHandler, notFound } = require("./middleware/errorMiddleware");
-const logger = require("./utils/logger");
 
 const app = express();
 
@@ -20,36 +19,7 @@ const app = express();
 
 const isProduction = String(process.env.NODE_ENV || "").toLowerCase() === "production";
 
-const normalizeOrigin = (value) => {
-  const raw = String(value || "").trim();
-  if (!raw) {
-    return "";
-  }
-
-  try {
-    return new URL(raw).origin;
-  } catch (_error) {
-    try {
-      return new URL(`https://${raw}`).origin;
-    } catch (_innerError) {
-      return raw.replace(/\/+$/, "");
-    }
-  }
-};
-
-const splitOrigins = (value) =>
-  String(value || "")
-    .split(",")
-    .map((item) => normalizeOrigin(item))
-    .filter(Boolean);
-
-const allowedOrigins = Array.from(
-  new Set([
-    ...splitOrigins(process.env.CLIENT_URL),
-    ...splitOrigins(process.env.FRONTEND_URL),
-    ...splitOrigins(process.env.VERCEL_PREVIEW_URL)
-  ])
-);
+const allowedOrigins = [process.env.CLIENT_URL, process.env.FRONTEND_URL].filter(Boolean);
 
 /* ===============================
    RATE LIMIT CONFIG
@@ -99,28 +69,15 @@ app.use(
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!isProduction) {
-        callback(null, true);
-        return;
-      }
+      if (!origin) return callback(null, true);
 
-      if (!origin) {
-        callback(null, true);
-        return;
-      }
+      const isVercelPreview = origin.endsWith(".vercel.app");
 
-      const normalizedOrigin = normalizeOrigin(origin);
-      if (allowedOrigins.includes(normalizedOrigin)) {
+      if (allowedOrigins.includes(origin) || isVercelPreview) {
         callback(null, true);
-        return;
+      } else {
+        callback(new Error(`Not allowed by CORS: ${origin}`));
       }
-
-      logger.warn("Rejected origin by CORS", {
-        originHeader: origin,
-        normalizedOrigin,
-        allowedOrigins
-      });
-      callback(new Error("Not allowed by CORS"));
     },
     credentials: true
   })
