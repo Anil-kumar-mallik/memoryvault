@@ -3260,3 +3260,43 @@ Validation/build checks
 Pending tasks
 - Optional: if account should persist multiple date types beyond DOB, add backend fields/API support in a separate backend-safe phase.
 - Optional: add focused UI test coverage for tree modal edit-mode toggle and date-row interactions.
+
+[Tree Edit Button Fix Patch]
+
+Completed modules
+1) Tree detail modal state fix (frontend only)
+- Added `selectedPerson` state in tree page modal flow:
+  - `const [selectedPerson, setSelectedPerson] = useState<Member | null>(null);`
+- Kept and used existing `editMode` state:
+  - `const [editMode, setEditMode] = useState(false);`
+- Set selected person on modal open and updated it after successful member save.
+
+2) Edit action and edit-mode rendering stabilization
+- Ensured Edit action inside detail view explicitly enables edit mode:
+  - `onClick={() => setEditMode(true)}`
+- Preserved edit-mode conditional rendering (`editMode ? ... : ...`) so edit form replaces details view.
+- After successful save, edit mode is reset with `setEditMode(false)`.
+
+3) Modal close behavior safety
+- Added centralized `closeDetailModal()` to keep close behavior consistent.
+- Ensured clicking Edit does not close modal.
+- Overlay click closes modal; content click keeps `stopPropagation()` behavior.
+- Preserved modal layering:
+  - overlay `z-50`
+  - modal content `z-[60]`
+
+File changes
+- Client
+  - `client/app/tree/[id]/page.tsx`
+- Docs/Progress
+  - `ProjectTillNow.txt`
+
+Database schema state
+- No database schema/index/model changes in this patch.
+- No backend or API route changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+
+Pending tasks
+- Optional: add a small frontend interaction test for detail modal edit toggle and close behavior.

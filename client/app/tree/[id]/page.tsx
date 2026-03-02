@@ -452,6 +452,7 @@ export default function TreePage() {
   const [submittingAdd, setSubmittingAdd] = useState(false);
 
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState<Member | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailBundle, setDetailBundle] = useState<MemberWithRelationsResponse | null>(null);
   const [detailName, setDetailName] = useState("");
@@ -860,6 +861,7 @@ export default function TreePage() {
   const openDetailModal = useCallback(
     async (member: Member) => {
       try {
+        setSelectedPerson(member);
         setIsDetailModalOpen(true);
         setLoadingDetail(true);
         setDetailBundle(null);
@@ -881,6 +883,7 @@ export default function TreePage() {
           siblingLimit: 80
         });
         setDetailBundle(payload);
+        setSelectedPerson(payload.focus);
         setDetailName(payload.focus.name);
         setDetailNote(payload.focus.note || "");
         setError(null);
@@ -895,6 +898,13 @@ export default function TreePage() {
     },
     [isMemberNotFoundError, showToast, treeId]
   );
+
+  const closeDetailModal = useCallback(() => {
+    setIsDetailModalOpen(false);
+    setEditMode(false);
+    setDetailModalView("edit");
+    setSelectedPerson(null);
+  }, []);
 
   const saveMemberDetails = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -921,9 +931,11 @@ export default function TreePage() {
       );
 
       setDetailBundle(response);
+      setSelectedPerson(response.focus);
       setDetailImageFile(null);
       setDetailName(response.focus.name);
       setDetailNote(response.focus.note || "");
+      setEditMode(false);
 
       if (focusId) {
         await loadFocusBundle(focusId);
@@ -1063,6 +1075,7 @@ export default function TreePage() {
       });
 
       setIsDetailModalOpen(false);
+      setSelectedPerson(null);
       setDetailBundle(null);
       setDetailImageFile(null);
 
@@ -1409,10 +1422,10 @@ export default function TreePage() {
         </div>
       )}
 
-      {isDetailModalOpen && (
+      {isDetailModalOpen && selectedPerson && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/65 p-4"
-          onClick={() => setIsDetailModalOpen(false)}
+          onClick={closeDetailModal}
         >
           <div
             className="relative z-[60] max-h-[85vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
@@ -1420,7 +1433,7 @@ export default function TreePage() {
           >
             <div className="sticky top-0 z-20 -mx-6 -mt-6 mb-4 flex items-center justify-between border-b border-slate-200 bg-white/95 px-6 py-4 backdrop-blur">
               <h2 className="text-xl font-semibold text-slate-900">Member Details</h2>
-              <button type="button" className="button-secondary" onClick={() => setIsDetailModalOpen(false)}>
+              <button type="button" className="button-secondary" onClick={closeDetailModal}>
                 Close
               </button>
             </div>
@@ -1451,7 +1464,7 @@ export default function TreePage() {
                     className="button-secondary w-full"
                     onClick={() => {
                       setFocusId(detailBundle.focus._id);
-                      setIsDetailModalOpen(false);
+                      closeDetailModal();
                     }}
                   >
                     Set As Focus
@@ -1661,7 +1674,7 @@ export default function TreePage() {
                         <div className="rounded-lg border border-slate-200 bg-white p-3">
                           {detailCanEdit ? (
                             <button type="button" className="button-primary w-full" onClick={() => setEditMode(true)}>
-                              Edit Member
+                              Edit
                             </button>
                           ) : (
                             <p className="text-xs text-slate-600">
