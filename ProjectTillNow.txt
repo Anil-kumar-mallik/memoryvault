@@ -3439,3 +3439,67 @@ Validation/build checks
 
 Pending tasks
 - Optional: add component-level UI tests for `PersonModal` view/edit transitions and close propagation behavior.
+
+[Phase 2 Complete | Unified Important Date System]
+
+Completed modules
+1) DateFieldGroup upgrade (frontend)
+- Updated `client/components/DateFieldGroup.tsx` to support unified date-row UX with:
+  - type dropdown (`dob`, `anniversary`, `death`, `custom`)
+  - custom label input when type is `custom`
+  - add/remove multiple entries
+  - automatic ascending date sort after add/update/remove
+- Improved layout into a clean grid:
+  - left: label/type controls
+  - middle: date picker
+  - right: remove action
+- Added bottom action button:
+  - `Add Date`
+
+2) Backward-compatible important date model handling
+- Extended `ImportantDateItem` to include `label` while preserving optional `customLabel` for compatibility.
+- Kept legacy date field support intact; no API contract changes.
+
+3) Account page integration (frontend-only)
+- Account edit flow continues using `importantDates` state via `DateFieldGroup`.
+- Save mapping remains backward-compatible:
+  - `dob` -> `dateOfBirth`
+  - non-DOB entries are currently ignored for backend payload (future-ready behavior).
+
+4) Add Member modal integration (frontend-only)
+- Add Member form continues to use `DateFieldGroup` instead of individual date inputs.
+- Submit mapping preserved:
+  - `dob` -> `dateOfBirth`
+  - `anniversary` -> `anniversaryDate`
+  - `death` -> `dateOfDeath`
+- Updated mapper to support both `label` and legacy `customLabel` fields safely.
+
+5) Tree person display upgrade (PersonModal)
+- Updated `client/components/PersonModal.tsx` to normalize and sort important dates in view details.
+- Added Important Dates section rendering for:
+  - Date of Birth
+  - Anniversary
+  - Date of Death
+  - Custom Dates (sorted ascending)
+- Kept existing member rendering backward-compatible:
+  - supports legacy member fields (`dateOfBirth`, `anniversaryDate`, `dateOfDeath`, `birthDate`, `deathDate`)
+  - safely reads optional `importantDates` array and `importantNotes` custom date lines when available.
+
+File changes
+- Client
+  - `client/components/DateFieldGroup.tsx`
+  - `client/components/PersonModal.tsx`
+  - `client/app/tree/[id]/page.tsx`
+- Docs/Progress
+  - `ProjectTillNow.txt`
+
+Database schema state
+- No DB schema/index/model changes.
+- No backend/API route changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- `cd client && npm run lint` -> passed.
+
+Pending tasks
+- Optional: add UI tests for sorted important-date rows and custom-date rendering in `PersonModal`.

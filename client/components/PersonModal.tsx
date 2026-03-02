@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n/provider";
 import {
   Member,
@@ -32,6 +32,78 @@ function formatDate(value?: string | null): string {
   }
 
   return date.toLocaleDateString();
+}
+
+type NormalizedImportantDate = {
+  type: "dob" | "anniversary" | "death" | "custom";
+  label?: string;
+  value: string;
+  sortTime: number;
+};
+
+function normalizeImportantDates(member: Member): NormalizedImportantDate[] {
+  const rows: NormalizedImportantDate[] = [];
+  const addRow = (type: NormalizedImportantDate["type"], value: string | null | undefined, label?: string) => {
+    if (!value) {
+      return;
+    }
+
+    const parsed = new Date(value).getTime();
+    rows.push({
+      type,
+      value,
+      label,
+      sortTime: Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed
+    });
+  };
+
+  addRow("dob", member.dateOfBirth || member.birthDate || null);
+  addRow("anniversary", member.anniversaryDate || null);
+  addRow("death", member.dateOfDeath || member.deathDate || null);
+
+  const memberWithExtra = member as Member & {
+    importantDates?: Array<{ type?: string; value?: string; label?: string }>;
+  };
+  if (Array.isArray(memberWithExtra.importantDates)) {
+    for (const entry of memberWithExtra.importantDates) {
+      if (!entry?.type || !entry?.value) {
+        continue;
+      }
+
+      if (entry.type === "dob" || entry.type === "anniversary" || entry.type === "death") {
+        addRow(entry.type, entry.value, entry.label);
+      } else if (entry.type === "custom") {
+        addRow("custom", entry.value, entry.label || "Custom");
+      }
+    }
+  }
+
+  if (member.importantNotes) {
+    const lines = member.importantNotes.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const markerIndex = lines.findIndex((line) => line.toLowerCase().startsWith("important dates"));
+    const customLines = markerIndex >= 0 ? lines.slice(markerIndex + 1) : [];
+    for (const line of customLines) {
+      const splitIndex = line.indexOf(":");
+      if (splitIndex <= 0) {
+        continue;
+      }
+      const label = line.slice(0, splitIndex).trim() || "Custom";
+      const value = line.slice(splitIndex + 1).trim();
+      addRow("custom", value, label);
+    }
+  }
+
+  const seen = new Set<string>();
+  const deduped = rows.filter((row) => {
+    const key = `${row.type}|${row.label || ""}|${row.value}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+
+  return deduped.sort((left, right) => left.sortTime - right.sortTime);
 }
 
 function VirtualizedMemberList({ members }: { members: Member[] }) {
@@ -175,6 +247,15 @@ export default function PersonModal(props: PersonModalProps) {
     }
   };
 
+  const normalizedImportantDates = useMemo(
+    () => (detailBundle ? normalizeImportantDates(detailBundle.focus) : []),
+    [detailBundle]
+  );
+  const dateOfBirthEntry = normalizedImportantDates.find((item) => item.type === "dob");
+  const anniversaryEntry = normalizedImportantDates.find((item) => item.type === "anniversary");
+  const deathEntry = normalizedImportantDates.find((item) => item.type === "death");
+  const customDateEntries = normalizedImportantDates.filter((item) => item.type === "custom");
+
   return (
     <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center" onClick={onClose}>
       <div
@@ -312,16 +393,28 @@ export default function PersonModal(props: PersonModalProps) {
                         <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
                           <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Important Dates</h4>
                           <p>
-                            <span className="font-semibold">Date of Birth:</span>{" "}
-                            {formatDate(detailBundle.focus.dateOfBirth || detailBundle.focus.birthDate)}
+                            <span className="font-semibold">Date of Birth:</span> {dateOfBirthEntry ? formatDate(dateOfBirthEntry.value) : "-"}
                           </p>
                           <p>
-                            <span className="font-semibold">Anniversary:</span> {formatDate(detailBundle.focus.anniversaryDate)}
+                            <span className="font-semibold">Anniversary:</span> {anniversaryEntry ? formatDate(anniversaryEntry.value) : "-"}
                           </p>
                           <p>
-                            <span className="font-semibold">Date of Death:</span>{" "}
-                            {formatDate(detailBundle.focus.dateOfDeath || detailBundle.focus.deathDate)}
+                            <span className="font-semibold">Date of Death:</span> {deathEntry ? formatDate(deathEntry.value) : "-"}
                           </p>
+                          <div>
+                            <span className="font-semibold">Custom Dates:</span>
+                            {customDateEntries.length ? (
+                              <div className="mt-1 space-y-1">
+                                {customDateEntries.map((entry, index) => (
+                                  <p key={`${entry.label || "custom"}-${entry.value}-${index}`}>
+                                    {(entry.label || "Custom").trim()}: {formatDate(entry.value)}
+                                  </p>
+                                ))}
+                              </div>
+                            ) : (
+                              <span> -</span>
+                            )}
+                          </div>
                         </div>
 
                         <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">

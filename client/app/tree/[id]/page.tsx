@@ -213,7 +213,7 @@ function mapImportantDatesToLegacyFields(entries: ImportantDateItem[]): {
     .map((entry) => ({
       type: entry.type,
       value: entry.value,
-      label: entry.customLabel.trim()
+      label: (entry.label || entry.customLabel || "").trim()
     }));
 
   const getFirstByType = (type: ImportantDateType) => normalized.find((entry) => entry.type === type)?.value || null;
