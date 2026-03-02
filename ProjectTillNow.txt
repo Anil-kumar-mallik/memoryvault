@@ -3143,3 +3143,37 @@ Validation/build checks
 Pending tasks
 - Optional UX refinement: expose custom date labels in member details card if backend persistence for custom date metadata is introduced later.
 - Optional i18n pass for newly added UI strings in date-type labels and section headers.
+
+[2026-03-02 | Dependency Maintenance | Frontend Dev Dependencies Updated]
+
+Completed modules
+1) Frontend dev-dependency maintenance (client only)
+- Verified `eslint` is already at latest Next.js 14-compatible major/minor (`^8.57.1`) per `eslint-config-next@14.x` peer range.
+- Added/updated dev tools in `client/package.json`:
+  - `rimraf` -> `^4.4.1`
+  - `glob` -> `^13.0.6`
+- Confirmed no direct `@humanwhocodes/*` entries exist in project dependencies.
+
+2) Install + lockfile refresh
+- Ran `npm install` in `client` to update lockfile and resolve new dev dependencies.
+
+3) Build verification
+- Ran `npm run build` in `client` and confirmed successful production build.
+
+File changes
+- Client
+  - `client/package.json`
+  - `client/package-lock.json`
+- Docs/Progress
+  - `ProjectTillNow.txt`
+
+Database schema state
+- No database schema changes in this phase.
+
+Validation/build checks
+- `cd client && npm install` -> passed.
+- `cd client && npm run build` -> passed.
+
+Pending tasks
+- Optional: address transitive deprecation warnings (`glob@7/9/10`, `rimraf@3`) when upstream toolchains upgrade.
+- Optional: review `npm audit` high-severity advisories before release hardening.
