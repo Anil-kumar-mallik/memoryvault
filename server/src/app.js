@@ -10,6 +10,7 @@ const apiV1Router = require("./routes/apiV1");
 const { performanceLogger } = require("./middleware/performanceLoggingMiddleware");
 const { createOriginGuard, sanitizeRequest } = require("./middleware/requestSecurityMiddleware");
 const { errorHandler, notFound } = require("./middleware/errorMiddleware");
+const logger = require("./utils/logger");
 
 const app = express();
 
@@ -17,13 +18,38 @@ const app = express();
    ENV + ORIGIN CONFIG
 ================================= */
 
-const rawOrigins = [
-  process.env.CLIENT_URL,
-  process.env.FRONTEND_URL,
-  "http://localhost:3000"
-].filter(Boolean);
+const isProduction = String(process.env.NODE_ENV || "").toLowerCase() === "production";
 
-const allowedOrigins = rawOrigins.map((o) => String(o).trim());
+const normalizeOrigin = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+
+  try {
+    return new URL(raw).origin;
+  } catch (_error) {
+    try {
+      return new URL(`https://${raw}`).origin;
+    } catch (_innerError) {
+      return raw.replace(/\/+$/, "");
+    }
+  }
+};
+
+const splitOrigins = (value) =>
+  String(value || "")
+    .split(",")
+    .map((item) => normalizeOrigin(item))
+    .filter(Boolean);
+
+const allowedOrigins = Array.from(
+  new Set([
+    ...splitOrigins(process.env.CLIENT_URL),
+    ...splitOrigins(process.env.FRONTEND_URL),
+    ...splitOrigins(process.env.VERCEL_PREVIEW_URL)
+  ])
+);
 
 /* ===============================
    RATE LIMIT CONFIG
@@ -73,22 +99,34 @@ app.use(
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
-
-      if (
-        allowedOrigins.includes(origin) ||
-        origin.endsWith(".vercel.app")
-      ) {
-        return callback(null, true);
+      if (!isProduction) {
+        callback(null, true);
+        return;
       }
 
-      return callback(new Error("Not allowed by CORS"));
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      const normalizedOrigin = normalizeOrigin(origin);
+      if (allowedOrigins.includes(normalizedOrigin)) {
+        callback(null, true);
+        return;
+      }
+
+      logger.warn("Rejected origin by CORS", {
+        originHeader: origin,
+        normalizedOrigin,
+        allowedOrigins
+      });
+      callback(new Error("Not allowed by CORS"));
     },
     credentials: true
   })
 );
 
-app.use(createOriginGuard(allowedOrigins));
+app.use(createOriginGuard({ allowedOrigins, isProduction }));
 
 /* ===============================
    RATE LIMITERS

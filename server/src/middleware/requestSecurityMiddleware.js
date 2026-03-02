@@ -1,4 +1,5 @@
 const sanitizeHtml = require("xss");
+const logger = require("../utils/logger");
 
 const FORBIDDEN_KEY_PATTERN = /^\$|\.|\u0000/;
 const SENSITIVE_FIELDS = new Set(["password", "treePassword", "token"]);
@@ -57,10 +58,32 @@ const sanitizeRequest = (req, _res, next) => {
   next();
 };
 
-const createOriginGuard = (allowedOrigins) => {
-  const allowed = new Set((allowedOrigins || []).filter(Boolean));
+const normalizeOrigin = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+
+  try {
+    return new URL(raw).origin;
+  } catch (_error) {
+    try {
+      return new URL(`https://${raw}`).origin;
+    } catch (_innerError) {
+      return raw.replace(/\/+$/, "");
+    }
+  }
+};
+
+const createOriginGuard = ({ allowedOrigins = [], isProduction = false } = {}) => {
+  const allowed = new Set((allowedOrigins || []).map((entry) => normalizeOrigin(entry)).filter(Boolean));
 
   return (req, res, next) => {
+    if (!isProduction) {
+      next();
+      return;
+    }
+
     if (SAFE_METHODS.has(req.method.toUpperCase())) {
       next();
       return;
@@ -69,19 +92,29 @@ const createOriginGuard = (allowedOrigins) => {
     const originHeader = req.headers.origin;
     const refererHeader = req.headers.referer;
 
-    if (originHeader && !allowed.has(originHeader)) {
+    const normalizedOrigin = normalizeOrigin(originHeader);
+    if (originHeader && !allowed.has(normalizedOrigin)) {
+      logger.warn("Rejected origin by CSRF guard", {
+        originHeader,
+        normalizedOrigin,
+        refererHeader: refererHeader || null,
+        method: req.method,
+        path: req.originalUrl
+      });
       res.status(403).json({ message: "CSRF protection blocked this request (invalid origin)." });
       return;
     }
 
     if (!originHeader && refererHeader) {
-      try {
-        const refererOrigin = new URL(refererHeader).origin;
-        if (!allowed.has(refererOrigin)) {
-          res.status(403).json({ message: "CSRF protection blocked this request (invalid referer)." });
-          return;
-        }
-      } catch (_error) {
+      const refererOrigin = normalizeOrigin(refererHeader);
+      if (!refererOrigin || !allowed.has(refererOrigin)) {
+        logger.warn("Rejected referer by CSRF guard", {
+          originHeader: originHeader || null,
+          refererHeader,
+          refererOrigin: refererOrigin || null,
+          method: req.method,
+          path: req.originalUrl
+        });
         res.status(403).json({ message: "CSRF protection blocked this request (invalid referer)." });
         return;
       }

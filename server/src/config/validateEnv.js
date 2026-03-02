@@ -6,6 +6,13 @@ const requireEnv = (key) => {
   }
 };
 
+const requireAtLeastOneEnv = (keys) => {
+  const hasAny = keys.some((key) => !isBlank(process.env[key]));
+  if (!hasAny) {
+    throw new Error(`At least one environment variable is required: ${keys.join(", ")}.`);
+  }
+};
+
 const validateEnv = () => {
   requireEnv("MONGO_URI");
   requireEnv("JWT_SECRET");
@@ -18,7 +25,7 @@ const validateEnv = () => {
   }
 
   if (String(process.env.NODE_ENV || "").toLowerCase() === "production") {
-    requireEnv("CLIENT_URL");
+    requireAtLeastOneEnv(["CLIENT_URL", "FRONTEND_URL", "VERCEL_PREVIEW_URL"]);
   }
 };
 

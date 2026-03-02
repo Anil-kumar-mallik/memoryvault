@@ -2920,3 +2920,53 @@ Validation/build checks
 Pending tasks
 - Set valid production `RESEND_API_KEY` in deployed server environment.
 - Optional cleanup: remove unused SMTP keys from runtime env if no longer needed.
+
+[2026-03-02 | Phase Update | CSRF INVALID ORIGIN FIX]
+- Scope followed: origin matching updates only for CORS + CSRF; CSRF protection retained.
+
+Completed modules
+1) Multi-origin support from env
+- Added origin parsing support for:
+  - `CLIENT_URL`
+  - `FRONTEND_URL`
+  - `VERCEL_PREVIEW_URL`
+- Supports comma-separated origin lists and normalizes origin values.
+
+2) Environment-based enforcement
+- Production (`NODE_ENV=production`): allows only configured origins.
+- Non-production (`NODE_ENV!=production`): allows all origins for CORS and CSRF origin guard.
+
+3) CORS/CSRF matching alignment
+- Unified normalized origin matching so CORS and CSRF checks use consistent logic.
+- Prevents mismatches that previously caused valid frontend requests to fail CSRF origin check.
+
+4) Rejection logging improvement
+- Added warning logs for rejected CORS origins (includes rejected `Origin` header).
+- Added warning logs for rejected CSRF `Origin`/`Referer` checks (includes rejected header values, method, path).
+
+5) Production env validation refinement
+- In production, startup now requires at least one frontend origin variable to be set:
+  - `CLIENT_URL` or `FRONTEND_URL` or `VERCEL_PREVIEW_URL`
+
+File changes
+- Server
+  - `server/src/app.js`
+  - `server/src/middleware/requestSecurityMiddleware.js`
+  - `server/src/config/validateEnv.js`
+- Environment template
+  - `.env.example` (added `VERCEL_PREVIEW_URL`)
+- Docs/Progress
+  - `ProjectTillNow.txt`
+
+Database schema state
+- No schema/index/model changes in this phase.
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+- Runtime middleware smoke test:
+  - production mode rejects invalid origin with 403 and logs origin header.
+  - non-production mode allows same request.
+
+Pending tasks
+- Set `VERCEL_PREVIEW_URL` in deployment env when using preview frontend URLs.
+- Ensure all production frontend origins are listed in env variables to avoid CSRF origin rejects.
