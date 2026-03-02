@@ -2789,3 +2789,29 @@ Validation/build checks
 Pending tasks
 - Temporary debug route should be removed or access-restricted after SMTP troubleshooting is complete.
 - Optional: replace fixed debug recipient with env-configurable value once debugging phase ends.
+
+[2026-03-02 | Phase Update | ROOT HEALTH ROUTE]
+- Scope followed: added only requested root route; no other logic modified.
+
+Completed modules
+1) Root API status route in Express app
+- Added `GET /` route before 404 middleware.
+- Response payload:
+  - `status: "MemoryVault API running"`
+  - `version: "v1"`
+  - `health: "/api/v1/health"`
+
+File changes
+- Server
+  - `server/src/app.js`
+- Docs/Progress
+  - `ProjectTillNow.txt`
+
+Database schema state
+- No schema/index/model changes in this phase.
+
+Validation/build checks
+- `cd server && npm run build` -> passed (`check-syntax` success).
+
+Pending tasks
+- None for this requested change.

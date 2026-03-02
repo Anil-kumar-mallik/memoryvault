@@ -178,6 +178,14 @@ app.use("/api", (req, res, next) => {
   apiV1Router(req, res, next);
 });
 
+app.get("/", (_req, res) => {
+  res.status(200).json({
+    status: "MemoryVault API running",
+    version: "v1",
+    health: "/api/v1/health"
+  });
+});
+
 /* ===============================
    ERROR HANDLING
 ================================= */
