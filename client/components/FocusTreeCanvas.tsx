@@ -201,6 +201,36 @@ function clipName(name: string): string {
   return `${name.slice(0, 17)}...`;
 }
 
+function relationSubtitle(node: VisualNode): string {
+  switch (node.group) {
+    case "father":
+      return "(Father)";
+    case "mother":
+      return "(Mother)";
+    case "spouse":
+      return "(Spouse)";
+    case "child":
+      if (node.member.gender === "male") {
+        return "(Son)";
+      }
+      if (node.member.gender === "female") {
+        return "(Daughter)";
+      }
+      return "(Child)";
+    case "sibling":
+      if (node.member.gender === "male") {
+        return "(Brother)";
+      }
+      if (node.member.gender === "female") {
+        return "(Sister)";
+      }
+      return "(Sibling)";
+    case "focus":
+    default:
+      return "(Self)";
+  }
+}
+
 function nodeRadius(group: RelationGroup): number {
   return group === "focus" ? 50 : 38;
 }
@@ -632,6 +662,16 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
       .attr("fill", "#0f172a")
       .text((item) => clipName(item.member.name));
 
+    nodeEnter
+      .append("text")
+      .attr("class", "mv-node-relation")
+      .attr("text-anchor", "middle")
+      .attr("dy", 88)
+      .attr("font-size", 11)
+      .attr("font-weight", 500)
+      .attr("fill", "#64748b")
+      .text((item) => relationSubtitle(item));
+
     const infoBadge = nodeEnter
       .append("g")
       .attr("class", "mv-node-info")
@@ -680,6 +720,10 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
     mergedNodes
       .select("text.mv-node-name")
       .text((item) => clipName(item.member.name));
+
+    mergedNodes
+      .select("text.mv-node-relation")
+      .text((item) => relationSubtitle(item));
 
     mergedNodes
       .select("g.mv-node-info")

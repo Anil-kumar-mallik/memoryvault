@@ -3074,3 +3074,72 @@ Validation/build checks
 Pending tasks
 - Optional: if old verification emails are still circulating, keep `/verify-email` frontend page message as-is or redirect to `/login` later.
 - Optional: backfill profile/member extended fields from legacy sources if needed.
+
+[2026-03-02 | UI Enhancement Phase 2 | Profile Cleanup + Dynamic Date System + Tree Biographical Layout]
+
+Completed modules
+1) Profile page UI cleanup (frontend-only)
+- Replaced old inline profile edit section with a clean profile card layout.
+- Removed Role display from profile UI (backend role data unchanged).
+- Added top-right `Edit Profile` action on profile card.
+- Implemented centered Edit Profile modal:
+  - max width ~700px
+  - mobile responsive
+  - scrollable content
+  - overlay click closes modal
+
+2) Dynamic important-date selector in Add Member modal
+- Replaced fixed DOB/Anniversary inputs with dynamic date-row system.
+- Added per-row controls:
+  - Date Type dropdown (`Date of Birth`, `Anniversary`, `Date of Death`, `Custom`)
+  - Date picker
+  - Remove button
+- Added `+ Add Another Date` row action.
+- Introduced internal `importantDates[]` state model and mapped back to existing payload fields:
+  - `dateOfBirth`
+  - `anniversaryDate`
+  - `dateOfDeath`
+- Preserved backward compatibility with existing API fields and form submission flow.
+
+3) Tree person modal behavior fixes
+- Updated person detail modal UX:
+  - centered modal panel
+  - max-height `85vh`
+  - internal `overflow-y-auto`
+  - sticky top close/header row
+  - dark semi-transparent overlay
+  - click outside to close
+  - improved mobile scrolling behavior
+
+4) Biographical style member layout
+- In member details view, added structured biographical card with section dividers:
+  - Profile image
+  - Name + relation label
+  - Personal Information
+  - Important Dates
+  - Address
+  - Professional Information
+- Kept existing relation management and delete workflows unchanged.
+
+5) Relation subtitle under tree node names
+- Added relation subtitle under each tree node name in canvas rendering.
+- Visual-only enhancement; no relationship logic changes.
+
+File changes
+- Client
+  - `client/app/account/page.tsx`
+  - `client/app/tree/[id]/page.tsx`
+  - `client/components/FocusTreeCanvas.tsx`
+- Docs/Progress
+  - `ProjectTillNow.txt`
+
+Database schema state
+- No database schema changes in this phase.
+- No backend/API route changes in this phase.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+
+Pending tasks
+- Optional UX refinement: expose custom date labels in member details card if backend persistence for custom date metadata is introduced later.
+- Optional i18n pass for newly added UI strings in date-type labels and section headers.

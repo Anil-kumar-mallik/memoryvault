@@ -62,13 +62,21 @@ type AddFormState = {
   relationType: AddRelationOption;
   gender: Gender | "";
   note: string;
-  dateOfBirth: string;
-  anniversaryDate: string;
+  importantDates: ImportantDateItem[];
   education: string;
   qualification: string;
   designation: string;
   addressPermanent: string;
   addressCurrent: string;
+};
+
+type ImportantDateType = "" | "dob" | "anniversary" | "death" | "custom";
+
+type ImportantDateItem = {
+  id: string;
+  type: ImportantDateType;
+  value: string;
+  customLabel: string;
 };
 
 type DetailModalView = "edit" | "relations" | "delete";
@@ -91,8 +99,14 @@ const initialAddForm: AddFormState = {
   relationType: "son",
   gender: "",
   note: "",
-  dateOfBirth: "",
-  anniversaryDate: "",
+  importantDates: [
+    {
+      id: "date-row-1",
+      type: "",
+      value: "",
+      customLabel: ""
+    }
+  ],
   education: "",
   qualification: "",
   designation: "",
@@ -204,7 +218,7 @@ function autoGenderForRelation(
   return "";
 }
 
-function formatDate(value?: string): string {
+function formatDate(value?: string | null): string {
   if (!value) {
     return "N/A";
   }
@@ -215,6 +229,92 @@ function formatDate(value?: string): string {
   }
 
   return date.toLocaleDateString();
+}
+
+function createImportantDateRow(seed: number): ImportantDateItem {
+  return {
+    id: `date-row-${Date.now()}-${seed}`,
+    type: "",
+    value: "",
+    customLabel: ""
+  };
+}
+
+function mapImportantDatesToLegacyFields(entries: ImportantDateItem[]): {
+  dateOfBirth: string | null;
+  anniversaryDate: string | null;
+  dateOfDeath: string | null;
+  importantDates: Array<{ type: string; value: string; label?: string }>;
+  customDateNotes: string[];
+} {
+  const normalized = entries
+    .filter((entry) => entry.type && entry.value)
+    .map((entry) => ({
+      type: entry.type,
+      value: entry.value,
+      label: entry.customLabel.trim()
+    }));
+
+  const getFirstByType = (type: ImportantDateType) => normalized.find((entry) => entry.type === type)?.value || null;
+  const customDateNotes = normalized
+    .filter((entry) => entry.type === "custom")
+    .map((entry) => `${entry.label || "Custom"}: ${entry.value}`);
+
+  return {
+    dateOfBirth: getFirstByType("dob"),
+    anniversaryDate: getFirstByType("anniversary"),
+    dateOfDeath: getFirstByType("death"),
+    importantDates: normalized.map((entry) => ({
+      type: entry.type,
+      value: entry.value,
+      ...(entry.label ? { label: entry.label } : {})
+    })),
+    customDateNotes
+  };
+}
+
+function resolveRelationToCurrentFocus(member: Member | null, focusBundle: MemberWithRelationsResponse | null): string {
+  if (!member || !focusBundle) {
+    return "Family Member";
+  }
+
+  if (member._id === focusBundle.focus._id) {
+    return "Self";
+  }
+
+  if (focusBundle.relations.father?._id === member._id) {
+    return "Father";
+  }
+
+  if (focusBundle.relations.mother?._id === member._id) {
+    return "Mother";
+  }
+
+  if (focusBundle.relations.spouses.some((item) => item._id === member._id)) {
+    return "Spouse";
+  }
+
+  if (focusBundle.relations.children.some((item) => item._id === member._id)) {
+    if (member.gender === "male") {
+      return "Son";
+    }
+    if (member.gender === "female") {
+      return "Daughter";
+    }
+    return "Child";
+  }
+
+  if (focusBundle.relations.siblings.some((item) => item._id === member._id)) {
+    if (member.gender === "male") {
+      return "Brother";
+    }
+    if (member.gender === "female") {
+      return "Sister";
+    }
+    return "Sibling";
+  }
+
+  return "Family Member";
 }
 
 function createDownload(fileName: string, content: Blob): void {
@@ -695,8 +795,7 @@ export default function TreePage() {
       note: "",
       relationType: "son",
       gender: autoGenderForRelation("son", focusBundle?.focus.gender),
-      dateOfBirth: "",
-      anniversaryDate: "",
+      importantDates: [createImportantDateRow(1)],
       education: "",
       qualification: "",
       designation: "",
@@ -705,6 +804,30 @@ export default function TreePage() {
     });
     setAddImageFile(null);
     setIsAddModalOpen(true);
+  };
+
+  const addImportantDateRow = () => {
+    setAddForm((current) => ({
+      ...current,
+      importantDates: [...current.importantDates, createImportantDateRow(current.importantDates.length + 1)]
+    }));
+  };
+
+  const updateImportantDateRow = (rowId: string, patch: Partial<ImportantDateItem>) => {
+    setAddForm((current) => ({
+      ...current,
+      importantDates: current.importantDates.map((row) => (row.id === rowId ? { ...row, ...patch } : row))
+    }));
+  };
+
+  const removeImportantDateRow = (rowId: string) => {
+    setAddForm((current) => {
+      const nextRows = current.importantDates.filter((row) => row.id !== rowId);
+      return {
+        ...current,
+        importantDates: nextRows.length ? nextRows : [createImportantDateRow(1)]
+      };
+    });
   };
 
   const submitAddMember = async (event: FormEvent<HTMLFormElement>) => {
@@ -720,6 +843,9 @@ export default function TreePage() {
       const resolvedRelation = resolveAddRelation(addForm.relationType);
       const relationType = focusId ? resolvedRelation.relationType : undefined;
       const relationTargetId = focusId ?? undefined;
+      const mappedDates = mapImportantDatesToLegacyFields(addForm.importantDates);
+      const customDateNotes = mappedDates.customDateNotes.length ? `Important dates:\n${mappedDates.customDateNotes.join("\n")}` : "";
+      const mergedImportantNotes = [customDateNotes].filter(Boolean).join("\n\n");
 
       const payload: AddMemberPayload = {
         name: addForm.name.trim(),
@@ -727,13 +853,15 @@ export default function TreePage() {
         gender: addForm.gender || undefined,
         relationType: relationType === "none" ? undefined : relationType,
         relatedMemberId: relationType === "none" ? undefined : relationTargetId,
-        dateOfBirth: addForm.dateOfBirth || null,
-        anniversaryDate: addForm.anniversaryDate || null,
+        dateOfBirth: mappedDates.dateOfBirth,
+        anniversaryDate: mappedDates.anniversaryDate,
+        dateOfDeath: mappedDates.dateOfDeath,
         education: addForm.education.trim() || undefined,
         qualification: addForm.qualification.trim() || undefined,
         designation: addForm.designation.trim() || undefined,
         addressPermanent: addForm.addressPermanent.trim() || undefined,
-        addressCurrent: addForm.addressCurrent.trim() || undefined
+        addressCurrent: addForm.addressCurrent.trim() || undefined,
+        importantNotes: mergedImportantNotes || undefined
       };
 
       const response = await createMember(treeId, payload, addImageFile);
@@ -1014,6 +1142,7 @@ export default function TreePage() {
   const detailCanEdit = Boolean(tree?.canEdit);
   const canDeleteDetailMember = Boolean(detailCanEdit && detailBundle && !detailBundle.focus.isRoot);
   const detailHasChildren = Boolean((detailBundle?.relationMeta.children.total || 0) > 0);
+  const detailRelationLabel = resolveRelationToCurrentFocus(detailBundle?.focus || null, focusBundle);
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8">
@@ -1262,21 +1391,55 @@ export default function TreePage() {
                 onChange={(event) => setAddForm((current) => ({ ...current, note: event.target.value }))}
               />
 
-              <input
-                className="field"
-                type="date"
-                placeholder="Date of birth"
-                value={addForm.dateOfBirth}
-                onChange={(event) => setAddForm((current) => ({ ...current, dateOfBirth: event.target.value }))}
-              />
+              <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Important Dates</p>
+                {addForm.importantDates.map((row, index) => (
+                  <div key={row.id} className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_1fr_auto]">
+                    <select
+                      className="field"
+                      value={row.type}
+                      onChange={(event) => updateImportantDateRow(row.id, { type: event.target.value as ImportantDateType })}
+                    >
+                      <option value="">Select Date Type</option>
+                      <option value="dob">Date of Birth</option>
+                      <option value="anniversary">Anniversary</option>
+                      <option value="death">Date of Death</option>
+                      <option value="custom">Custom</option>
+                    </select>
 
-              <input
-                className="field"
-                type="date"
-                placeholder="Anniversary"
-                value={addForm.anniversaryDate}
-                onChange={(event) => setAddForm((current) => ({ ...current, anniversaryDate: event.target.value }))}
-              />
+                    <input
+                      className="field"
+                      type="date"
+                      value={row.value}
+                      onChange={(event) => updateImportantDateRow(row.id, { value: event.target.value })}
+                      disabled={!row.type}
+                    />
+
+                    <button
+                      type="button"
+                      className="button-secondary"
+                      onClick={() => removeImportantDateRow(row.id)}
+                      disabled={addForm.importantDates.length === 1 && index === 0}
+                    >
+                      Remove
+                    </button>
+
+                    {row.type === "custom" && (
+                      <input
+                        className="field sm:col-span-3"
+                        type="text"
+                        placeholder="Custom label (e.g., Joined Army)"
+                        value={row.customLabel}
+                        onChange={(event) => updateImportantDateRow(row.id, { customLabel: event.target.value })}
+                      />
+                    )}
+                  </div>
+                ))}
+
+                <button type="button" className="button-secondary w-full" onClick={addImportantDateRow}>
+                  + Add Another Date
+                </button>
+              </div>
 
               <input
                 className="field"
@@ -1338,9 +1501,15 @@ export default function TreePage() {
       )}
 
       {isDetailModalOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/55 px-4">
-          <div className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-slate-900/65 p-4"
+          onClick={() => setIsDetailModalOpen(false)}
+        >
+          <div
+            className="max-h-[85vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="sticky top-0 z-20 -mx-6 -mt-6 mb-4 flex items-center justify-between border-b border-slate-200 bg-white/95 px-6 py-4 backdrop-blur">
               <h2 className="text-xl font-semibold text-slate-900">Member Details</h2>
               <button type="button" className="button-secondary" onClick={() => setIsDetailModalOpen(false)}>
                 Close
@@ -1425,94 +1594,138 @@ export default function TreePage() {
 
                   {detailModalView === "edit" && (
                     <form onSubmit={saveMemberDetails} className="space-y-3">
-                    <input
-                      className="field"
-                      value={detailName}
-                      onChange={(event) => setDetailName(event.target.value)}
-                      placeholder="Name"
-                      required
-                      disabled={!tree?.canEdit}
-                    />
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex flex-col gap-4 sm:flex-row">
+                          {detailBundle.focus.profileImage ? (
+                            <div className="relative h-36 w-full overflow-hidden rounded-lg border border-slate-200 sm:w-32">
+                              <Image
+                                src={`${uploadsBaseUrl}${detailBundle.focus.profileImage}`}
+                                alt={`${detailBundle.focus.name} profile`}
+                                fill
+                                className="object-cover"
+                                sizes="128px"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex h-36 w-full items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 sm:w-32">
+                              No image
+                            </div>
+                          )}
 
-                    <textarea
-                      className="field min-h-24"
-                      value={detailNote}
-                      onChange={(event) => setDetailNote(event.target.value)}
-                      placeholder="Optional note"
-                      disabled={!tree?.canEdit}
-                    />
+                          <div className="flex-1 space-y-3">
+                            <div>
+                              <h3 className="text-2xl font-bold text-slate-900">{detailBundle.focus.name}</h3>
+                              <p className="text-sm text-slate-500">{detailRelationLabel}</p>
+                            </div>
 
-                    <input
-                      className="field"
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) => setDetailImageFile(event.target.files?.[0] ?? null)}
-                      disabled={!tree?.canEdit}
-                    />
+                            <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
+                              <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Personal Information</h4>
+                              <p>
+                                <span className="font-semibold">Gender:</span> {detailBundle.focus.gender || "unspecified"}
+                              </p>
+                              <p>
+                                <span className="font-semibold">Personal Note:</span> {detailBundle.focus.note || "-"}
+                              </p>
+                            </div>
 
-                    <div className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
-                      <p>
-                        <span className="font-semibold">Gender:</span> {detailBundle.focus.gender || "unspecified"}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Birth Date:</span> {formatDate(detailBundle.focus.birthDate)}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Death Date:</span> {formatDate(detailBundle.focus.deathDate)}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Created:</span> {formatDate(detailBundle.focus.createdAt)}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Updated:</span> {formatDate(detailBundle.focus.updatedAt)}
-                      </p>
-                      {detailBundle.focus.profileImage && (
-                        <p className="break-all">
-                          <span className="font-semibold">Profile Image Path:</span> {detailBundle.focus.profileImage}
-                        </p>
-                      )}
-                      {detailBundle.focus.metadata && Object.keys(detailBundle.focus.metadata).length > 0 && (
-                        <div className="space-y-1">
-                          <p className="font-semibold">Metadata</p>
-                          <pre className="overflow-auto rounded bg-slate-50 p-2 text-xs">
-                            {JSON.stringify(detailBundle.focus.metadata, null, 2)}
-                          </pre>
+                            <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
+                              <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Important Dates</h4>
+                              <p>
+                                <span className="font-semibold">Date of Birth:</span>{" "}
+                                {formatDate(detailBundle.focus.dateOfBirth || detailBundle.focus.birthDate)}
+                              </p>
+                              <p>
+                                <span className="font-semibold">Anniversary:</span> {formatDate(detailBundle.focus.anniversaryDate)}
+                              </p>
+                              <p>
+                                <span className="font-semibold">Date of Death:</span>{" "}
+                                {formatDate(detailBundle.focus.dateOfDeath || detailBundle.focus.deathDate)}
+                              </p>
+                            </div>
+
+                            <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
+                              <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Address</h4>
+                              <p>
+                                <span className="font-semibold">Permanent:</span> {detailBundle.focus.addressPermanent || "-"}
+                              </p>
+                              <p>
+                                <span className="font-semibold">Current:</span> {detailBundle.focus.addressCurrent || "-"}
+                              </p>
+                            </div>
+
+                            <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
+                              <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Professional Information</h4>
+                              <p>
+                                <span className="font-semibold">Education:</span> {detailBundle.focus.education || "-"}
+                              </p>
+                              <p>
+                                <span className="font-semibold">Qualification:</span> {detailBundle.focus.qualification || "-"}
+                              </p>
+                              <p>
+                                <span className="font-semibold">Designation:</span> {detailBundle.focus.designation || "-"}
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                    </div>
-
-                    <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-                      <p>
-                        <span className="font-semibold">{t("tree.father")}:</span>{" "}
-                        {detailBundle.relations.father ? detailBundle.relations.father.name : t("common.notAvailable")}
-                      </p>
-                      <p>
-                        <span className="font-semibold">{t("tree.mother")}:</span>{" "}
-                        {detailBundle.relations.mother ? detailBundle.relations.mother.name : t("common.notAvailable")}
-                      </p>
-                      <p>
-                        <span className="font-semibold">{t("tree.spouses")}:</span>{" "}
-                        {detailBundle.relations.spouses.map((member) => member.name).join(", ") || "None"}
-                        {detailBundle.relationMeta.spouses.total > detailBundle.relations.spouses.length
-                          ? ` (+${detailBundle.relationMeta.spouses.total - detailBundle.relations.spouses.length} more)`
-                          : ""}
-                      </p>
-                      <p>
-                        <span className="font-semibold">{t("tree.siblings")}:</span>{" "}
-                        {detailBundle.relations.siblings.map((member) => member.name).join(", ") || "None"}
-                        {detailBundle.relationMeta.siblings.total > detailBundle.relations.siblings.length
-                          ? ` (+${detailBundle.relationMeta.siblings.total - detailBundle.relations.siblings.length} more)`
-                          : ""}
-                      </p>
-                      <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
-                        <p className="text-xs text-slate-600">
-                          <span className="font-semibold text-slate-900">{t("tree.children")}:</span>{" "}
-                          {detailBundle.relationMeta.children.loaded}/{detailBundle.relationMeta.children.total}
-                          {detailBundle.relationMeta.children.hasMore ? " loaded" : ""}
-                        </p>
-                        <VirtualizedMemberList members={detailBundle.relations.children} />
                       </div>
-                    </div>
+
+                      <input
+                        className="field"
+                        value={detailName}
+                        onChange={(event) => setDetailName(event.target.value)}
+                        placeholder="Name"
+                        required
+                        disabled={!tree?.canEdit}
+                      />
+
+                      <textarea
+                        className="field min-h-24"
+                        value={detailNote}
+                        onChange={(event) => setDetailNote(event.target.value)}
+                        placeholder="Optional note"
+                        disabled={!tree?.canEdit}
+                      />
+
+                      <input
+                        className="field"
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) => setDetailImageFile(event.target.files?.[0] ?? null)}
+                        disabled={!tree?.canEdit}
+                      />
+
+                      <div className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                        <p>
+                          <span className="font-semibold">{t("tree.father")}:</span>{" "}
+                          {detailBundle.relations.father ? detailBundle.relations.father.name : t("common.notAvailable")}
+                        </p>
+                        <p>
+                          <span className="font-semibold">{t("tree.mother")}:</span>{" "}
+                          {detailBundle.relations.mother ? detailBundle.relations.mother.name : t("common.notAvailable")}
+                        </p>
+                        <p>
+                          <span className="font-semibold">{t("tree.spouses")}:</span>{" "}
+                          {detailBundle.relations.spouses.map((member) => member.name).join(", ") || "None"}
+                          {detailBundle.relationMeta.spouses.total > detailBundle.relations.spouses.length
+                            ? ` (+${detailBundle.relationMeta.spouses.total - detailBundle.relations.spouses.length} more)`
+                            : ""}
+                        </p>
+                        <p>
+                          <span className="font-semibold">{t("tree.siblings")}:</span>{" "}
+                          {detailBundle.relations.siblings.map((member) => member.name).join(", ") || "None"}
+                          {detailBundle.relationMeta.siblings.total > detailBundle.relations.siblings.length
+                            ? ` (+${detailBundle.relationMeta.siblings.total - detailBundle.relations.siblings.length} more)`
+                            : ""}
+                        </p>
+                        <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <p className="text-xs text-slate-600">
+                            <span className="font-semibold text-slate-900">{t("tree.children")}:</span>{" "}
+                            {detailBundle.relationMeta.children.loaded}/{detailBundle.relationMeta.children.total}
+                            {detailBundle.relationMeta.children.hasMore ? " loaded" : ""}
+                          </p>
+                          <VirtualizedMemberList members={detailBundle.relations.children} />
+                        </div>
+                      </div>
 
                     {tree?.canEdit ? (
                       <button type="submit" className="button-primary w-full" disabled={savingDetail}>
