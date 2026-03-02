@@ -28,7 +28,7 @@ const PASSWORD_RESET_TTL_MS = Math.max(
   Number.parseInt(process.env.PASSWORD_RESET_TOKEN_TTL_MS || "3600000", 10) || 3600000,
   300000
 );
-const isDevelopmentEnv = String(process.env.NODE_ENV || "").toLowerCase() === "development";
+const allowUnverifiedLogin = String(process.env.ALLOW_UNVERIFIED_LOGIN || "false").toLowerCase() === "true";
 
 const createSessionTokens = async (user) => {
   const csrfToken = crypto.randomBytes(32).toString("hex");
@@ -82,6 +82,13 @@ const registerUser = async (req, res, next) => {
     }
 
     const verificationState = createEmailVerificationTokenState();
+    if (
+      !verificationState.token ||
+      !verificationState.tokenHash ||
+      !(verificationState.expiresAt instanceof Date)
+    ) {
+      throw new Error("Failed to initialize email verification token.");
+    }
 
     let user = null;
     try {
@@ -152,7 +159,7 @@ const loginUser = async (req, res, next) => {
       return;
     }
 
-    if (!user.isEmailVerified && !isDevelopmentEnv) {
+    if (!user.isEmailVerified && !allowUnverifiedLogin) {
       logger.warn("Failed login attempt: unverified email", {
         email: normalizedEmail,
         userId: String(user._id)
@@ -162,6 +169,13 @@ const loginUser = async (req, res, next) => {
         verificationRequired: true
       });
       return;
+    }
+
+    if (!user.isEmailVerified && allowUnverifiedLogin) {
+      logger.warn("Allowing unverified login due to ALLOW_UNVERIFIED_LOGIN=true", {
+        email: normalizedEmail,
+        userId: String(user._id)
+      });
     }
 
     const { token, csrfToken } = await createSessionTokens(user);
@@ -205,7 +219,9 @@ const verifyEmail = async (req, res, next) => {
     await user.save();
 
     res.json({
+      success: true,
       message: "Email verified successfully.",
+      isVerified: true,
       user: sanitizeUser(user)
     });
   } catch (error) {

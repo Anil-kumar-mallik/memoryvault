@@ -3,8 +3,37 @@ const logger = require("./logger");
 
 let transporter = null;
 let initialized = false;
+
 const REQUIRED_SMTP_ENV_KEYS = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "EMAIL_FROM"];
+const RESEND_DEFAULT_FROM = "MemoryVault <onboarding@resend.dev>";
+
 const isEmailEnabled = () => String(process.env.EMAIL_ENABLED || "true").toLowerCase() !== "false";
+const isResendSmtpHost = () => String(process.env.SMTP_HOST || "").toLowerCase().includes("resend");
+
+const parseEmailAddress = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+
+  const bracketMatch = raw.match(/<([^>]+)>/);
+  if (bracketMatch && bracketMatch[1]) {
+    return bracketMatch[1].trim().toLowerCase();
+  }
+
+  return raw.toLowerCase();
+};
+
+const getEmailDomain = (value) => {
+  const email = parseEmailAddress(value);
+  if (!email.includes("@")) {
+    return "";
+  }
+
+  return email.split("@")[1].trim().toLowerCase();
+};
+
+const getResendVerifiedDomain = () => String(process.env.RESEND_VERIFIED_DOMAIN || "").trim().toLowerCase();
 
 const getMissingSmtpEnvVars = () =>
   REQUIRED_SMTP_ENV_KEYS.filter((key) => !String(process.env[key] || "").trim());
@@ -21,6 +50,75 @@ const createTransporterFromEnv = () =>
       pass: process.env.SMTP_PASS
     }
   });
+
+const resolveEmailFromAddress = () => {
+  const configuredFrom = String(process.env.EMAIL_FROM || "").trim();
+  if (!isResendSmtpHost()) {
+    return configuredFrom;
+  }
+
+  const senderDomain = getEmailDomain(configuredFrom);
+  const verifiedDomain = getResendVerifiedDomain();
+
+  if (!configuredFrom) {
+    logger.warn("EMAIL_FROM missing for Resend SMTP. Falling back to default sender.", {
+      fallbackFrom: RESEND_DEFAULT_FROM
+    });
+    return RESEND_DEFAULT_FROM;
+  }
+
+  if (senderDomain === "resend.dev") {
+    return configuredFrom;
+  }
+
+  if (verifiedDomain && senderDomain === verifiedDomain) {
+    return configuredFrom;
+  }
+
+  logger.warn("Custom EMAIL_FROM domain appears unverified for Resend SMTP. Falling back to default sender.", {
+    configuredFrom,
+    senderDomain,
+    verifiedDomain: verifiedDomain || null,
+    fallbackFrom: RESEND_DEFAULT_FROM
+  });
+  return RESEND_DEFAULT_FROM;
+};
+
+const getSmtpErrorMeta = (error) => ({
+  message: error.message,
+  response: error.response,
+  code: error.code,
+  command: error.command,
+  stack: error.stack
+});
+
+const createDetailedSmtpError = (prefix, error) => {
+  const smtpResponse = error.response || error.message || "SMTP operation failed.";
+  const detailedError = new Error(`${prefix}: ${smtpResponse}`);
+  detailedError.smtpResponse = smtpResponse;
+  detailedError.response = error.response;
+  detailedError.code = error.code;
+  detailedError.command = error.command;
+  detailedError.stack = error.stack;
+  return detailedError;
+};
+
+const verifySmtpConnection = async (smtpTransport, context) => {
+  try {
+    const verifyResponse = await smtpTransport.verify();
+    logger.info("SMTP connection verified", {
+      context,
+      verifyResponse
+    });
+    return verifyResponse;
+  } catch (error) {
+    logger.error("SMTP connection verification failed", {
+      context,
+      ...getSmtpErrorMeta(error)
+    });
+    throw createDetailedSmtpError("SMTP verification failed", error);
+  }
+};
 
 const getTransporter = () => {
   if (initialized) {
@@ -90,8 +188,10 @@ const sendEmail = async ({ to, subject, text, html = null, forceSend = false, co
   }
 
   try {
+    const verifyResponse = await verifySmtpConnection(smtpTransport, context);
+    const fromAddress = resolveEmailFromAddress();
     const smtpInfo = await smtpTransport.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: fromAddress,
       to,
       subject,
       text,
@@ -102,6 +202,8 @@ const sendEmail = async ({ to, subject, text, html = null, forceSend = false, co
       context,
       to,
       subject,
+      from: fromAddress,
+      verifyResponse,
       smtpResponse: smtpInfo.response,
       accepted: smtpInfo.accepted,
       rejected: smtpInfo.rejected,
@@ -115,17 +217,16 @@ const sendEmail = async ({ to, subject, text, html = null, forceSend = false, co
       serverResponse: smtpInfo
     };
   } catch (error) {
-    const smtpResponse = error.response || error.message;
     logger.error("SMTP email send failed", {
       context,
       to,
       subject,
-      message: error.message,
-      stack: error.stack,
-      smtpResponse
+      ...getSmtpErrorMeta(error)
     });
-    error.smtpResponse = smtpResponse;
-    throw error;
+    if (error.smtpResponse) {
+      throw error;
+    }
+    throw createDetailedSmtpError("SMTP send failed", error);
   }
 };
 

@@ -2815,3 +2815,57 @@ Validation/build checks
 
 Pending tasks
 - None for this requested change.
+
+[2026-03-02 | Email Fix Phase]
+- Scope followed: only email sending + verification flow fixes; payment/subscription/tree logic untouched.
+
+Completed modules
+1) Resend sender correction
+- Added Resend-aware sender resolver in email service.
+- When `SMTP_HOST` contains `resend`, sender falls back to `MemoryVault <onboarding@resend.dev>` unless configured sender domain matches `RESEND_VERIFIED_DOMAIN`.
+- Added warning logs when a custom sender domain appears unverified for Resend.
+
+2) SMTP verify step
+- Added `transporter.verify()` before `sendMail()` for all email sends.
+- Logs verification success.
+- On verification failure, throws detailed SMTP verification error.
+
+3) Enhanced logging
+- Email service now logs detailed SMTP failure metadata:
+  - `error.response`
+  - `error.code`
+  - `error.command`
+  - `error.stack`
+- Same detail included for both SMTP verify and send failures.
+
+4) Verification token validation flow hardening
+- Register flow explicitly validates generated verification token state before user creation.
+- Verification endpoint kept at `GET /api/v1/auth/verify-email?token=xxx`.
+- On success, user email verification is persisted, token fields are cleared, and success JSON is returned.
+
+5) Debug toggle
+- Added temporary login toggle using env `ALLOW_UNVERIFIED_LOGIN`.
+- Default behavior is `false` (verification required).
+- When set `true`, unverified login is allowed and logged.
+
+File changes
+- Server
+  - `server/src/utils/emailService.js`
+  - `server/src/controllers/authController.js`
+- Environment template
+  - `.env.example` (added `RESEND_VERIFIED_DOMAIN`, `ALLOW_UNVERIFIED_LOGIN`)
+- Docs/Progress
+  - `ProjectTillNow.txt`
+
+Database schema state
+- No schema/index/model changes in this phase.
+- Existing `isEmailVerified` and token fields are used as-is.
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+- `cd client && npm install` -> completed (dependency restoration in local environment).
+- `cd client && npm run build` -> passed.
+
+Pending tasks
+- Temporary toggle `ALLOW_UNVERIFIED_LOGIN` should remain `false` in production.
+- If using a custom Resend sender domain, set `RESEND_VERIFIED_DOMAIN` to the verified domain value.
