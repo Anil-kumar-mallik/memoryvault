@@ -12,6 +12,7 @@ const paymentRoutes = require("../paymentRoutes");
 const publicTreeRoutes = require("../publicTreeRoutes");
 const notificationRoutes = require("../notificationRoutes");
 const accountRoutes = require("../accountRoutes");
+const testEmailRoutes = require("../testEmailRoutes");
 
 const router = express.Router();
 
@@ -25,6 +26,7 @@ router.get("/health", (_req, res) => {
   });
 });
 
+router.use("/", testEmailRoutes);
 router.use("/auth", authRoutes);
 router.use("/trees", treeRoutes);
 router.use("/trees/:treeId/members", memberRoutes);

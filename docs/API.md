@@ -19,6 +19,23 @@
 - `POST /api/v1/auth/password-reset/request`
 - `POST /api/v1/auth/password-reset/confirm`
 
+## Email Debugging
+- `GET /api/v1/test-email`
+- Purpose: Sends a plain-text SMTP/Resend debug email without requiring user creation.
+- Recipient: `debug+test@your-email.com`
+- Subject: `MemoryVault Test Email`
+- Body: plain text with current ISO timestamp.
+- Env validation in route:
+  - `SMTP_HOST`
+  - `SMTP_PORT`
+  - `SMTP_USER`
+  - `SMTP_PASS`
+  - `EMAIL_FROM`
+- Response shape:
+  - `success: boolean`
+  - `message: "Email sent"` or error message
+  - `smtpResponse: raw SMTP server response or error text`
+
 ## Tree Privacy and Access
 - Privacy modes: `public`, `private`
 - Private reads require `x-tree-password` unless requester is owner/admin.

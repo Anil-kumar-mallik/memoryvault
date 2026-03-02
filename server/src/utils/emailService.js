@@ -3,16 +3,24 @@ const logger = require("./logger");
 
 let transporter = null;
 let initialized = false;
+const REQUIRED_SMTP_ENV_KEYS = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "EMAIL_FROM"];
 const isEmailEnabled = () => String(process.env.EMAIL_ENABLED || "true").toLowerCase() !== "false";
 
-const hasSmtpConfig = () =>
-  Boolean(
-    process.env.SMTP_HOST &&
-      process.env.SMTP_PORT &&
-      process.env.SMTP_USER &&
-      process.env.SMTP_PASS &&
-      process.env.EMAIL_FROM
-  );
+const getMissingSmtpEnvVars = () =>
+  REQUIRED_SMTP_ENV_KEYS.filter((key) => !String(process.env[key] || "").trim());
+
+const hasSmtpConfig = () => getMissingSmtpEnvVars().length === 0;
+
+const createTransporterFromEnv = () =>
+  nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number.parseInt(String(process.env.SMTP_PORT), 10),
+    secure: Number.parseInt(String(process.env.SMTP_PORT), 10) === 465,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  });
 
 const getTransporter = () => {
   if (initialized) {
@@ -28,45 +36,97 @@ const getTransporter = () => {
   }
 
   if (!hasSmtpConfig()) {
-    logger.warn("SMTP configuration missing. Email sending is disabled.");
+    logger.warn("SMTP configuration missing. Email sending is disabled.", {
+      missingEnv: getMissingSmtpEnvVars()
+    });
     transporter = null;
     return transporter;
   }
 
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number.parseInt(String(process.env.SMTP_PORT), 10),
-    secure: Number.parseInt(String(process.env.SMTP_PORT), 10) === 465,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    }
-  });
+  transporter = createTransporterFromEnv();
 
   return transporter;
 };
 
-const sendEmail = async ({ to, subject, text, html = null }) => {
-  const smtpTransport = getTransporter();
-  if (!smtpTransport) {
+const sendEmail = async ({ to, subject, text, html = null, forceSend = false, context = "default" }) => {
+  if (!forceSend && !isEmailEnabled()) {
     return {
       sent: false,
-      skipped: true
+      skipped: true,
+      smtpResponse: "Email sending disabled by EMAIL_ENABLED=false."
     };
   }
 
-  await smtpTransport.sendMail({
-    from: process.env.EMAIL_FROM,
-    to,
-    subject,
-    text,
-    ...(html ? { html } : {})
-  });
+  const missingEnv = getMissingSmtpEnvVars();
+  if (missingEnv.length) {
+    const smtpResponse = `SMTP configuration missing: ${missingEnv.join(", ")}`;
+    logger.error("SMTP configuration missing while sending email", {
+      context,
+      to,
+      subject,
+      missingEnv
+    });
 
-  return {
-    sent: true,
-    skipped: false
-  };
+    if (forceSend) {
+      const forceSendError = new Error(smtpResponse);
+      forceSendError.smtpResponse = smtpResponse;
+      throw forceSendError;
+    }
+
+    return {
+      sent: false,
+      skipped: true,
+      smtpResponse
+    };
+  }
+
+  const smtpTransport = forceSend ? createTransporterFromEnv() : getTransporter();
+  if (!smtpTransport) {
+    return {
+      sent: false,
+      skipped: true,
+      smtpResponse: "SMTP transporter unavailable."
+    };
+  }
+
+  try {
+    const smtpInfo = await smtpTransport.sendMail({
+      from: process.env.EMAIL_FROM,
+      to,
+      subject,
+      text,
+      ...(html ? { html } : {})
+    });
+
+    logger.info("SMTP email sent", {
+      context,
+      to,
+      subject,
+      smtpResponse: smtpInfo.response,
+      accepted: smtpInfo.accepted,
+      rejected: smtpInfo.rejected,
+      envelope: smtpInfo.envelope
+    });
+
+    return {
+      sent: true,
+      skipped: false,
+      smtpResponse: smtpInfo.response || null,
+      serverResponse: smtpInfo
+    };
+  } catch (error) {
+    const smtpResponse = error.response || error.message;
+    logger.error("SMTP email send failed", {
+      context,
+      to,
+      subject,
+      message: error.message,
+      stack: error.stack,
+      smtpResponse
+    });
+    error.smtpResponse = smtpResponse;
+    throw error;
+  }
 };
 
 const frontendBaseUrl = () =>
@@ -130,6 +190,7 @@ const sendPaymentSuccessMail = async ({ email, name, amount, currency, reference
 
 module.exports = {
   sendEmail,
+  getMissingSmtpEnvVars,
   sendEmailVerificationMail,
   sendPasswordResetMail,
   sendSubscriptionConfirmationMail,
