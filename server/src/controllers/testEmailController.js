@@ -1,19 +1,19 @@
-const { sendEmail, getMissingSmtpEnvVars } = require("../utils/emailService");
+const { sendEmail, getMissingResendEnvVars } = require("../utils/emailService");
 const logger = require("../utils/logger");
 
 const TEST_EMAIL_RECIPIENT = "debug+test@your-email.com";
 
 const sendTestEmail = async (_req, res) => {
-  const missingEnv = getMissingSmtpEnvVars();
+  const missingEnv = getMissingResendEnvVars();
   if (missingEnv.length) {
-    const smtpResponse = `Missing required SMTP env vars: ${missingEnv.join(", ")}`;
-    logger.error("Test email failed due to missing SMTP env", {
+    const smtpResponse = `Missing required Resend env vars: ${missingEnv.join(", ")}`;
+    logger.error("Test email failed due to missing Resend env", {
       missingEnv
     });
 
     res.status(500).json({
       success: false,
-      message: "SMTP configuration missing.",
+      message: "Resend configuration missing.",
       smtpResponse
     });
     return;
@@ -21,7 +21,7 @@ const sendTestEmail = async (_req, res) => {
 
   const timestamp = new Date().toISOString();
   const subject = "MemoryVault Test Email";
-  const text = `MemoryVault SMTP/Resend test email.\nTimestamp: ${timestamp}`;
+  const text = `MemoryVault Resend API test email.\nTimestamp: ${timestamp}`;
 
   try {
     const result = await sendEmail({

@@ -1,14 +1,14 @@
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 const logger = require("./logger");
 
-let transporter = null;
-let initialized = false;
-
-const REQUIRED_SMTP_ENV_KEYS = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "EMAIL_FROM"];
 const RESEND_DEFAULT_FROM = "MemoryVault <onboarding@resend.dev>";
+const REQUIRED_RESEND_ENV_KEYS = ["RESEND_API_KEY"];
+let resendClient = null;
+let resendClientApiKey = "";
 
 const isEmailEnabled = () => String(process.env.EMAIL_ENABLED || "true").toLowerCase() !== "false";
-const isResendSmtpHost = () => String(process.env.SMTP_HOST || "").toLowerCase().includes("resend");
+const getMissingResendEnvVars = () =>
+  REQUIRED_RESEND_ENV_KEYS.filter((key) => !String(process.env[key] || "").trim());
 
 const parseEmailAddress = (value) => {
   const raw = String(value || "").trim();
@@ -35,33 +35,13 @@ const getEmailDomain = (value) => {
 
 const getResendVerifiedDomain = () => String(process.env.RESEND_VERIFIED_DOMAIN || "").trim().toLowerCase();
 
-const getMissingSmtpEnvVars = () =>
-  REQUIRED_SMTP_ENV_KEYS.filter((key) => !String(process.env[key] || "").trim());
-
-const hasSmtpConfig = () => getMissingSmtpEnvVars().length === 0;
-
-const createTransporterFromEnv = () =>
-  nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number.parseInt(String(process.env.SMTP_PORT), 10),
-    secure: Number.parseInt(String(process.env.SMTP_PORT), 10) === 465,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    }
-  });
-
 const resolveEmailFromAddress = () => {
   const configuredFrom = String(process.env.EMAIL_FROM || "").trim();
-  if (!isResendSmtpHost()) {
-    return configuredFrom;
-  }
-
   const senderDomain = getEmailDomain(configuredFrom);
   const verifiedDomain = getResendVerifiedDomain();
 
   if (!configuredFrom) {
-    logger.warn("EMAIL_FROM missing for Resend SMTP. Falling back to default sender.", {
+    logger.warn("EMAIL_FROM missing for Resend API. Falling back to default sender.", {
       fallbackFrom: RESEND_DEFAULT_FROM
     });
     return RESEND_DEFAULT_FROM;
@@ -75,7 +55,7 @@ const resolveEmailFromAddress = () => {
     return configuredFrom;
   }
 
-  logger.warn("Custom EMAIL_FROM domain appears unverified for Resend SMTP. Falling back to default sender.", {
+  logger.warn("Custom EMAIL_FROM domain appears unverified for Resend API. Falling back to default sender.", {
     configuredFrom,
     senderDomain,
     verifiedDomain: verifiedDomain || null,
@@ -84,18 +64,18 @@ const resolveEmailFromAddress = () => {
   return RESEND_DEFAULT_FROM;
 };
 
-const getSmtpErrorMeta = (error) => ({
+const getProviderErrorMeta = (error, resendResponse = null) => ({
   message: error.message,
-  response: error.response,
+  response: error.response || resendResponse,
   code: error.code,
   command: error.command,
   stack: error.stack
 });
 
-const createDetailedSmtpError = (prefix, error) => {
-  const smtpResponse = error.response || error.message || "SMTP operation failed.";
-  const detailedError = new Error(`${prefix}: ${smtpResponse}`);
-  detailedError.smtpResponse = smtpResponse;
+const createDetailedSendError = (prefix, error, resendResponse = null) => {
+  const providerResponse = error.response || resendResponse || error.message || "Email provider operation failed.";
+  const detailedError = new Error(`${prefix}: ${error.message || "Email provider request failed."}`);
+  detailedError.smtpResponse = providerResponse;
   detailedError.response = error.response;
   detailedError.code = error.code;
   detailedError.command = error.command;
@@ -103,47 +83,16 @@ const createDetailedSmtpError = (prefix, error) => {
   return detailedError;
 };
 
-const verifySmtpConnection = async (smtpTransport, context) => {
-  try {
-    const verifyResponse = await smtpTransport.verify();
-    logger.info("SMTP connection verified", {
-      context,
-      verifyResponse
-    });
-    return verifyResponse;
-  } catch (error) {
-    logger.error("SMTP connection verification failed", {
-      context,
-      ...getSmtpErrorMeta(error)
-    });
-    throw createDetailedSmtpError("SMTP verification failed", error);
+const getResendClient = () => {
+  const apiKey = String(process.env.RESEND_API_KEY || "").trim();
+  if (!apiKey) {
+    return null;
   }
-};
-
-const getTransporter = () => {
-  if (initialized) {
-    return transporter;
+  if (!resendClient || resendClientApiKey !== apiKey) {
+    resendClient = new Resend(apiKey);
+    resendClientApiKey = apiKey;
   }
-
-  initialized = true;
-
-  if (!isEmailEnabled()) {
-    logger.info("Email sending disabled by EMAIL_ENABLED=false.");
-    transporter = null;
-    return transporter;
-  }
-
-  if (!hasSmtpConfig()) {
-    logger.warn("SMTP configuration missing. Email sending is disabled.", {
-      missingEnv: getMissingSmtpEnvVars()
-    });
-    transporter = null;
-    return transporter;
-  }
-
-  transporter = createTransporterFromEnv();
-
-  return transporter;
+  return resendClient;
 };
 
 const sendEmail = async ({ to, subject, text, html = null, forceSend = false, context = "default" }) => {
@@ -155,10 +104,10 @@ const sendEmail = async ({ to, subject, text, html = null, forceSend = false, co
     };
   }
 
-  const missingEnv = getMissingSmtpEnvVars();
+  const missingEnv = getMissingResendEnvVars();
   if (missingEnv.length) {
-    const smtpResponse = `SMTP configuration missing: ${missingEnv.join(", ")}`;
-    logger.error("SMTP configuration missing while sending email", {
+    const smtpResponse = `Resend configuration missing: ${missingEnv.join(", ")}`;
+    logger.error("Resend configuration missing while sending email", {
       context,
       to,
       subject,
@@ -178,19 +127,18 @@ const sendEmail = async ({ to, subject, text, html = null, forceSend = false, co
     };
   }
 
-  const smtpTransport = forceSend ? createTransporterFromEnv() : getTransporter();
-  if (!smtpTransport) {
+  const resend = getResendClient();
+  if (!resend) {
     return {
       sent: false,
       skipped: true,
-      smtpResponse: "SMTP transporter unavailable."
+      smtpResponse: "Resend client unavailable."
     };
   }
 
   try {
-    const verifyResponse = await verifySmtpConnection(smtpTransport, context);
     const fromAddress = resolveEmailFromAddress();
-    const smtpInfo = await smtpTransport.sendMail({
+    const resendResponse = await resend.emails.send({
       from: fromAddress,
       to,
       subject,
@@ -198,35 +146,38 @@ const sendEmail = async ({ to, subject, text, html = null, forceSend = false, co
       ...(html ? { html } : {})
     });
 
-    logger.info("SMTP email sent", {
+    if (resendResponse.error) {
+      const providerError = new Error(resendResponse.error.message || "Resend API returned an error.");
+      providerError.response = resendResponse.error;
+      providerError.code = resendResponse.error.name || "RESEND_API_ERROR";
+      throw createDetailedSendError("Resend send failed", providerError, resendResponse);
+    }
+
+    logger.info("Resend email sent", {
       context,
       to,
       subject,
       from: fromAddress,
-      verifyResponse,
-      smtpResponse: smtpInfo.response,
-      accepted: smtpInfo.accepted,
-      rejected: smtpInfo.rejected,
-      envelope: smtpInfo.envelope
+      resendResponse
     });
 
     return {
       sent: true,
       skipped: false,
-      smtpResponse: smtpInfo.response || null,
-      serverResponse: smtpInfo
+      smtpResponse: resendResponse.data || resendResponse,
+      serverResponse: resendResponse
     };
   } catch (error) {
-    logger.error("SMTP email send failed", {
+    logger.error("Resend email send failed", {
       context,
       to,
       subject,
-      ...getSmtpErrorMeta(error)
+      ...getProviderErrorMeta(error, error.response)
     });
     if (error.smtpResponse) {
       throw error;
     }
-    throw createDetailedSmtpError("SMTP send failed", error);
+    throw createDetailedSendError("Resend send failed", error, error.response);
   }
 };
 
@@ -291,7 +242,7 @@ const sendPaymentSuccessMail = async ({ email, name, amount, currency, reference
 
 module.exports = {
   sendEmail,
-  getMissingSmtpEnvVars,
+  getMissingResendEnvVars,
   sendEmailVerificationMail,
   sendPasswordResetMail,
   sendSubscriptionConfirmationMail,

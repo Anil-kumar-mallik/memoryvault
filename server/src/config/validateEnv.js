@@ -14,11 +14,7 @@ const validateEnv = () => {
 
   const emailEnabled = String(process.env.EMAIL_ENABLED || "true").toLowerCase() !== "false";
   if (emailEnabled) {
-    requireEnv("SMTP_HOST");
-    requireEnv("SMTP_PORT");
-    requireEnv("SMTP_USER");
-    requireEnv("SMTP_PASS");
-    requireEnv("EMAIL_FROM");
+    requireEnv("RESEND_API_KEY");
   }
 
   if (String(process.env.NODE_ENV || "").toLowerCase() === "production") {

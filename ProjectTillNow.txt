@@ -2869,3 +2869,54 @@ Validation/build checks
 Pending tasks
 - Temporary toggle `ALLOW_UNVERIFIED_LOGIN` should remain `false` in production.
 - If using a custom Resend sender domain, set `RESEND_VERIFIED_DOMAIN` to the verified domain value.
+
+[2026-03-02 | Switched to Resend API - Removed SMTP]
+- Scope followed: mail transport implementation only; business logic and API flows unchanged.
+
+Completed modules
+1) Email transport migration to Resend HTTP API
+- Replaced Nodemailer SMTP transport with official `resend` Node SDK.
+- Added Resend client initialization via `RESEND_API_KEY`.
+- Kept existing shared `sendEmail({...})` function signature and usage across auth/payment mail flows.
+- Preserved `EMAIL_ENABLED` toggle behavior.
+
+2) Removed SMTP transport dependencies in code path
+- Removed SMTP transporter creation and SMTP verify/send logic from `emailService`.
+- Removed SMTP env requirement from startup validation.
+
+3) Error logging improvements
+- Added provider-oriented error logging for Resend responses and thrown errors.
+- Preserved debug response compatibility by continuing to expose `smtpResponse` field in API output payloads.
+
+4) Test email endpoint compatibility
+- Updated test-email controller env validation to Resend (`RESEND_API_KEY`).
+- Debug endpoint continues to return success/error JSON without API shape changes.
+
+5) Environment updates
+- Added `RESEND_API_KEY` in env templates/runtime env.
+- Removed SMTP template values from `.env.example` transport section.
+
+File changes
+- Server
+  - `server/src/utils/emailService.js`
+  - `server/src/controllers/testEmailController.js`
+  - `server/src/config/validateEnv.js`
+  - `server/package.json`
+  - `server/package-lock.json`
+  - `server/.env`
+- Root
+  - `.env.example`
+- Docs/Progress
+  - `ProjectTillNow.txt`
+
+Database schema state
+- No schema/index/model changes in this phase.
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+- `cd client && npm run build` -> passed.
+- Controller-level smoke test for test-email route path -> passed (returns structured error when `RESEND_API_KEY` is missing).
+
+Pending tasks
+- Set valid production `RESEND_API_KEY` in deployed server environment.
+- Optional cleanup: remove unused SMTP keys from runtime env if no longer needed.
