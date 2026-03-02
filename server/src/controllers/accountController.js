@@ -8,16 +8,29 @@ const AuditLog = require("../models/AuditLog");
 const validateRequest = require("../utils/validateRequest");
 const withMongoTransaction = require("../utils/withMongoTransaction");
 const { sanitizeText } = require("../middleware/requestSecurityMiddleware");
+const {
+  USER_PROFILE_TEXT_FIELDS,
+  parseOptionalDateValue,
+  normalizeOptionalTextValue
+} = require("../utils/userProfileFields");
 
 const sessionOptions = (session) => (session ? { session } : {});
 const withSession = (query, session) => (session ? query.session(session) : query);
 const toUploadPath = (absoluteFilePath) => `/uploads/${path.basename(absoluteFilePath)}`;
+const hasOwn = (source, key) => Object.prototype.hasOwnProperty.call(source, key);
 
 const toSafeAccount = (user) => ({
   _id: String(user._id),
   name: user.name,
   email: user.email,
   profileImage: user.profileImage || null,
+  dateOfBirth: user.dateOfBirth || null,
+  education: user.education || null,
+  qualification: user.qualification || null,
+  designation: user.designation || null,
+  addressPermanent: user.addressPermanent || null,
+  addressCurrent: user.addressCurrent || null,
+  phoneNumber: user.phoneNumber || null,
   role: user.role,
   isEmailVerified: Boolean(user.isEmailVerified),
   createdAt: user.createdAt,
@@ -48,10 +61,12 @@ const updateAccount = async (req, res, next) => {
       return;
     }
 
-    const hasNameInput = Object.prototype.hasOwnProperty.call(req.body, "name");
+    const hasNameInput = hasOwn(req.body, "name");
     const hasProfileImage = Boolean(req.file && req.file.path);
+    const hasDateOfBirthInput = hasOwn(req.body, "dateOfBirth");
+    const hasTextProfileInput = USER_PROFILE_TEXT_FIELDS.some((field) => hasOwn(req.body, field));
 
-    if (!hasNameInput && !hasProfileImage) {
+    if (!hasNameInput && !hasProfileImage && !hasDateOfBirthInput && !hasTextProfileInput) {
       const account = await User.findById(req.user._id).lean();
       if (!account) {
         res.status(404).json({ message: "Account not found." });
@@ -88,6 +103,16 @@ const updateAccount = async (req, res, next) => {
         const nextProfileImage = toUploadPath(req.file.path);
         user.profileImage = nextProfileImage;
         rootMemberUpdate.profileImage = nextProfileImage;
+      }
+
+      if (hasDateOfBirthInput) {
+        user.dateOfBirth = parseOptionalDateValue(req.body.dateOfBirth);
+      }
+
+      for (const field of USER_PROFILE_TEXT_FIELDS) {
+        if (hasOwn(req.body, field)) {
+          user[field] = normalizeOptionalTextValue(req.body[field]);
+        }
       }
 
       await user.save(sessionOptions(session));

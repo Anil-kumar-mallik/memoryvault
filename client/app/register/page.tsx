@@ -36,7 +36,7 @@ export default function RegisterPage() {
       }
 
       setError(null);
-      window.alert(response.message || "Registration successful. Please verify your email before login.");
+      window.alert(response.message || "Registration successful. Please login.");
       router.push("/login");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Registration failed.");

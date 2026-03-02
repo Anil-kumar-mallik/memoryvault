@@ -7,6 +7,13 @@ export interface User {
   name: string;
   email: string;
   profileImage?: string | null;
+  dateOfBirth?: string | null;
+  education?: string | null;
+  qualification?: string | null;
+  designation?: string | null;
+  addressPermanent?: string | null;
+  addressCurrent?: string | null;
+  phoneNumber?: string | null;
   role: UserRole;
   isEmailVerified?: boolean;
   createdAt?: string;
@@ -17,6 +24,13 @@ export interface AuthPayload {
   name?: string;
   email: string;
   password: string;
+  dateOfBirth?: string | null;
+  education?: string;
+  qualification?: string;
+  designation?: string;
+  addressPermanent?: string;
+  addressCurrent?: string;
+  phoneNumber?: string;
 }
 
 export interface AuthResponse {
@@ -191,6 +205,15 @@ export interface Member {
   gender?: Gender;
   birthDate?: string;
   deathDate?: string;
+  dateOfBirth?: string | null;
+  anniversaryDate?: string | null;
+  dateOfDeath?: string | null;
+  education?: string | null;
+  qualification?: string | null;
+  designation?: string | null;
+  addressPermanent?: string | null;
+  addressCurrent?: string | null;
+  importantNotes?: string | null;
   bio?: string;
   metadata?: Record<string, unknown>;
   createdAt: string;
@@ -203,6 +226,15 @@ export interface AddMemberPayload {
   note?: string;
   relationType?: RelationType;
   relatedMemberId?: string;
+  dateOfBirth?: string | null;
+  anniversaryDate?: string | null;
+  dateOfDeath?: string | null;
+  education?: string;
+  qualification?: string;
+  designation?: string;
+  addressPermanent?: string;
+  addressCurrent?: string;
+  importantNotes?: string;
 }
 
 export interface RelationListMeta {
@@ -237,6 +269,15 @@ export interface UpdateMemberPayload {
   fatherId?: string | null;
   motherId?: string | null;
   spouses?: string[];
+  dateOfBirth?: string | null;
+  anniversaryDate?: string | null;
+  dateOfDeath?: string | null;
+  education?: string | null;
+  qualification?: string | null;
+  designation?: string | null;
+  addressPermanent?: string | null;
+  addressCurrent?: string | null;
+  importantNotes?: string | null;
 }
 
 export interface MemberWithRelationsResponse {

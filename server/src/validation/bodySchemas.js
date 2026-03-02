@@ -16,6 +16,10 @@ const nullableIsoDateField = Joi.alternatives().try(
 
 const relationTypeField = Joi.string().valid("none", "father", "mother", "child", "spouse", "sibling");
 const genderField = Joi.string().valid("male", "female", "other", "unspecified");
+const optionalProfileTextField = Joi.string().allow("").max(200).optional();
+const optionalAddressTextField = Joi.string().allow("").max(600).optional();
+const optionalPhoneTextField = Joi.string().allow("").max(40).optional();
+const optionalImportantNotesField = Joi.string().allow("").max(2000).optional();
 
 const metadataField = Joi.alternatives().try(
   Joi.object().unknown(true),
@@ -133,16 +137,19 @@ const updateTreeBodySchema = Joi.object({
 const registerBodySchema = Joi.object({
   name: Joi.string().trim().min(2).max(120).required(),
   email: Joi.string().trim().email().required(),
-  password: Joi.string().min(8).max(256).required()
+  password: Joi.string().min(8).max(256).required(),
+  dateOfBirth: nullableIsoDateField.optional(),
+  education: optionalProfileTextField,
+  qualification: optionalProfileTextField,
+  designation: optionalProfileTextField,
+  addressPermanent: optionalAddressTextField,
+  addressCurrent: optionalAddressTextField,
+  phoneNumber: optionalPhoneTextField
 });
 
 const loginBodySchema = Joi.object({
   email: Joi.string().trim().email().required(),
   password: Joi.string().min(8).max(256).required()
-});
-
-const verifyEmailBodySchema = Joi.object({
-  token: Joi.string().trim().min(20).max(256).required()
 });
 
 const passwordResetRequestBodySchema = Joi.object({
@@ -155,7 +162,14 @@ const passwordResetConfirmBodySchema = Joi.object({
 });
 
 const accountUpdateBodySchema = Joi.object({
-  name: Joi.string().trim().min(2).max(120).optional()
+  name: Joi.string().trim().min(2).max(120).optional(),
+  dateOfBirth: nullableIsoDateField.optional(),
+  education: optionalProfileTextField,
+  qualification: optionalProfileTextField,
+  designation: optionalProfileTextField,
+  addressPermanent: optionalAddressTextField,
+  addressCurrent: optionalAddressTextField,
+  phoneNumber: optionalPhoneTextField
 });
 
 const accountPasswordBodySchema = Joi.object({
@@ -181,6 +195,15 @@ const createMemberBodySchema = Joi.object({
   gender: genderField.optional(),
   birthDate: nullableIsoDateField.optional(),
   deathDate: nullableIsoDateField.optional(),
+  dateOfBirth: nullableIsoDateField.optional(),
+  anniversaryDate: nullableIsoDateField.optional(),
+  dateOfDeath: nullableIsoDateField.optional(),
+  education: optionalProfileTextField,
+  qualification: optionalProfileTextField,
+  designation: optionalProfileTextField,
+  addressPermanent: optionalAddressTextField,
+  addressCurrent: optionalAddressTextField,
+  importantNotes: optionalImportantNotesField,
   metadata: metadataField.optional()
 });
 
@@ -197,6 +220,15 @@ const updateMemberBodySchema = Joi.object({
   spouses: spousesField.optional(),
   birthDate: nullableIsoDateField.optional(),
   deathDate: nullableIsoDateField.optional(),
+  dateOfBirth: nullableIsoDateField.optional(),
+  anniversaryDate: nullableIsoDateField.optional(),
+  dateOfDeath: nullableIsoDateField.optional(),
+  education: optionalProfileTextField,
+  qualification: optionalProfileTextField,
+  designation: optionalProfileTextField,
+  addressPermanent: optionalAddressTextField,
+  addressCurrent: optionalAddressTextField,
+  importantNotes: optionalImportantNotesField,
   metadata: metadataField.optional()
 });
 
@@ -292,7 +324,6 @@ const treeImportBodySchema = Joi.object({
 module.exports = {
   registerBodySchema,
   loginBodySchema,
-  verifyEmailBodySchema,
   passwordResetRequestBodySchema,
   passwordResetConfirmBodySchema,
   accountUpdateBodySchema,

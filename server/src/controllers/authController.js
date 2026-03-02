@@ -4,7 +4,8 @@ const generateToken = require("../utils/generateToken");
 const validateRequest = require("../utils/validateRequest");
 const { sanitizeText } = require("../middleware/requestSecurityMiddleware");
 const { ensureDefaultSubscriptionForUser } = require("../utils/subscriptionService");
-const { sendEmailVerificationMail, sendPasswordResetMail } = require("../utils/emailService");
+const { sendPasswordResetMail } = require("../utils/emailService");
+const { buildUserProfileFields } = require("../utils/userProfileFields");
 const logger = require("../utils/logger");
 
 const sanitizeUser = (user) => ({
@@ -12,6 +13,13 @@ const sanitizeUser = (user) => ({
   name: user.name,
   email: user.email,
   profileImage: user.profileImage || null,
+  dateOfBirth: user.dateOfBirth || null,
+  education: user.education || null,
+  qualification: user.qualification || null,
+  designation: user.designation || null,
+  addressPermanent: user.addressPermanent || null,
+  addressCurrent: user.addressCurrent || null,
+  phoneNumber: user.phoneNumber || null,
   role: user.role,
   isEmailVerified: Boolean(user.isEmailVerified),
   createdAt: user.createdAt,
@@ -20,15 +28,10 @@ const sanitizeUser = (user) => ({
 
 const hashToken = (value) => crypto.createHash("sha256").update(String(value)).digest("hex");
 const createOpaqueToken = () => crypto.randomBytes(32).toString("hex");
-const EMAIL_VERIFICATION_TTL_MS = Math.max(
-  Number.parseInt(process.env.EMAIL_VERIFICATION_TOKEN_TTL_MS || "86400000", 10) || 86400000,
-  300000
-);
 const PASSWORD_RESET_TTL_MS = Math.max(
   Number.parseInt(process.env.PASSWORD_RESET_TOKEN_TTL_MS || "3600000", 10) || 3600000,
   300000
 );
-const allowUnverifiedLogin = String(process.env.ALLOW_UNVERIFIED_LOGIN || "false").toLowerCase() === "true";
 
 const createSessionTokens = async (user) => {
   const csrfToken = crypto.randomBytes(32).toString("hex");
@@ -46,15 +49,6 @@ const createSessionTokens = async (user) => {
   });
 
   return { token, csrfToken };
-};
-
-const createEmailVerificationTokenState = () => {
-  const token = createOpaqueToken();
-  return {
-    token,
-    tokenHash: hashToken(token),
-    expiresAt: new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS)
-  };
 };
 
 const createPasswordResetTokenState = () => {
@@ -81,15 +75,6 @@ const registerUser = async (req, res, next) => {
       return;
     }
 
-    const verificationState = createEmailVerificationTokenState();
-    if (
-      !verificationState.token ||
-      !verificationState.tokenHash ||
-      !(verificationState.expiresAt instanceof Date)
-    ) {
-      throw new Error("Failed to initialize email verification token.");
-    }
-
     let user = null;
     try {
       user = await User.create({
@@ -97,9 +82,10 @@ const registerUser = async (req, res, next) => {
         email: normalizedEmail,
         password,
         role: "user",
-        isEmailVerified: false,
-        emailVerificationTokenHash: verificationState.tokenHash,
-        emailVerificationTokenExpiresAt: verificationState.expiresAt
+        isEmailVerified: true,
+        emailVerificationTokenHash: null,
+        emailVerificationTokenExpiresAt: null,
+        ...buildUserProfileFields(req.body)
       });
 
       await ensureDefaultSubscriptionForUser(user._id);
@@ -110,22 +96,8 @@ const registerUser = async (req, res, next) => {
       throw registrationError;
     }
 
-    try {
-      await sendEmailVerificationMail({
-        email: user.email,
-        name: user.name,
-        token: verificationState.token
-      });
-    } catch (emailError) {
-      logger.error("Failed to send verification email", {
-        email: user.email,
-        message: emailError.message
-      });
-    }
-
     res.status(201).json({
-      message: "Registration successful. Verification email sent.",
-      verificationRequired: true,
+      message: "Registration successful.",
       user: sanitizeUser(user)
     });
   } catch (error) {
@@ -159,69 +131,11 @@ const loginUser = async (req, res, next) => {
       return;
     }
 
-    if (!user.isEmailVerified && !allowUnverifiedLogin) {
-      logger.warn("Failed login attempt: unverified email", {
-        email: normalizedEmail,
-        userId: String(user._id)
-      });
-      res.status(403).json({
-        message: "Email is not verified. Please verify your email before login.",
-        verificationRequired: true
-      });
-      return;
-    }
-
-    if (!user.isEmailVerified && allowUnverifiedLogin) {
-      logger.warn("Allowing unverified login due to ALLOW_UNVERIFIED_LOGIN=true", {
-        email: normalizedEmail,
-        userId: String(user._id)
-      });
-    }
-
     const { token, csrfToken } = await createSessionTokens(user);
 
     res.json({
       token,
       csrfToken,
-      user: sanitizeUser(user)
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const verifyEmail = async (req, res, next) => {
-  try {
-    if (!validateRequest(req, res)) {
-      return;
-    }
-
-    const token = String(req.query.token || req.body.token || "").trim();
-    if (!token) {
-      res.status(400).json({ message: "Verification token is required." });
-      return;
-    }
-
-    const tokenHash = hashToken(token);
-    const user = await User.findOne({
-      emailVerificationTokenHash: tokenHash,
-      emailVerificationTokenExpiresAt: { $gt: new Date() }
-    });
-
-    if (!user) {
-      res.status(400).json({ message: "Verification token is invalid or expired." });
-      return;
-    }
-
-    user.isEmailVerified = true;
-    user.emailVerificationTokenHash = null;
-    user.emailVerificationTokenExpiresAt = null;
-    await user.save();
-
-    res.json({
-      success: true,
-      message: "Email verified successfully.",
-      isVerified: true,
       user: sanitizeUser(user)
     });
   } catch (error) {
@@ -321,7 +235,6 @@ const resetPassword = async (req, res, next) => {
 module.exports = {
   registerUser,
   loginUser,
-  verifyEmail,
   requestPasswordReset,
   resetPassword
 };

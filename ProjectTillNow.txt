@@ -3002,3 +3002,75 @@ Validation/build checks
 
 Pending tasks
 - If additional non-`.vercel.app` frontend origins are needed, add them to `CLIENT_URL`/`FRONTEND_URL`.
+
+[2026-03-02 | Major Update | Removed Email Verification + Extended Account & Member Fields]
+
+Completed modules
+1) Email verification removal (safe auth flow)
+- Removed email verification token generation during registration.
+- Removed `/auth/verify-email` route bindings (GET and POST).
+- Removed login block on `isEmailVerified`.
+- Registration now creates active users immediately (`isEmailVerified: true`) and does not send verification email.
+- Kept User email field and email service module intact for future use.
+
+2) User account field extension
+- Added optional user fields in schema and API handling:
+  - dateOfBirth, education, qualification, designation, addressPermanent, addressCurrent, phoneNumber.
+- Extended register payload validation + persistence (all optional).
+- Extended account update validation + controller update handling (all optional).
+- Extended account read payload to include new fields.
+- Updated account page UI and client API payload wiring with minimal layout changes.
+
+3) Member model extension + API support
+- Added optional member fields in schema:
+  - dateOfBirth, anniversaryDate, dateOfDeath, education, qualification, designation, addressPermanent, addressCurrent, importantNotes.
+- Extended create/update member validation schemas (optional only).
+- Extended member create/update controller parsing/persistence without altering relation/tree logic.
+
+4) Add Member modal extension
+- Updated add member form state + UI to include optional:
+  - DOB, Anniversary, Education, Qualification, Permanent Address, Current Address, Designation.
+- Updated client create-member request to submit new optional fields.
+- No new required validations introduced.
+
+5) Client verification flow cleanup
+- Removed client API call for email verification token.
+- Updated verify-email page to informational fallback.
+- Updated register success messaging to login directly.
+
+6) Code hygiene
+- Added reusable optional-field parsers in controllers to avoid duplicated field-mapping logic.
+
+File changes
+- Server
+  - `server/src/controllers/authController.js`
+  - `server/src/routes/authRoutes.js`
+  - `server/src/validation/bodySchemas.js`
+  - `server/src/controllers/accountController.js`
+  - `server/src/controllers/memberController.js`
+  - `server/src/utils/userProfileFields.js`
+  - `server/src/models/User.js`
+  - `server/src/models/Member.js`
+- Client
+  - `client/lib/api.ts`
+  - `client/types/index.ts`
+  - `client/app/register/page.tsx`
+  - `client/app/verify-email/page.tsx`
+  - `client/app/account/page.tsx`
+  - `client/app/tree/[id]/page.tsx`
+- Docs/Progress
+  - `ProjectTillNow.txt`
+
+Database schema state
+- User schema: added optional fields (dateOfBirth, education, qualification, designation, addressPermanent, addressCurrent, phoneNumber).
+- Member schema: added optional fields (dateOfBirth, anniversaryDate, dateOfDeath, education, qualification, designation, addressPermanent, addressCurrent, importantNotes).
+- Existing indexes unchanged.
+- Existing documents remain valid; no migration required for compatibility.
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+- `cd client && npm run build` -> passed.
+
+Pending tasks
+- Optional: if old verification emails are still circulating, keep `/verify-email` frontend page message as-is or redirect to `/login` later.
+- Optional: backfill profile/member extended fields from legacy sources if needed.

@@ -168,11 +168,6 @@ export function login(payload: AuthPayload): Promise<AuthResponse> {
   });
 }
 
-export function verifyEmailToken(token: string): Promise<{ message: string }> {
-  const safeToken = encodeURIComponent(token);
-  return request<{ message: string }>(`/auth/verify-email?token=${safeToken}`);
-}
-
 export function requestPasswordReset(email: string): Promise<{ message: string }> {
   return request<{ message: string }>("/auth/password-reset/request", {
     method: "POST",
@@ -191,11 +186,51 @@ export function getMyAccount(): Promise<User> {
   return request<User>("/account");
 }
 
-export function updateMyAccount(payload: { name?: string }, imageFile?: File | null): Promise<User> {
+export function updateMyAccount(
+  payload: {
+    name?: string;
+    dateOfBirth?: string | null;
+    education?: string;
+    qualification?: string;
+    designation?: string;
+    addressPermanent?: string;
+    addressCurrent?: string;
+    phoneNumber?: string;
+  },
+  imageFile?: File | null
+): Promise<User> {
   const formData = new FormData();
 
   if (payload.name !== undefined) {
     formData.append("name", payload.name);
+  }
+
+  if (payload.dateOfBirth !== undefined) {
+    formData.append("dateOfBirth", payload.dateOfBirth ?? "");
+  }
+
+  if (payload.education !== undefined) {
+    formData.append("education", payload.education);
+  }
+
+  if (payload.qualification !== undefined) {
+    formData.append("qualification", payload.qualification);
+  }
+
+  if (payload.designation !== undefined) {
+    formData.append("designation", payload.designation);
+  }
+
+  if (payload.addressPermanent !== undefined) {
+    formData.append("addressPermanent", payload.addressPermanent);
+  }
+
+  if (payload.addressCurrent !== undefined) {
+    formData.append("addressCurrent", payload.addressCurrent);
+  }
+
+  if (payload.phoneNumber !== undefined) {
+    formData.append("phoneNumber", payload.phoneNumber);
   }
 
   if (imageFile) {
@@ -411,6 +446,42 @@ export function createMember(
     formData.append("relatedMemberId", payload.relatedMemberId);
   }
 
+  if (payload.dateOfBirth !== undefined) {
+    formData.append("dateOfBirth", payload.dateOfBirth ?? "");
+  }
+
+  if (payload.anniversaryDate !== undefined) {
+    formData.append("anniversaryDate", payload.anniversaryDate ?? "");
+  }
+
+  if (payload.dateOfDeath !== undefined) {
+    formData.append("dateOfDeath", payload.dateOfDeath ?? "");
+  }
+
+  if (payload.education !== undefined) {
+    formData.append("education", payload.education);
+  }
+
+  if (payload.qualification !== undefined) {
+    formData.append("qualification", payload.qualification);
+  }
+
+  if (payload.designation !== undefined) {
+    formData.append("designation", payload.designation);
+  }
+
+  if (payload.addressPermanent !== undefined) {
+    formData.append("addressPermanent", payload.addressPermanent);
+  }
+
+  if (payload.addressCurrent !== undefined) {
+    formData.append("addressCurrent", payload.addressCurrent);
+  }
+
+  if (payload.importantNotes !== undefined) {
+    formData.append("importantNotes", payload.importantNotes);
+  }
+
   if (imageFile) {
     formData.append("profileImage", imageFile);
   }
@@ -451,6 +522,42 @@ export function updateMember(
 
   if (payload.spouses !== undefined) {
     formData.append("spouses", JSON.stringify(payload.spouses));
+  }
+
+  if (payload.dateOfBirth !== undefined) {
+    formData.append("dateOfBirth", payload.dateOfBirth ?? "");
+  }
+
+  if (payload.anniversaryDate !== undefined) {
+    formData.append("anniversaryDate", payload.anniversaryDate ?? "");
+  }
+
+  if (payload.dateOfDeath !== undefined) {
+    formData.append("dateOfDeath", payload.dateOfDeath ?? "");
+  }
+
+  if (payload.education !== undefined) {
+    formData.append("education", payload.education ?? "");
+  }
+
+  if (payload.qualification !== undefined) {
+    formData.append("qualification", payload.qualification ?? "");
+  }
+
+  if (payload.designation !== undefined) {
+    formData.append("designation", payload.designation ?? "");
+  }
+
+  if (payload.addressPermanent !== undefined) {
+    formData.append("addressPermanent", payload.addressPermanent ?? "");
+  }
+
+  if (payload.addressCurrent !== undefined) {
+    formData.append("addressCurrent", payload.addressCurrent ?? "");
+  }
+
+  if (payload.importantNotes !== undefined) {
+    formData.append("importantNotes", payload.importantNotes ?? "");
   }
 
   if (imageFile) {

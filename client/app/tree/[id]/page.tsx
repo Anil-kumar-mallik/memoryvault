@@ -62,6 +62,13 @@ type AddFormState = {
   relationType: AddRelationOption;
   gender: Gender | "";
   note: string;
+  dateOfBirth: string;
+  anniversaryDate: string;
+  education: string;
+  qualification: string;
+  designation: string;
+  addressPermanent: string;
+  addressCurrent: string;
 };
 
 type DetailModalView = "edit" | "relations" | "delete";
@@ -83,7 +90,14 @@ const initialAddForm: AddFormState = {
   name: "",
   relationType: "son",
   gender: "",
-  note: ""
+  note: "",
+  dateOfBirth: "",
+  anniversaryDate: "",
+  education: "",
+  qualification: "",
+  designation: "",
+  addressPermanent: "",
+  addressCurrent: ""
 };
 
 function mergeUniqueMembers(members: Member[]): Member[] {
@@ -680,7 +694,14 @@ export default function TreePage() {
       name: "",
       note: "",
       relationType: "son",
-      gender: autoGenderForRelation("son", focusBundle?.focus.gender)
+      gender: autoGenderForRelation("son", focusBundle?.focus.gender),
+      dateOfBirth: "",
+      anniversaryDate: "",
+      education: "",
+      qualification: "",
+      designation: "",
+      addressPermanent: "",
+      addressCurrent: ""
     });
     setAddImageFile(null);
     setIsAddModalOpen(true);
@@ -705,7 +726,14 @@ export default function TreePage() {
         note: addForm.note.trim() || undefined,
         gender: addForm.gender || undefined,
         relationType: relationType === "none" ? undefined : relationType,
-        relatedMemberId: relationType === "none" ? undefined : relationTargetId
+        relatedMemberId: relationType === "none" ? undefined : relationTargetId,
+        dateOfBirth: addForm.dateOfBirth || null,
+        anniversaryDate: addForm.anniversaryDate || null,
+        education: addForm.education.trim() || undefined,
+        qualification: addForm.qualification.trim() || undefined,
+        designation: addForm.designation.trim() || undefined,
+        addressPermanent: addForm.addressPermanent.trim() || undefined,
+        addressCurrent: addForm.addressCurrent.trim() || undefined
       };
 
       const response = await createMember(treeId, payload, addImageFile);
@@ -1179,7 +1207,7 @@ export default function TreePage() {
 
       {isAddModalOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 px-4">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-slate-900">{t("tree.addMember")}</h2>
               <button type="button" className="button-secondary" onClick={() => setIsAddModalOpen(false)}>
@@ -1232,6 +1260,60 @@ export default function TreePage() {
                 placeholder="Optional note"
                 value={addForm.note}
                 onChange={(event) => setAddForm((current) => ({ ...current, note: event.target.value }))}
+              />
+
+              <input
+                className="field"
+                type="date"
+                placeholder="Date of birth"
+                value={addForm.dateOfBirth}
+                onChange={(event) => setAddForm((current) => ({ ...current, dateOfBirth: event.target.value }))}
+              />
+
+              <input
+                className="field"
+                type="date"
+                placeholder="Anniversary"
+                value={addForm.anniversaryDate}
+                onChange={(event) => setAddForm((current) => ({ ...current, anniversaryDate: event.target.value }))}
+              />
+
+              <input
+                className="field"
+                type="text"
+                placeholder="Education"
+                value={addForm.education}
+                onChange={(event) => setAddForm((current) => ({ ...current, education: event.target.value }))}
+              />
+
+              <input
+                className="field"
+                type="text"
+                placeholder="Qualification"
+                value={addForm.qualification}
+                onChange={(event) => setAddForm((current) => ({ ...current, qualification: event.target.value }))}
+              />
+
+              <input
+                className="field"
+                type="text"
+                placeholder="Designation"
+                value={addForm.designation}
+                onChange={(event) => setAddForm((current) => ({ ...current, designation: event.target.value }))}
+              />
+
+              <textarea
+                className="field min-h-20"
+                placeholder="Permanent address"
+                value={addForm.addressPermanent}
+                onChange={(event) => setAddForm((current) => ({ ...current, addressPermanent: event.target.value }))}
+              />
+
+              <textarea
+                className="field min-h-20"
+                placeholder="Current address"
+                value={addForm.addressCurrent}
+                onChange={(event) => setAddForm((current) => ({ ...current, addressCurrent: event.target.value }))}
               />
 
               {!focusId && (

@@ -8,6 +8,19 @@ import { clearToken, getToken, setCurrentUser } from "@/lib/auth";
 import { deleteMyAccount, getMyAccount, updateMyAccount, updateMyPassword } from "@/lib/api";
 import { User } from "@/types";
 
+const toDateInputValue = (value?: string | null) => {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toISOString().slice(0, 10);
+};
+
 export default function AccountPage() {
   const router = useRouter();
   const uploadsBaseUrl = process.env.NEXT_PUBLIC_UPLOADS_URL ?? "http://localhost:5000";
@@ -18,6 +31,13 @@ export default function AccountPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const [name, setName] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [education, setEducation] = useState("");
+  const [qualification, setQualification] = useState("");
+  const [designation, setDesignation] = useState("");
+  const [addressPermanent, setAddressPermanent] = useState("");
+  const [addressCurrent, setAddressCurrent] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -28,6 +48,19 @@ export default function AccountPage() {
 
   const [deletePassword, setDeletePassword] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
+
+  const syncAccountState = (payload: User) => {
+    setAccount(payload);
+    setName(payload.name || "");
+    setDateOfBirth(toDateInputValue(payload.dateOfBirth));
+    setEducation(payload.education || "");
+    setQualification(payload.qualification || "");
+    setDesignation(payload.designation || "");
+    setAddressPermanent(payload.addressPermanent || "");
+    setAddressCurrent(payload.addressCurrent || "");
+    setPhoneNumber(payload.phoneNumber || "");
+    setCurrentUser(payload);
+  };
 
   useEffect(() => {
     if (!getToken()) {
@@ -44,9 +77,7 @@ export default function AccountPage() {
           return;
         }
 
-        setAccount(payload);
-        setName(payload.name || "");
-        setCurrentUser(payload);
+        syncAccountState(payload);
         setError(null);
       } catch (loadError) {
         if (active) {
@@ -77,11 +108,21 @@ export default function AccountPage() {
 
     try {
       setSavingProfile(true);
-      const payload = await updateMyAccount({ name: nextName }, profileImageFile);
-      setAccount(payload);
-      setName(payload.name);
+      const payload = await updateMyAccount(
+        {
+          name: nextName,
+          dateOfBirth: dateOfBirth || null,
+          education: education.trim(),
+          qualification: qualification.trim(),
+          designation: designation.trim(),
+          addressPermanent: addressPermanent.trim(),
+          addressCurrent: addressCurrent.trim(),
+          phoneNumber: phoneNumber.trim()
+        },
+        profileImageFile
+      );
+      syncAccountState(payload);
       setProfileImageFile(null);
-      setCurrentUser(payload);
       setNotice("Profile updated successfully.");
       setError(null);
     } catch (saveError) {
@@ -199,6 +240,28 @@ export default function AccountPage() {
             <p className="text-sm text-slate-700">
               <span className="font-semibold">Role:</span> {account?.role || "user"}
             </p>
+            <p className="text-sm text-slate-700">
+              <span className="font-semibold">Date of Birth:</span>{" "}
+              {account?.dateOfBirth ? new Date(account.dateOfBirth).toLocaleDateString() : "-"}
+            </p>
+            <p className="text-sm text-slate-700">
+              <span className="font-semibold">Phone:</span> {account?.phoneNumber || "-"}
+            </p>
+            <p className="text-sm text-slate-700">
+              <span className="font-semibold">Education:</span> {account?.education || "-"}
+            </p>
+            <p className="text-sm text-slate-700">
+              <span className="font-semibold">Qualification:</span> {account?.qualification || "-"}
+            </p>
+            <p className="text-sm text-slate-700">
+              <span className="font-semibold">Designation:</span> {account?.designation || "-"}
+            </p>
+            <p className="text-sm text-slate-700">
+              <span className="font-semibold">Permanent Address:</span> {account?.addressPermanent || "-"}
+            </p>
+            <p className="text-sm text-slate-700">
+              <span className="font-semibold">Current Address:</span> {account?.addressCurrent || "-"}
+            </p>
             <p className="text-xs text-slate-500">
               Updated: {account?.updatedAt ? new Date(account.updatedAt).toLocaleString() : "-"}
             </p>
@@ -215,6 +278,53 @@ export default function AccountPage() {
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   required
+                />
+                <input
+                  className="field"
+                  type="date"
+                  placeholder="Date of birth"
+                  value={dateOfBirth}
+                  onChange={(event) => setDateOfBirth(event.target.value)}
+                />
+                <input
+                  className="field"
+                  type="text"
+                  placeholder="Phone number"
+                  value={phoneNumber}
+                  onChange={(event) => setPhoneNumber(event.target.value)}
+                />
+                <input
+                  className="field"
+                  type="text"
+                  placeholder="Education"
+                  value={education}
+                  onChange={(event) => setEducation(event.target.value)}
+                />
+                <input
+                  className="field"
+                  type="text"
+                  placeholder="Qualification"
+                  value={qualification}
+                  onChange={(event) => setQualification(event.target.value)}
+                />
+                <input
+                  className="field"
+                  type="text"
+                  placeholder="Designation"
+                  value={designation}
+                  onChange={(event) => setDesignation(event.target.value)}
+                />
+                <textarea
+                  className="field min-h-20"
+                  placeholder="Permanent address"
+                  value={addressPermanent}
+                  onChange={(event) => setAddressPermanent(event.target.value)}
+                />
+                <textarea
+                  className="field min-h-20"
+                  placeholder="Current address"
+                  value={addressCurrent}
+                  onChange={(event) => setAddressCurrent(event.target.value)}
                 />
                 <input
                   className="field"

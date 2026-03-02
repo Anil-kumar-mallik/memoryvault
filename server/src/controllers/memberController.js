@@ -12,6 +12,14 @@ const RELATION_TYPES = new Set(["none", "father", "mother", "child", "spouse", "
 const MUTATION_RELATIONS = new Set(["father", "mother", "child", "spouse", "sibling"]);
 const RELATION_ACTIONS = new Set(["connect", "disconnect"]);
 const PARENT_ROLE_TYPES = new Set(["father", "mother", "auto"]);
+const OPTIONAL_MEMBER_TEXT_FIELDS = [
+  "education",
+  "qualification",
+  "designation",
+  "addressPermanent",
+  "addressCurrent",
+  "importantNotes"
+];
 const DEFAULT_CHILDREN_LIMIT = 18;
 const MAX_CHILDREN_LIMIT = 100;
 const DEFAULT_SIDE_RELATION_LIMIT = 30;
@@ -189,6 +197,34 @@ const parseNullableDateInput = (rawValue, fieldName) => {
   }
 
   return { provided: true, value: parsedDate };
+};
+
+const parseNullableTextInput = (rawValue) => {
+  if (rawValue === undefined) {
+    return { provided: false, value: null };
+  }
+
+  if (rawValue === null || rawValue === "" || rawValue === "null") {
+    return { provided: true, value: null };
+  }
+
+  const text = String(rawValue).trim();
+  return { provided: true, value: text || null };
+};
+
+const parseExtendedMemberInputs = (input = {}) => {
+  const textInputs = {};
+
+  for (const field of OPTIONAL_MEMBER_TEXT_FIELDS) {
+    textInputs[field] = parseNullableTextInput(input[field]);
+  }
+
+  return {
+    dateOfBirthInput: parseNullableDateInput(input.dateOfBirth, "dateOfBirth"),
+    anniversaryDateInput: parseNullableDateInput(input.anniversaryDate, "anniversaryDate"),
+    dateOfDeathInput: parseNullableDateInput(input.dateOfDeath, "dateOfDeath"),
+    textInputs
+  };
 };
 
 const parseMetadataInput = (rawValue) => {
@@ -1423,8 +1459,15 @@ const createMember = async (req, res, next) => {
 
     const birthDateInput = parseNullableDateInput(req.body.birthDate, "birthDate");
     const deathDateInput = parseNullableDateInput(req.body.deathDate, "deathDate");
+    const extendedMemberInputs = parseExtendedMemberInputs(req.body);
     const metadataInput = parseMetadataInput(req.body.metadata);
     const genderValue = hasOwn(req.body, "gender") ? String(req.body.gender || "").trim().toLowerCase() : undefined;
+    const optionalTextValues = {};
+
+    for (const field of OPTIONAL_MEMBER_TEXT_FIELDS) {
+      const parsedField = extendedMemberInputs.textInputs[field];
+      optionalTextValues[field] = parsedField.provided ? parsedField.value : null;
+    }
 
     const payload = await withMongoTransaction(async (session) => {
       const { tree } = await ensureMemberCreateAllowed({ treeId, session });
@@ -1455,6 +1498,12 @@ const createMember = async (req, res, next) => {
         linkedUserId: !treeRootMemberId ? tree.owner : null,
         birthDate: birthDateInput.provided ? birthDateInput.value : null,
         deathDate: deathDateInput.provided ? deathDateInput.value : null,
+        dateOfBirth: extendedMemberInputs.dateOfBirthInput.provided ? extendedMemberInputs.dateOfBirthInput.value : null,
+        anniversaryDate: extendedMemberInputs.anniversaryDateInput.provided
+          ? extendedMemberInputs.anniversaryDateInput.value
+          : null,
+        dateOfDeath: extendedMemberInputs.dateOfDeathInput.provided ? extendedMemberInputs.dateOfDeathInput.value : null,
+        ...optionalTextValues,
         metadata: metadataInput.provided ? metadataInput.value : {},
         ...(genderValue ? { gender: genderValue } : {})
       });
@@ -1590,6 +1639,26 @@ const updateMember = async (req, res, next) => {
       const deathDateInput = parseNullableDateInput(req.body.deathDate, "deathDate");
       if (deathDateInput.provided) {
         member.deathDate = deathDateInput.value;
+      }
+
+      const extendedMemberInputs = parseExtendedMemberInputs(req.body);
+      if (extendedMemberInputs.dateOfBirthInput.provided) {
+        member.dateOfBirth = extendedMemberInputs.dateOfBirthInput.value;
+      }
+
+      if (extendedMemberInputs.anniversaryDateInput.provided) {
+        member.anniversaryDate = extendedMemberInputs.anniversaryDateInput.value;
+      }
+
+      if (extendedMemberInputs.dateOfDeathInput.provided) {
+        member.dateOfDeath = extendedMemberInputs.dateOfDeathInput.value;
+      }
+
+      for (const field of OPTIONAL_MEMBER_TEXT_FIELDS) {
+        const parsedField = extendedMemberInputs.textInputs[field];
+        if (parsedField.provided) {
+          member[field] = parsedField.value;
+        }
       }
 
       const metadataInput = parseMetadataInput(req.body.metadata);

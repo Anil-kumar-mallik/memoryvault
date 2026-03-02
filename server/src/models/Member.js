@@ -104,9 +104,56 @@ const memberSchema = new mongoose.Schema(
       type: Date,
       default: null
     },
+    dateOfBirth: {
+      type: Date,
+      default: null
+    },
+    anniversaryDate: {
+      type: Date,
+      default: null
+    },
     deathDate: {
       type: Date,
       default: null
+    },
+    dateOfDeath: {
+      type: Date,
+      default: null
+    },
+    education: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 200
+    },
+    qualification: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 200
+    },
+    designation: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 200
+    },
+    addressPermanent: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 600
+    },
+    addressCurrent: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 600
+    },
+    importantNotes: {
+      type: String,
+      default: null,
+      maxlength: 2000
     },
     metadata: {
       type: mongoose.Schema.Types.Mixed,
