@@ -3300,3 +3300,45 @@ Validation/build checks
 
 Pending tasks
 - Optional: add a small frontend interaction test for detail modal edit toggle and close behavior.
+
+[Tree Modal State Refactor Patch]
+
+Completed modules
+1) Tree person modal mode refactor (frontend only)
+- Replaced boolean edit toggle with explicit mode state:
+  - `const [mode, setMode] = useState<"view" | "edit">("view");`
+- Kept `selectedPerson` as active modal person state and preserved existing modal structure.
+- Clicking a person now opens details in view mode first (`setMode("view")`), not edit mode.
+
+2) Edit/update state flow cleanup
+- Edit action now only switches mode:
+  - `onClick={() => setMode("edit")}`
+- Update/save success now returns modal to view mode:
+  - `setMode("view")`
+- Switching to relation/delete tabs resets mode to view to prevent accidental edit-state carryover.
+
+3) Modal interaction safety
+- Preserved modal close/open behavior and click propagation safety:
+  - overlay click closes modal
+  - modal content click uses `stopPropagation()`
+- Preserved stacking order:
+  - overlay `z-50`
+  - modal content `z-[60]`
+- Removed `pointer-events-none` usage from this tree page modal flow context.
+
+File changes
+- Client
+  - `client/app/tree/[id]/page.tsx`
+- Docs/Progress
+  - `ProjectTillNow.txt`
+
+Database schema state
+- No database schema/index/model changes in this patch.
+- No backend or API route changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- `cd client && npm run lint` -> passed.
+
+Pending tasks
+- Optional: add a focused UI test for modal mode transitions (`view -> edit -> view`) after update.

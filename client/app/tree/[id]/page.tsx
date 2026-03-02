@@ -460,7 +460,7 @@ export default function TreePage() {
   const [detailImageFile, setDetailImageFile] = useState<File | null>(null);
   const [savingDetail, setSavingDetail] = useState(false);
   const [deletingDetail, setDeletingDetail] = useState(false);
-  const [editMode, setEditMode] = useState(false);
+  const [mode, setMode] = useState<"view" | "edit">("view");
   const [detailModalView, setDetailModalView] = useState<DetailModalView>("edit");
   const [removingRelationKey, setRemovingRelationKey] = useState<string | null>(null);
   const [relationAction, setRelationAction] = useState<RelationMutationAction>("connect");
@@ -867,7 +867,7 @@ export default function TreePage() {
         setDetailBundle(null);
         setDetailImageFile(null);
         setDetailModalView("edit");
-        setEditMode(false);
+        setMode("view");
         setRemovingRelationKey(null);
         setRelationAction("connect");
         setRelationType("spouse");
@@ -901,7 +901,7 @@ export default function TreePage() {
 
   const closeDetailModal = useCallback(() => {
     setIsDetailModalOpen(false);
-    setEditMode(false);
+    setMode("view");
     setDetailModalView("edit");
     setSelectedPerson(null);
   }, []);
@@ -935,7 +935,7 @@ export default function TreePage() {
       setDetailImageFile(null);
       setDetailName(response.focus.name);
       setDetailNote(response.focus.note || "");
-      setEditMode(false);
+      setMode("view");
 
       if (focusId) {
         await loadFocusBundle(focusId);
@@ -1250,7 +1250,7 @@ export default function TreePage() {
         <div className="relative">
           <TreeCanvas bundle={focusBundle} onFocusChange={handleFocusChange} onNodeInfo={openDetailModal} />
           {loadingFocus && (
-            <div className="pointer-events-none absolute inset-0 rounded-xl border border-slate-200/70 bg-white/60 p-6 backdrop-blur-[1px]">
+            <div className="absolute inset-0 rounded-xl border border-slate-200/70 bg-white/60 p-6 backdrop-blur-[1px]">
               <div className="mb-4 flex items-center gap-3">
                 <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-brand-500" />
                 <p className="text-sm font-medium text-slate-700">{t("tree.loadingFocus")}</p>
@@ -1477,14 +1477,14 @@ export default function TreePage() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      className={`rounded-lg px-3 py-2 text-sm font-semibold ${
+                        className={`rounded-lg px-3 py-2 text-sm font-semibold ${
                         detailModalView === "edit"
                           ? "bg-brand-500 text-white"
                           : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                       }`}
                       onClick={() => {
                         setDetailModalView("edit");
-                        setEditMode(true);
+                        setMode("view");
                       }}
                     >
                       Edit Member
@@ -1498,7 +1498,7 @@ export default function TreePage() {
                             : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                         }`}
                         onClick={() => {
-                          setEditMode(false);
+                          setMode("view");
                           setDetailModalView("relations");
                         }}
                       >
@@ -1514,7 +1514,7 @@ export default function TreePage() {
                             : "border border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
                         }`}
                         onClick={() => {
-                          setEditMode(false);
+                          setMode("view");
                           setDetailModalView("delete");
                         }}
                       >
@@ -1600,7 +1600,7 @@ export default function TreePage() {
                         </div>
                       </div>
 
-                      {editMode ? (
+                      {mode === "edit" ? (
                         <>
                           <input
                             className="field"
@@ -1673,7 +1673,7 @@ export default function TreePage() {
                       ) : (
                         <div className="rounded-lg border border-slate-200 bg-white p-3">
                           {detailCanEdit ? (
-                            <button type="button" className="button-primary w-full" onClick={() => setEditMode(true)}>
+                            <button type="button" className="button-primary w-full" onClick={() => setMode("edit")}>
                               Edit
                             </button>
                           ) : (
