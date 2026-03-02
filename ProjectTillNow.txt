@@ -3382,3 +3382,60 @@ Validation/build checks
 
 Pending tasks
 - Optional: add a focused UI test for modal overlay/click propagation and edit form interactivity.
+
+[Phase 1 Complete | Tree Modal Architecture Refactor]
+
+Completed modules
+1) Person modal component isolation
+- Added new component:
+  - `client/components/PersonModal.tsx`
+- Moved tree person modal JSX from `client/app/tree/[id]/page.tsx` into `PersonModal`.
+- Kept modal structure with isolated overlay/container:
+  - Overlay class: `fixed inset-0 bg-black/50 z-40 flex items-center justify-center`
+  - Container class: `relative bg-white w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl shadow-xl z-50 p-6`
+- Preserved inside click stop-propagation and outside click close behavior.
+
+2) Tree page modal architecture cleanup
+- Replaced inline modal block in tree page with component usage:
+  - `{selectedPerson && <PersonModal ... />}`
+- Removed duplicate/legacy inline modal wrappers from `page.tsx`.
+- Kept tree focus/navigation logic unchanged.
+- Kept backend/API calls unchanged.
+
+3) Mode-state behavior preserved via props
+- `PersonModal` now receives required props:
+  - `person`
+  - `mode` (`"view" | "edit"`)
+  - `onClose`
+  - `onEdit`
+  - `onSave`
+- Clicking person sets:
+  - `setSelectedPerson(person)`
+  - `setMode("view")`
+- Edit action switches only to edit mode.
+- Save success switches back to view mode through `onSave`.
+
+4) Supporting frontend-only refactor adjustments
+- Removed tree-page-local modal-only helpers now owned by `PersonModal`:
+  - date formatter
+  - virtualized child list renderer
+- Updated relation member search effect gate to use `selectedPerson` modal state.
+- Removed obsolete `isDetailModalOpen` modal flag and old close wrapper wiring.
+
+File changes
+- Client
+  - `client/components/PersonModal.tsx` (new)
+  - `client/app/tree/[id]/page.tsx`
+- Docs/Progress
+  - `ProjectTillNow.txt`
+
+Database schema state
+- No database schema/index/model changes.
+- No backend/API route changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- `cd client && npm run lint` -> passed.
+
+Pending tasks
+- Optional: add component-level UI tests for `PersonModal` view/edit transitions and close propagation behavior.

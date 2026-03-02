@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import TreeCanvas from "@/components/TreeCanvas";
+import PersonModal from "@/components/PersonModal";
 import DateFieldGroup, { ImportantDateItem, ImportantDateType, createImportantDateRow } from "@/components/DateFieldGroup";
 import {
   clearTreeAccessPassword,
@@ -83,8 +83,6 @@ type ToastItem = {
 
 const TOAST_TIMEOUT_MS = 3600;
 const EXPORT_PAGE_SIZE = 100;
-const VIRTUAL_ROW_HEIGHT = 34;
-const VIRTUAL_VIEWPORT_HEIGHT = 204;
 
 const initialAddForm: AddFormState = {
   name: "",
@@ -201,19 +199,6 @@ function autoGenderForRelation(
   }
 
   return "";
-}
-
-function formatDate(value?: string | null): string {
-  if (!value) {
-    return "N/A";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "N/A";
-  }
-
-  return date.toLocaleDateString();
 }
 
 function mapImportantDatesToLegacyFields(entries: ImportantDateItem[]): {
@@ -382,44 +367,6 @@ function buildSimplePdfDocument(title: string, lines: string[]): Blob {
   return new Blob([output], { type: "application/pdf" });
 }
 
-function VirtualizedMemberList({ members }: { members: Member[] }) {
-  const [scrollTop, setScrollTop] = useState(0);
-  const totalHeight = members.length * VIRTUAL_ROW_HEIGHT;
-  const overscan = 6;
-  const startIndex = Math.max(Math.floor(scrollTop / VIRTUAL_ROW_HEIGHT) - overscan, 0);
-  const visibleCount = Math.ceil(VIRTUAL_VIEWPORT_HEIGHT / VIRTUAL_ROW_HEIGHT) + overscan * 2;
-  const endIndex = Math.min(startIndex + visibleCount, members.length);
-  const visibleMembers = members.slice(startIndex, endIndex);
-  const translateY = startIndex * VIRTUAL_ROW_HEIGHT;
-
-  if (!members.length) {
-    return <p className="text-xs text-slate-500">No children linked.</p>;
-  }
-
-  return (
-    <div
-      className="overflow-y-auto rounded-lg border border-slate-200 bg-white"
-      style={{ height: `${VIRTUAL_VIEWPORT_HEIGHT}px` }}
-      onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-    >
-      <div style={{ height: `${totalHeight}px` }}>
-        <div style={{ transform: `translateY(${translateY}px)` }}>
-          {visibleMembers.map((member) => (
-            <div
-              key={member._id}
-              className="flex items-center justify-between border-b border-slate-100 px-3 text-xs text-slate-700 last:border-b-0"
-              style={{ height: `${VIRTUAL_ROW_HEIGHT}px` }}
-            >
-              <span className="truncate">{member.name}</span>
-              <span className="ml-3 text-[10px] text-slate-400">{member._id.slice(-6)}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function TreePage() {
   const { t } = useI18n();
   const params = useParams<{ id: string }>();
@@ -451,7 +398,6 @@ export default function TreePage() {
   const [addImageFile, setAddImageFile] = useState<File | null>(null);
   const [submittingAdd, setSubmittingAdd] = useState(false);
 
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState<Member | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailBundle, setDetailBundle] = useState<MemberWithRelationsResponse | null>(null);
@@ -460,7 +406,7 @@ export default function TreePage() {
   const [detailImageFile, setDetailImageFile] = useState<File | null>(null);
   const [savingDetail, setSavingDetail] = useState(false);
   const [deletingDetail, setDeletingDetail] = useState(false);
-  const [mode, setMode] = useState("view");
+  const [mode, setMode] = useState<"view" | "edit">("view");
   const [detailModalView, setDetailModalView] = useState<DetailModalView>("edit");
   const [removingRelationKey, setRemovingRelationKey] = useState<string | null>(null);
   const [relationAction, setRelationAction] = useState<RelationMutationAction>("connect");
@@ -695,7 +641,7 @@ export default function TreePage() {
   }, [focusId, loadFocusBundle, tree]);
 
   useEffect(() => {
-    if (!isDetailModalOpen || !tree?.canEdit || !detailBundle) {
+    if (!selectedPerson || !tree?.canEdit || !detailBundle) {
       return;
     }
 
@@ -725,7 +671,7 @@ export default function TreePage() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [detailBundle, isDetailModalOpen, relationMemberSearch, tree?.canEdit, treeId]);
+  }, [detailBundle, relationMemberSearch, selectedPerson, tree?.canEdit, treeId]);
 
   const handleFocusChange = useCallback((memberId: string) => {
     setFocusId((current) => {
@@ -862,7 +808,6 @@ export default function TreePage() {
     async (member: Member) => {
       try {
         setSelectedPerson(member);
-        setIsDetailModalOpen(true);
         setLoadingDetail(true);
         setDetailBundle(null);
         setDetailImageFile(null);
@@ -899,23 +844,16 @@ export default function TreePage() {
     [isMemberNotFoundError, showToast, treeId]
   );
 
-  const closeDetailModal = useCallback(() => {
-    setIsDetailModalOpen(false);
-    setMode("view");
-    setDetailModalView("edit");
-    setSelectedPerson(null);
-  }, []);
-
-  const saveMemberDetails = async (event: FormEvent<HTMLFormElement>) => {
+  const saveMemberDetails = async (event: FormEvent<HTMLFormElement>): Promise<boolean> => {
     event.preventDefault();
 
     if (!detailBundle || !tree?.canEdit) {
-      return;
+      return false;
     }
 
     if (!detailName.trim()) {
       setError("Member name is required.");
-      return;
+      return false;
     }
 
     try {
@@ -935,7 +873,6 @@ export default function TreePage() {
       setDetailImageFile(null);
       setDetailName(response.focus.name);
       setDetailNote(response.focus.note || "");
-      setMode("view");
 
       if (focusId) {
         await loadFocusBundle(focusId);
@@ -943,10 +880,12 @@ export default function TreePage() {
 
       setError(null);
       showToast("Member details updated.", "success");
+      return true;
     } catch (saveError) {
       const message = saveError instanceof Error ? saveError.message : "Failed to update member.";
       setError(message);
       showToast(message, "error");
+      return false;
     } finally {
       setSavingDetail(false);
     }
@@ -1074,7 +1013,6 @@ export default function TreePage() {
         };
       });
 
-      setIsDetailModalOpen(false);
       setSelectedPerson(null);
       setDetailBundle(null);
       setDetailImageFile(null);
@@ -1422,538 +1360,58 @@ export default function TreePage() {
         </div>
       )}
 
-      {isDetailModalOpen && selectedPerson && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center"
-          onClick={closeDetailModal}
-        >
-          <div
-            className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto z-50"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="sticky top-0 z-20 -mx-6 -mt-6 mb-4 flex items-center justify-between border-b border-slate-200 bg-white/95 px-6 py-4 backdrop-blur">
-              <h2 className="text-xl font-semibold text-slate-900">Member Details</h2>
-              <button type="button" className="button-secondary" onClick={closeDetailModal}>
-                Close
-              </button>
-            </div>
-
-            {loadingDetail || !detailBundle ? (
-              <p className="text-sm text-slate-600">Loading member details...</p>
-            ) : (
-              <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-                <aside className="space-y-3">
-                  {detailBundle.focus.profileImage ? (
-                    <div className="relative h-48 w-full overflow-hidden rounded-lg border border-slate-200">
-                      <Image
-                        src={`${uploadsBaseUrl}${detailBundle.focus.profileImage}`}
-                        alt={`${detailBundle.focus.name} profile`}
-                        fill
-                        className="object-cover"
-                        sizes="220px"
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex h-48 w-full items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500">
-                      No image
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    className="button-secondary w-full"
-                    onClick={() => {
-                      setFocusId(detailBundle.focus._id);
-                      closeDetailModal();
-                    }}
-                  >
-                    Set As Focus
-                  </button>
-
-                  <p className="text-xs text-slate-500">ID: {detailBundle.focus._id}</p>
-                </aside>
-
-                <section className="space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                        className={`rounded-lg px-3 py-2 text-sm font-semibold ${
-                        detailModalView === "edit"
-                          ? "bg-brand-500 text-white"
-                          : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                      }`}
-                      onClick={() => {
-                        setDetailModalView("edit");
-                        setMode("edit");
-                      }}
-                    >
-                      Edit Member
-                    </button>
-                    {detailCanEdit && (
-                      <button
-                        type="button"
-                        className={`rounded-lg px-3 py-2 text-sm font-semibold ${
-                          detailModalView === "relations"
-                            ? "bg-brand-500 text-white"
-                            : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                        }`}
-                        onClick={() => {
-                          setMode("view");
-                          setDetailModalView("relations");
-                        }}
-                      >
-                        Remove Relationship
-                      </button>
-                    )}
-                    {canDeleteDetailMember && (
-                      <button
-                        type="button"
-                        className={`rounded-lg px-3 py-2 text-sm font-semibold ${
-                          detailModalView === "delete"
-                            ? "bg-red-600 text-white"
-                            : "border border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
-                        }`}
-                        onClick={() => {
-                          setMode("view");
-                          setDetailModalView("delete");
-                        }}
-                      >
-                        Delete Member
-                      </button>
-                    )}
-                  </div>
-
-                  {detailModalView === "edit" && (
-                    <form onSubmit={saveMemberDetails} className="space-y-3">
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="flex flex-col gap-4 sm:flex-row">
-                          {detailBundle.focus.profileImage ? (
-                            <div className="relative h-36 w-full overflow-hidden rounded-lg border border-slate-200 sm:w-32">
-                              <Image
-                                src={`${uploadsBaseUrl}${detailBundle.focus.profileImage}`}
-                                alt={`${detailBundle.focus.name} profile`}
-                                fill
-                                className="object-cover"
-                                sizes="128px"
-                              />
-                            </div>
-                          ) : (
-                            <div className="flex h-36 w-full items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 sm:w-32">
-                              No image
-                            </div>
-                          )}
-
-                          <div className="flex-1 space-y-3">
-                            <div>
-                              <h3 className="text-2xl font-bold text-slate-900">{detailBundle.focus.name}</h3>
-                              <p className="text-sm text-slate-500">{detailRelationLabel}</p>
-                            </div>
-
-                            <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
-                              <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Personal Information</h4>
-                              <p>
-                                <span className="font-semibold">Gender:</span> {detailBundle.focus.gender || "unspecified"}
-                              </p>
-                              <p>
-                                <span className="font-semibold">Personal Note:</span> {detailBundle.focus.note || "-"}
-                              </p>
-                            </div>
-
-                            <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
-                              <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Important Dates</h4>
-                              <p>
-                                <span className="font-semibold">Date of Birth:</span>{" "}
-                                {formatDate(detailBundle.focus.dateOfBirth || detailBundle.focus.birthDate)}
-                              </p>
-                              <p>
-                                <span className="font-semibold">Anniversary:</span> {formatDate(detailBundle.focus.anniversaryDate)}
-                              </p>
-                              <p>
-                                <span className="font-semibold">Date of Death:</span>{" "}
-                                {formatDate(detailBundle.focus.dateOfDeath || detailBundle.focus.deathDate)}
-                              </p>
-                            </div>
-
-                            <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
-                              <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Address</h4>
-                              <p>
-                                <span className="font-semibold">Permanent:</span> {detailBundle.focus.addressPermanent || "-"}
-                              </p>
-                              <p>
-                                <span className="font-semibold">Current:</span> {detailBundle.focus.addressCurrent || "-"}
-                              </p>
-                            </div>
-
-                            <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
-                              <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Professional Information</h4>
-                              <p>
-                                <span className="font-semibold">Education:</span> {detailBundle.focus.education || "-"}
-                              </p>
-                              <p>
-                                <span className="font-semibold">Qualification:</span> {detailBundle.focus.qualification || "-"}
-                              </p>
-                              <p>
-                                <span className="font-semibold">Designation:</span> {detailBundle.focus.designation || "-"}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {mode === "edit" ? (
-                        <>
-                          <input
-                            className="field"
-                            value={detailName}
-                            onChange={(event) => setDetailName(event.target.value)}
-                            placeholder="Name"
-                            required
-                            disabled={!tree?.canEdit}
-                          />
-
-                          <textarea
-                            className="field min-h-24"
-                            value={detailNote}
-                            onChange={(event) => setDetailNote(event.target.value)}
-                            placeholder="Optional note"
-                            disabled={!tree?.canEdit}
-                          />
-
-                          <input
-                            className="field"
-                            type="file"
-                            accept="image/*"
-                            onChange={(event) => setDetailImageFile(event.target.files?.[0] ?? null)}
-                            disabled={!tree?.canEdit}
-                          />
-
-                          <div className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
-                            <p>
-                              <span className="font-semibold">{t("tree.father")}:</span>{" "}
-                              {detailBundle.relations.father ? detailBundle.relations.father.name : t("common.notAvailable")}
-                            </p>
-                            <p>
-                              <span className="font-semibold">{t("tree.mother")}:</span>{" "}
-                              {detailBundle.relations.mother ? detailBundle.relations.mother.name : t("common.notAvailable")}
-                            </p>
-                            <p>
-                              <span className="font-semibold">{t("tree.spouses")}:</span>{" "}
-                              {detailBundle.relations.spouses.map((member) => member.name).join(", ") || "None"}
-                              {detailBundle.relationMeta.spouses.total > detailBundle.relations.spouses.length
-                                ? ` (+${detailBundle.relationMeta.spouses.total - detailBundle.relations.spouses.length} more)`
-                                : ""}
-                            </p>
-                            <p>
-                              <span className="font-semibold">{t("tree.siblings")}:</span>{" "}
-                              {detailBundle.relations.siblings.map((member) => member.name).join(", ") || "None"}
-                              {detailBundle.relationMeta.siblings.total > detailBundle.relations.siblings.length
-                                ? ` (+${detailBundle.relationMeta.siblings.total - detailBundle.relations.siblings.length} more)`
-                                : ""}
-                            </p>
-                            <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                              <p className="text-xs text-slate-600">
-                                <span className="font-semibold text-slate-900">{t("tree.children")}:</span>{" "}
-                                {detailBundle.relationMeta.children.loaded}/{detailBundle.relationMeta.children.total}
-                                {detailBundle.relationMeta.children.hasMore ? " loaded" : ""}
-                              </p>
-                              <VirtualizedMemberList members={detailBundle.relations.children} />
-                            </div>
-                          </div>
-
-                          {tree?.canEdit ? (
-                            <button type="submit" className="button-primary w-full" disabled={savingDetail}>
-                              {savingDetail ? "Saving..." : "Update Member"}
-                            </button>
-                          ) : (
-                            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                              Read-only access. Only tree owner/admin can update members.
-                            </p>
-                          )}
-                        </>
-                      ) : (
-                        <div className="rounded-lg border border-slate-200 bg-white p-3">
-                          {detailCanEdit ? (
-                            <button type="button" className="button-primary w-full" onClick={() => setMode("edit")}>
-                              Edit
-                            </button>
-                          ) : (
-                            <p className="text-xs text-slate-600">
-                              Read-only access. Only tree owner/admin can update members.
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </form>
-                  )}
-
-                  {detailModalView === "relations" && (
-                    <div className="space-y-4">
-                      {!detailCanEdit ? (
-                        <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                          Read-only access. Only tree owner/admin can modify relationships.
-                        </p>
-                      ) : (
-                        <>
-                          <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
-                            <h3 className="text-sm font-semibold text-slate-900">Relationships</h3>
-                            <p className="text-xs text-slate-500">Remove incorrect links from this member.</p>
-
-                            <div className="space-y-2">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Parents</p>
-                              {detailBundle.relations.father || detailBundle.relations.mother ? (
-                                <>
-                                  {detailBundle.relations.father && (
-                                    <div className="flex items-center justify-between rounded border border-slate-200 px-3 py-2 text-sm">
-                                      <span>{detailBundle.relations.father.name}</span>
-                                      <button
-                                        type="button"
-                                        className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
-                                        onClick={() =>
-                                          void removeRelationship(
-                                            "parent",
-                                            detailBundle.relations.father!._id,
-                                            detailBundle.relations.father!.name
-                                          )
-                                        }
-                                        disabled={removingRelationKey === `parent:${detailBundle.relations.father._id}`}
-                                      >
-                                        {removingRelationKey === `parent:${detailBundle.relations.father._id}` ? "Removing..." : "Remove"}
-                                      </button>
-                                    </div>
-                                  )}
-                                  {detailBundle.relations.mother && (
-                                    <div className="flex items-center justify-between rounded border border-slate-200 px-3 py-2 text-sm">
-                                      <span>{detailBundle.relations.mother.name}</span>
-                                      <button
-                                        type="button"
-                                        className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
-                                        onClick={() =>
-                                          void removeRelationship(
-                                            "parent",
-                                            detailBundle.relations.mother!._id,
-                                            detailBundle.relations.mother!.name
-                                          )
-                                        }
-                                        disabled={removingRelationKey === `parent:${detailBundle.relations.mother._id}`}
-                                      >
-                                        {removingRelationKey === `parent:${detailBundle.relations.mother._id}` ? "Removing..." : "Remove"}
-                                      </button>
-                                    </div>
-                                  )}
-                                </>
-                              ) : (
-                                <p className="rounded border border-dashed border-slate-300 px-3 py-2 text-xs text-slate-500">
-                                  No parent relationships.
-                                </p>
-                              )}
-                            </div>
-
-                            <div className="space-y-2">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Spouses</p>
-                              {detailBundle.relations.spouses.length > 0 ? (
-                                detailBundle.relations.spouses.map((member) => (
-                                  <div
-                                    key={`spouse-${member._id}`}
-                                    className="flex items-center justify-between rounded border border-slate-200 px-3 py-2 text-sm"
-                                  >
-                                    <span>{member.name}</span>
-                                    <button
-                                      type="button"
-                                      className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
-                                      onClick={() => void removeRelationship("spouse", member._id, member.name)}
-                                      disabled={removingRelationKey === `spouse:${member._id}`}
-                                    >
-                                      {removingRelationKey === `spouse:${member._id}` ? "Removing..." : "Remove"}
-                                    </button>
-                                  </div>
-                                ))
-                              ) : (
-                                <p className="rounded border border-dashed border-slate-300 px-3 py-2 text-xs text-slate-500">
-                                  No spouse relationships.
-                                </p>
-                              )}
-                            </div>
-
-                            <div className="space-y-2">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Siblings</p>
-                              {detailBundle.relations.siblings.length > 0 ? (
-                                detailBundle.relations.siblings.map((member) => (
-                                  <div
-                                    key={`sibling-${member._id}`}
-                                    className="flex items-center justify-between rounded border border-slate-200 px-3 py-2 text-sm"
-                                  >
-                                    <span>{member.name}</span>
-                                    <button
-                                      type="button"
-                                      className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
-                                      onClick={() => void removeRelationship("sibling", member._id, member.name)}
-                                      disabled={removingRelationKey === `sibling:${member._id}`}
-                                    >
-                                      {removingRelationKey === `sibling:${member._id}` ? "Removing..." : "Remove"}
-                                    </button>
-                                  </div>
-                                ))
-                              ) : (
-                                <p className="rounded border border-dashed border-slate-300 px-3 py-2 text-xs text-slate-500">
-                                  No sibling relationships.
-                                </p>
-                              )}
-                            </div>
-
-                            <div className="space-y-2">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Children</p>
-                              {detailBundle.relations.children.length > 0 ? (
-                                detailBundle.relations.children.map((member) => (
-                                  <div
-                                    key={`child-${member._id}`}
-                                    className="flex items-center justify-between rounded border border-slate-200 px-3 py-2 text-sm"
-                                  >
-                                    <span>{member.name}</span>
-                                    <button
-                                      type="button"
-                                      className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
-                                      onClick={() => void removeRelationship("child", member._id, member.name)}
-                                      disabled={removingRelationKey === `child:${member._id}`}
-                                    >
-                                      {removingRelationKey === `child:${member._id}` ? "Removing..." : "Remove"}
-                                    </button>
-                                  </div>
-                                ))
-                              ) : (
-                                <p className="rounded border border-dashed border-slate-300 px-3 py-2 text-xs text-slate-500">
-                                  No child relationships.
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          <form onSubmit={applyRelationMutation} className="space-y-3 rounded-lg border border-slate-200 p-3">
-                            <h3 className="text-sm font-semibold text-slate-900">Relation Engine</h3>
-                            <p className="text-xs text-slate-500">
-                              Manage direct relationship links from <span className="font-semibold">{detailBundle.focus.name}</span>.
-                            </p>
-
-                            <div className="grid gap-2 sm:grid-cols-2">
-                              <select
-                                className="field"
-                                value={relationAction}
-                                onChange={(event) => setRelationAction(event.target.value as RelationMutationAction)}
-                              >
-                                <option value="connect">Connect</option>
-                                <option value="disconnect">Disconnect</option>
-                              </select>
-
-                              <select
-                                className="field"
-                                value={relationType}
-                                onChange={(event) => setRelationType(event.target.value as RelationMutationType)}
-                              >
-                                {relationMutationOptions.map((option) => (
-                                  <option key={option.value} value={option.value}>
-                                    {t(option.labelKey)}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            {relationType === "child" && (
-                              <select
-                                className="field"
-                                value={relationParentRole}
-                                onChange={(event) => setRelationParentRole(event.target.value as "father" | "mother" | "auto")}
-                              >
-                                <option value="auto">Parent role: Auto</option>
-                                <option value="father">Parent role: Father</option>
-                                <option value="mother">Parent role: Mother</option>
-                              </select>
-                            )}
-
-                            <input
-                              className="field"
-                              placeholder="Search members by name"
-                              value={relationMemberSearch}
-                              onChange={(event) => setRelationMemberSearch(event.target.value)}
-                            />
-
-                            <select
-                              className="field"
-                              value={relationTargetMemberId}
-                              onChange={(event) => setRelationTargetMemberId(event.target.value)}
-                              required
-                            >
-                              <option value="">{loadingRelationMembers ? "Loading members..." : "Select target member"}</option>
-                              {relationMemberOptions.map((member) => (
-                                <option key={member._id} value={member._id}>
-                                  {member.name}
-                                </option>
-                              ))}
-                            </select>
-
-                            <button type="submit" className="button-secondary w-full" disabled={relationSubmitting}>
-                              {relationSubmitting ? "Applying relation..." : "Apply Relation Update"}
-                            </button>
-                          </form>
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  {detailModalView === "delete" && (
-                    <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                      {canDeleteDetailMember ? (
-                        <div className="space-y-3">
-                          <p className="text-sm font-semibold text-red-800">Delete Member</p>
-                          {detailHasChildren ? (
-                            <>
-                              <p className="text-xs text-red-700">
-                                This member has children. Choose what to delete.
-                              </p>
-                              <button
-                                type="button"
-                                className="w-full rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-70"
-                                onClick={() => void removeMember(false)}
-                                disabled={deletingDetail}
-                              >
-                                {deletingDetail ? "Deleting..." : "Delete only this member"}
-                              </button>
-                              <p className="text-xs text-red-700">
-                                Children will be relinked to available parent when possible.
-                              </p>
-                              <button
-                                type="button"
-                                className="w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
-                                onClick={() => void removeMember(true)}
-                                disabled={deletingDetail}
-                              >
-                                {deletingDetail ? "Deleting..." : "Delete entire subtree"}
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              type="button"
-                              className="w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
-                              onClick={() => void removeMember(false)}
-                              disabled={deletingDetail}
-                            >
-                              {deletingDetail ? "Deleting..." : "Delete Member"}
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-red-700">
-                          {detailBundle.focus.isRoot
-                            ? "Root member cannot be deleted."
-                            : "Read-only access. Only tree owner/admin can delete members."}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </section>
-              </div>
-            )}
-          </div>
-        </div>
+      {selectedPerson && (
+        <PersonModal
+          person={selectedPerson}
+          mode={mode}
+          onClose={() => {
+            setSelectedPerson(null);
+            setMode("view");
+            setDetailModalView("edit");
+          }}
+          onEdit={() => setMode("edit")}
+          onSave={() => setMode("view")}
+          loadingDetail={loadingDetail}
+          detailBundle={detailBundle}
+          uploadsBaseUrl={uploadsBaseUrl}
+          detailModalView={detailModalView}
+          setDetailModalView={setDetailModalView}
+          detailCanEdit={detailCanEdit}
+          canDeleteDetailMember={canDeleteDetailMember}
+          detailHasChildren={detailHasChildren}
+          detailRelationLabel={detailRelationLabel}
+          detailName={detailName}
+          onDetailNameChange={setDetailName}
+          detailNote={detailNote}
+          onDetailNoteChange={setDetailNote}
+          onDetailImageChange={setDetailImageFile}
+          treeCanEdit={Boolean(tree?.canEdit)}
+          savingDetail={savingDetail}
+          deletingDetail={deletingDetail}
+          removingRelationKey={removingRelationKey}
+          relationAction={relationAction}
+          onRelationActionChange={setRelationAction}
+          relationType={relationType}
+          onRelationTypeChange={setRelationType}
+          relationParentRole={relationParentRole}
+          onRelationParentRoleChange={setRelationParentRole}
+          relationTargetMemberId={relationTargetMemberId}
+          onRelationTargetMemberIdChange={setRelationTargetMemberId}
+          relationMemberSearch={relationMemberSearch}
+          onRelationMemberSearchChange={setRelationMemberSearch}
+          relationMemberOptions={relationMemberOptions}
+          loadingRelationMembers={loadingRelationMembers}
+          relationSubmitting={relationSubmitting}
+          relationMutationOptions={relationMutationOptions}
+          onSubmitMemberDetails={saveMemberDetails}
+          onApplyRelationMutation={applyRelationMutation}
+          onRemoveRelationship={removeRelationship}
+          onRemoveMember={removeMember}
+          onSetFocusPerson={(memberId) => setFocusId(memberId)}
+        />
       )}
     </main>
   );
 }
+
+
