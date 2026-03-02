@@ -460,7 +460,7 @@ export default function TreePage() {
   const [detailImageFile, setDetailImageFile] = useState<File | null>(null);
   const [savingDetail, setSavingDetail] = useState(false);
   const [deletingDetail, setDeletingDetail] = useState(false);
-  const [mode, setMode] = useState<"view" | "edit">("view");
+  const [mode, setMode] = useState("view");
   const [detailModalView, setDetailModalView] = useState<DetailModalView>("edit");
   const [removingRelationKey, setRemovingRelationKey] = useState<string | null>(null);
   const [relationAction, setRelationAction] = useState<RelationMutationAction>("connect");
@@ -1424,11 +1424,11 @@ export default function TreePage() {
 
       {isDetailModalOpen && selectedPerson && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/65 p-4"
+          className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center"
           onClick={closeDetailModal}
         >
           <div
-            className="relative z-[60] max-h-[85vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+            className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto z-50"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="sticky top-0 z-20 -mx-6 -mt-6 mb-4 flex items-center justify-between border-b border-slate-200 bg-white/95 px-6 py-4 backdrop-blur">
@@ -1484,7 +1484,7 @@ export default function TreePage() {
                       }`}
                       onClick={() => {
                         setDetailModalView("edit");
-                        setMode("view");
+                        setMode("edit");
                       }}
                     >
                       Edit Member

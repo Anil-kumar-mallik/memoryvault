@@ -3342,3 +3342,43 @@ Validation/build checks
 
 Pending tasks
 - Optional: add a focused UI test for modal mode transitions (`view -> edit -> view`) after update.
+
+[Tree Modal Layering Fix Patch]
+
+Completed modules
+1) Tree detail modal layering fix (frontend only)
+- Updated detail modal overlay structure to requested pattern:
+  - overlay: `fixed inset-0 bg-black/50 z-40 flex items-center justify-center`
+  - overlay click closes modal via `closeDetailModal`
+- Updated modal container structure to requested pattern:
+  - container: `relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto z-50`
+  - container click uses `stopPropagation()` to prevent close on inside interaction.
+
+2) Modal interaction and mode safety
+- Preserved single detail overlay wrapper for this modal path.
+- Kept mode-based flow with explicit state:
+  - `const [mode, setMode] = useState("view");`
+  - person click path initializes mode to `view`
+  - Edit actions switch to `edit`
+  - successful update switches mode back to `view`.
+
+3) Pointer event / blocking cleanup
+- Confirmed no `pointer-events-none` remains in `client/app/tree/[id]/page.tsx`.
+- Modal input interaction path now uses z-layered overlay/container + stopPropagation pattern.
+
+File changes
+- Client
+  - `client/app/tree/[id]/page.tsx`
+- Docs/Progress
+  - `ProjectTillNow.txt`
+
+Database schema state
+- No database schema/index/model changes in this patch.
+- No backend/API route changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- `cd client && npm run lint` -> passed.
+
+Pending tasks
+- Optional: add a focused UI test for modal overlay/click propagation and edit form interactivity.
