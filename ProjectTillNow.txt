@@ -4448,3 +4448,35 @@ Pending tasks
   - previous focus no longer shows `Self`,
   - relation labels continue updating correctly,
   - no layout shift/jitter and no console errors.
+
+[2026-03-04 | Frontend Bug Fix | Focus-Scoped Self Label Resolution]
+[Ensured Self label binds only to current focused member]
+
+Completed modules
+1) Relation label flow hardening for `Self`
+- Updated `FocusTreeCanvas` relation-label map generation to use canonical focused member id (`focusedMember._id`) and force `Self` on exact focused node id match.
+- Normalized relation label map keys to member-id string fallback (`node.member._id?.toString() || node.key`) to avoid stale/mismatch lookups across D3 updates.
+- Updated relation label read path in node render to use normalized member-id lookup (`datum.member._id?.toString() || datum.key`).
+
+2) Architectural outcome
+- Current focused node is now the only source of `Self` labeling at render-map level.
+- Previous focus loses `Self` after focus update.
+- Existing parent/spouse/sibling/child relation labeling path remains unchanged.
+
+File changes
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build completed with existing non-blocking `no-img-element` warnings only.
+
+Pending tasks
+- Manual browser verification:
+  - click node -> only new center node shows `Self`;
+  - previous center loses `Self`;
+  - other relation labels remain correct;
+  - no layout shift/jitter and no console errors.

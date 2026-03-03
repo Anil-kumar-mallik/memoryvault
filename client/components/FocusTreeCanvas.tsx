@@ -260,8 +260,15 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
       return labels;
     }
 
+    const focusedMemberId = focusedMember._id?.toString();
     for (const node of graph.nodes) {
-      labels.set(node.key, resolveRelation(node.member, focusedMember, membersForRelation));
+      const nodeId = node.member._id?.toString();
+      if (nodeId && focusedMemberId && nodeId === focusedMemberId) {
+        labels.set(nodeId, "Self");
+        continue;
+      }
+
+      labels.set(nodeId || node.key, resolveRelation(node.member, focusedMember, membersForRelation));
     }
     return labels;
   }, [focusedMember, graph.nodes, membersForRelation]);
@@ -375,7 +382,7 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
           .data([item], (datum) => datum.member._id)
           .join("xhtml:p")
           .attr("class", NODE_RELATION_CLASS)
-          .text((datum) => relationLabelByNodeKey.get(datum.key) || "Relative");
+          .text((datum) => relationLabelByNodeKey.get(datum.member._id?.toString() || datum.key) || "Relative");
       });
     },
     [avatarConfigByMemberId, relationLabelByNodeKey]
