@@ -3851,3 +3851,96 @@ Database schema state
 Pending tasks
 - Deploy this server change, then verify using an actual uploaded file path under:
   - `https://memoryvault-ktfg.onrender.com/uploads/<real-filename>`
+
+[2026-03-03 | Backend + Frontend | GridFS Image Storage Migration]
+[Replaced local disk uploads with MongoDB GridFS storage]
+
+Completed modules
+1) GridFS upload foundation (server)
+- Added MongoDB GridFS configuration module:
+  - `server/src/config/gridfs.js`
+- Initialized GridFS with mongoose connection and `GridFSBucket` (`uploads` bucket).
+- Added multer upload middleware backed by `multer-gridfs-storage`.
+- Exported:
+  - `upload` middleware
+  - `getImageFile(fileId)`
+  - `getImageStream(fileId)`
+
+2) Upload middleware migration without route contract changes
+- Kept all existing routes unchanged.
+- Replaced disk-backed multer implementation by updating wrapper:
+  - `server/src/config/multer.js` now exports GridFS-backed `upload` middleware.
+- Installed dependencies:
+  - `multer-gridfs-storage`
+  - `gridfs-stream`
+  - (`multer` remains present)
+
+3) Image persistence behavior change (backward-compatible field type)
+- Updated upload assignment in account/member controllers to store GridFS file id string in `profileImage`.
+- Removed disk path mapping logic (`/uploads/<filename>`) for new uploads.
+- Added shared helper for uploaded file id extraction:
+  - `server/src/utils/uploadFile.js`
+
+4) Image streaming API
+- Added public image endpoint (no auth):
+  - `GET /api/v1/image/:id`
+- Added controller and route files:
+  - `server/src/controllers/imageController.js`
+  - `server/src/routes/imageRoutes.js`
+- Endpoint behavior:
+  - validates Mongo ObjectId
+  - reads file metadata from GridFS
+  - sets `Content-Type` from stored metadata
+  - streams file via GridFSBucket download stream
+- Registered route in API v1 router:
+  - `server/src/routes/apiV1/index.js`
+
+5) Frontend profile image URL resolution update
+- Updated global resolver to support new GridFS id storage:
+  - `client/lib/profileImageUrl.ts`
+- Resolution rules:
+  - if value starts with `http` -> use directly
+  - if value matches ObjectId -> build `${NEXT_PUBLIC_API_URL}/v1/image/{id}` (or `${NEXT_PUBLIC_API_URL}/image/{id}` when API URL already ends in `/v1`)
+  - retains legacy support for `/uploads/...` values
+  - null/empty -> fallback handling remains unchanged at UI level
+
+6) Compatibility/safety constraints preserved
+- No backend schema changes.
+- No auth logic changes.
+- No tree layout/tree engine logic changes.
+- API response shape remains stable (`profileImage` remains string|null).
+
+File changes
+- Server
+  - `server/package.json`
+  - `server/package-lock.json`
+  - `server/src/config/gridfs.js` (new)
+  - `server/src/config/multer.js`
+  - `server/src/utils/uploadFile.js` (new)
+  - `server/src/controllers/accountController.js`
+  - `server/src/controllers/memberController.js`
+  - `server/src/controllers/imageController.js` (new)
+  - `server/src/routes/imageRoutes.js` (new)
+  - `server/src/routes/apiV1/index.js`
+- Client
+  - `client/lib/profileImageUrl.ts`
+- Progress log
+  - `ProjectTillNow.txt`
+
+Database schema state
+- No schema/index/model changes.
+- GridFS collections used by MongoDB runtime:
+  - `uploads.files`
+  - `uploads.chunks`
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+- Server boot smoke test -> passed (`server-start-ok`).
+- Image route validation smoke test -> passed (`GET /api/v1/image/not-an-object-id` returns 400).
+- `cd client && npm run build` -> passed.
+
+Pending tasks
+- Deploy updated backend and upload a real image to verify runtime streaming from production DB.
+- Verify production image URL with actual id:
+  - `https://memoryvault-ktfg.onrender.com/api/v1/image/{fileId}`
+- Optional: add cleanup job/reference tracking for orphaned GridFS files after profile image replacements.

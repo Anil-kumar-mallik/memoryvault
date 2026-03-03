@@ -12,6 +12,7 @@ const paymentRoutes = require("../paymentRoutes");
 const publicTreeRoutes = require("../publicTreeRoutes");
 const notificationRoutes = require("../notificationRoutes");
 const accountRoutes = require("../accountRoutes");
+const imageRoutes = require("../imageRoutes");
 const testEmailRoutes = require("../testEmailRoutes");
 
 const router = express.Router();
@@ -39,5 +40,6 @@ router.use("/payment", paymentRoutes);
 router.use("/public", publicTreeRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/account", accountRoutes);
+router.use("/image", imageRoutes);
 
 module.exports = router;

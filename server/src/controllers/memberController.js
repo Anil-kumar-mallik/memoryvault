@@ -1,4 +1,3 @@
-const path = require("path");
 const mongoose = require("mongoose");
 const FamilyTree = require("../models/FamilyTree");
 const Member = require("../models/Member");
@@ -7,6 +6,7 @@ const withMongoTransaction = require("../utils/withMongoTransaction");
 const { ensureMemberCreateAllowed } = require("../utils/subscriptionService");
 const { createAuditLog } = require("../utils/auditLogger");
 const { createNotification } = require("../utils/notificationService");
+const { resolveUploadedFileId } = require("../utils/uploadFile");
 
 const RELATION_TYPES = new Set(["none", "father", "mother", "child", "spouse", "sibling"]);
 const MUTATION_RELATIONS = new Set(["father", "mother", "child", "spouse", "sibling"]);
@@ -29,7 +29,6 @@ const MAX_GRAPH_DEPTH = 4;
 const DEFAULT_GRAPH_LIMIT = 250;
 const MAX_GRAPH_LIMIT = 600;
 
-const toUploadPath = (absoluteFilePath) => `/uploads/${path.basename(absoluteFilePath)}`;
 const withSession = (query, session) => (session ? query.session(session) : query);
 const sessionOptions = (session) => (session ? { session } : {});
 
@@ -1462,7 +1461,12 @@ const createMember = async (req, res, next) => {
     const extendedMemberInputs = parseExtendedMemberInputs(req.body);
     const metadataInput = parseMetadataInput(req.body.metadata);
     const genderValue = hasOwn(req.body, "gender") ? String(req.body.gender || "").trim().toLowerCase() : undefined;
+    const uploadedProfileImageId = resolveUploadedFileId(req.file);
     const optionalTextValues = {};
+
+    if (req.file && !uploadedProfileImageId) {
+      throw badRequest("Failed to process uploaded image.");
+    }
 
     for (const field of OPTIONAL_MEMBER_TEXT_FIELDS) {
       const parsedField = extendedMemberInputs.textInputs[field];
@@ -1488,7 +1492,7 @@ const createMember = async (req, res, next) => {
         createdBy: req.user._id,
         name,
         note: String(req.body.note || "").trim(),
-        profileImage: req.file ? toUploadPath(req.file.path) : null,
+        profileImage: uploadedProfileImageId,
         fatherId: null,
         motherId: null,
         spouses: [],
@@ -1599,6 +1603,12 @@ const updateMember = async (req, res, next) => {
 
     const { treeId, memberId } = req.params;
     const relationOptions = parseRelationQueryOptions(req.query);
+    const uploadedProfileImageId = resolveUploadedFileId(req.file);
+
+    if (req.file && !uploadedProfileImageId) {
+      throw badRequest("Failed to process uploaded image.");
+    }
+
     const payload = await withMongoTransaction(async (session) => {
       const tree = await getTreeFromRequest(req, session);
 
@@ -1666,8 +1676,8 @@ const updateMember = async (req, res, next) => {
         member.metadata = metadataInput.value;
       }
 
-      if (req.file) {
-        member.profileImage = toUploadPath(req.file.path);
+      if (uploadedProfileImageId) {
+        member.profileImage = uploadedProfileImageId;
       }
 
       const fatherInput = parseNullableIdInput(req.body.fatherId, "fatherId");

@@ -1,4 +1,3 @@
-const path = require("path");
 const User = require("../models/User");
 const FamilyTree = require("../models/FamilyTree");
 const Member = require("../models/Member");
@@ -13,10 +12,10 @@ const {
   parseOptionalDateValue,
   normalizeOptionalTextValue
 } = require("../utils/userProfileFields");
+const { resolveUploadedFileId } = require("../utils/uploadFile");
 
 const sessionOptions = (session) => (session ? { session } : {});
 const withSession = (query, session) => (session ? query.session(session) : query);
-const toUploadPath = (absoluteFilePath) => `/uploads/${path.basename(absoluteFilePath)}`;
 const hasOwn = (source, key) => Object.prototype.hasOwnProperty.call(source, key);
 
 const toSafeAccount = (user) => ({
@@ -62,9 +61,15 @@ const updateAccount = async (req, res, next) => {
     }
 
     const hasNameInput = hasOwn(req.body, "name");
-    const hasProfileImage = Boolean(req.file && req.file.path);
+    const uploadedProfileImageId = resolveUploadedFileId(req.file);
+    const hasProfileImage = Boolean(uploadedProfileImageId);
     const hasDateOfBirthInput = hasOwn(req.body, "dateOfBirth");
     const hasTextProfileInput = USER_PROFILE_TEXT_FIELDS.some((field) => hasOwn(req.body, field));
+
+    if (req.file && !uploadedProfileImageId) {
+      res.status(400).json({ message: "Failed to process uploaded image." });
+      return;
+    }
 
     if (!hasNameInput && !hasProfileImage && !hasDateOfBirthInput && !hasTextProfileInput) {
       const account = await User.findById(req.user._id).lean();
@@ -100,7 +105,7 @@ const updateAccount = async (req, res, next) => {
       }
 
       if (hasProfileImage) {
-        const nextProfileImage = toUploadPath(req.file.path);
+        const nextProfileImage = uploadedProfileImageId;
         user.profileImage = nextProfileImage;
         rootMemberUpdate.profileImage = nextProfileImage;
       }
