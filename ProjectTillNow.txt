@@ -3819,3 +3819,35 @@ Database schema state
 
 Pending tasks
 - Upload a real image file and verify with its actual filename under `/uploads/<real-file-name>` for a 200 response.
+
+[2026-03-03 | Backend Hotfix | Uploads Static Path Correction]
+[Fixed uploads static path to server/uploads]
+
+Completed modules
+1) Static uploads path corrected for production context
+- Updated Express static middleware to serve from `server/uploads` under repo root:
+  - `app.use("/uploads", express.static(path.join(serverRootDir, "server", "uploads")));`
+- No route handlers changed.
+- No auth logic changed.
+
+2) Middleware order preserved
+- Static serving remains immediately after `app.use(express.json(...))`.
+
+3) Runtime/build verification
+- `cd server && npm run build` -> passed.
+- Server startup smoke test -> passed (`server-start-ok`).
+- Local static probe test -> passed (`/uploads/__probe_static_check.txt` returned HTTP 200).
+- Remote check:
+  - `https://memoryvault-ktfg.onrender.com/` -> HTTP 200
+  - `https://memoryvault-ktfg.onrender.com/uploads/filename.jpg` -> HTTP 404 (placeholder filename not present).
+
+File changes
+- `server/src/app.js`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/index/model changes.
+
+Pending tasks
+- Deploy this server change, then verify using an actual uploaded file path under:
+  - `https://memoryvault-ktfg.onrender.com/uploads/<real-filename>`

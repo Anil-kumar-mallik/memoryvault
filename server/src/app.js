@@ -138,7 +138,7 @@ app.use(
 ================================= */
 
 app.use(express.json({ limit: "5mb" }));
-app.use("/uploads", express.static(path.join(serverRootDir, "uploads")));
+app.use("/uploads", express.static(path.join(serverRootDir, "server", "uploads")));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(
