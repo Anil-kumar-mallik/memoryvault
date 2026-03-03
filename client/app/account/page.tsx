@@ -401,7 +401,7 @@ export default function AccountPage() {
                 onChange={(event) => setName(event.target.value)}
                 required
               />
-              <DateFieldGroup importantDates={importantDates} onChange={setImportantDates} />
+              <DateFieldGroup importantDates={importantDates} onChange={setImportantDates} allowedTypes={["dob", "anniversary", "custom"]} />
               <input
                 className="field"
                 type="text"

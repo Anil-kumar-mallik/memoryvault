@@ -3682,3 +3682,39 @@ Validation/build checks
 
 Pending tasks
 - Optional: tune hover background opacity for exact visual preference.
+
+[2026-03-03 | Phase A Complete | Account Death Removed + Tree Profile Image Support]
+[Phase A Complete | Account Death Removed + Tree Profile Image Support]
+
+Completed modules
+1) Account page important-date dropdown restriction (frontend only)
+- Added `allowedTypes` support to `DateFieldGroup` with default behavior preserved.
+- Account edit modal now passes `allowedTypes={["dob", "anniversary", "custom"]}`.
+- Result: Account page no longer shows Date of Death.
+
+2) Shared member edit date behavior preserved
+- `DateFieldGroup` defaults still include `death`.
+- `MemberForm` usage unchanged, so member add/edit continues to show Date of Death.
+
+3) Tree node profile image rendering upgrade (frontend only)
+- Updated `FocusTreeCanvas` avatar rendering to use a fixed-size HTML container inside SVG nodes:
+  - `w-[120px] h-[120px] rounded-full overflow-hidden flex items-center justify-center`
+- If profile image exists: renders `<img>` with `w-full h-full object-cover rounded-full`.
+- If no image (or load failure): renders first-letter fallback.
+- Kept existing node positioning/layout math and removed no-hover-transform stability constraints unchanged.
+
+4) Validation
+- Ran `cd client && npm run build` successfully.
+
+File changes
+- `client/components/DateFieldGroup.tsx`
+- `client/app/account/page.tsx`
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No database schema/index/model changes.
+- No backend/API route changes.
+
+Pending tasks
+- Optional: quick manual UI verification in browser for account dropdown + tree node image fallback combinations.

@@ -26,10 +26,6 @@ type AvatarConfig = {
   imageUrl: string | null;
   fallbackColor: string;
   initial: string;
-  diameter: number;
-  radius: number;
-  initialFontSize: number;
-  clipPathId: string;
 };
 
 interface FocusTreeCanvasProps {
@@ -45,12 +41,9 @@ const MAX_RENDERED_SIBLINGS = 48;
 const MAX_RENDERED_SPOUSES = 32;
 const NODE_DIAMETER = 120;
 const NODE_RADIUS = NODE_DIAMETER / 2;
-const FOCUS_AVATAR_DIAMETER = 58;
-const NODE_AVATAR_DIAMETER = 50;
-const AVATAR_BORDER_COLOR = "#cbd5e1";
-const AVATAR_TEXT_COLOR = "#334155";
-const AVATAR_FOCUS_CLIP_ID = "mv-avatar-clip-focus";
-const AVATAR_NODE_CLIP_ID = "mv-avatar-clip-node";
+const NODE_AVATAR_CONTAINER_CLASS = "w-[120px] h-[120px] rounded-full overflow-hidden flex items-center justify-center";
+const NODE_AVATAR_IMAGE_CLASS = "w-full h-full object-cover rounded-full";
+const NODE_AVATAR_FALLBACK_CLASS = "text-4xl font-semibold leading-none text-slate-700";
 const UPLOADS_BASE_URL = (process.env.NEXT_PUBLIC_UPLOADS_URL ?? "http://localhost:5000").replace(/\/+$/, "");
 
 const colorByGroup: Record<RelationGroup, string> = {
@@ -232,14 +225,6 @@ function nodeRadius(group: RelationGroup): number {
   return group === "focus" ? 50 : 38;
 }
 
-function avatarDiameter(group: RelationGroup): number {
-  return group === "focus" ? FOCUS_AVATAR_DIAMETER : NODE_AVATAR_DIAMETER;
-}
-
-function avatarClipPathId(group: RelationGroup): string {
-  return group === "focus" ? AVATAR_FOCUS_CLIP_ID : AVATAR_NODE_CLIP_ID;
-}
-
 function avatarFallbackColor(member: Member): string {
   const gender = String(member.gender || "").toLowerCase();
   if (gender === "male") {
@@ -312,15 +297,10 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
     for (const node of graph.nodes) {
       const imageUrl = resolveProfileImageUrl(node.member.profileImage);
       const availableImageUrl = imageUrl && !failedImageUrls.has(imageUrl) ? imageUrl : null;
-      const diameter = avatarDiameter(node.group);
       map.set(node.member._id, {
         imageUrl: availableImageUrl,
         fallbackColor: avatarFallbackColor(node.member),
-        initial: firstLetter(node.member.name),
-        diameter,
-        radius: diameter / 2,
-        initialFontSize: node.group === "focus" ? 20 : 16,
-        clipPathId: avatarClipPathId(node.group)
+        initial: firstLetter(node.member.name)
       });
     }
 
@@ -349,72 +329,58 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
           );
 
         avatarGroup
-          .selectAll<SVGCircleElement, AvatarConfig>("circle.mv-avatar-bg")
+          .selectAll<SVGForeignObjectElement, AvatarConfig>("foreignObject.mv-avatar-shell")
           .data([avatarConfig])
-          .join("circle")
-          .attr("class", "mv-avatar-bg")
-          .attr("r", (datum) => datum.radius)
-          .attr("fill", (datum) => datum.fallbackColor);
+          .join("foreignObject")
+          .attr("class", "mv-avatar-shell")
+          .attr("x", -NODE_RADIUS)
+          .attr("y", -NODE_RADIUS)
+          .attr("width", NODE_DIAMETER)
+          .attr("height", NODE_DIAMETER);
 
-        avatarGroup
-          .selectAll<SVGImageElement, string>("image.mv-avatar-image")
+        const containerSelection = avatarGroup
+          .selectAll<SVGForeignObjectElement, AvatarConfig>("foreignObject.mv-avatar-shell")
+          .selectAll<HTMLDivElement, AvatarConfig>("div.mv-avatar-container")
+          .data([avatarConfig])
+          .join("xhtml:div")
+          .attr("class", NODE_AVATAR_CONTAINER_CLASS)
+          .style("background-color", (datum) => (datum.imageUrl ? "transparent" : datum.fallbackColor));
+
+        containerSelection
+          .selectAll<HTMLImageElement, string>("img.mv-avatar-image")
           .data(avatarConfig.imageUrl ? [avatarConfig.imageUrl] : [], (datum) => datum)
           .join(
             (enter) =>
               enter
-                .append("image")
-                .attr("class", "mv-avatar-image")
-                .style("pointer-events", "none")
-                .on("error", function (_event, imageUrl) {
-                  if (imageUrl) {
-                    setFailedImageUrls((current) => {
-                      if (current.has(imageUrl)) {
-                        return current;
-                      }
-
-                      const next = new Set(current);
-                      next.add(imageUrl);
-                      return next;
-                    });
+                .append("xhtml:img")
+                .attr("class", `mv-avatar-image ${NODE_AVATAR_IMAGE_CLASS}`)
+                .on("error", (_event, imageUrl) => {
+                  if (!imageUrl) {
+                    return;
                   }
 
-                  d3.select(this).remove();
-                  avatarGroup.select("text.mv-avatar-initial").style("opacity", 1);
+                  setFailedImageUrls((current) => {
+                    if (current.has(imageUrl)) {
+                      return current;
+                    }
+
+                    const next = new Set(current);
+                    next.add(imageUrl);
+                    return next;
+                  });
                 }),
             (update) => update,
             (exit) => exit.remove()
           )
-          .attr("href", (datum) => datum)
-          .attr("xlink:href", (datum) => datum)
-          .attr("x", -avatarConfig.radius)
-          .attr("y", -avatarConfig.radius)
-          .attr("width", avatarConfig.diameter)
-          .attr("height", avatarConfig.diameter)
-          .attr("clip-path", `url(#${avatarConfig.clipPathId})`)
-          .attr("preserveAspectRatio", "xMidYMid slice");
+          .attr("src", (datum) => datum)
+          .attr("alt", `${item.member.name || "Member"} profile image`);
 
-        avatarGroup
-          .selectAll<SVGCircleElement, AvatarConfig>("circle.mv-avatar-ring")
-          .data([avatarConfig])
-          .join("circle")
-          .attr("class", "mv-avatar-ring")
-          .attr("r", (datum) => datum.radius)
-          .attr("fill", "none")
-          .attr("stroke", AVATAR_BORDER_COLOR)
-          .attr("stroke-width", 1.3);
-
-        avatarGroup
-          .selectAll<SVGTextElement, AvatarConfig>("text.mv-avatar-initial")
-          .data([avatarConfig])
-          .join("text")
-          .attr("class", "mv-avatar-initial")
-          .attr("text-anchor", "middle")
-          .attr("dy", (datum) => (datum.radius > 27 ? 7 : 6))
-          .attr("font-size", (datum) => datum.initialFontSize)
-          .attr("font-weight", 700)
-          .attr("fill", AVATAR_TEXT_COLOR)
-          .style("opacity", (datum) => (datum.imageUrl ? 0 : 1))
-          .text((datum) => datum.initial);
+        containerSelection
+          .selectAll<HTMLSpanElement, string>("span.mv-avatar-fallback")
+          .data(avatarConfig.imageUrl ? [] : [avatarConfig.initial])
+          .join("xhtml:span")
+          .attr("class", `mv-avatar-fallback ${NODE_AVATAR_FALLBACK_CLASS}`)
+          .text((datum) => datum);
       });
     },
     [avatarConfigByMemberId]
@@ -458,22 +424,6 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
       .attr("stdDeviation", 7)
       .attr("flood-color", "#0f172a")
       .attr("flood-opacity", 0.28);
-    defs
-      .append("clipPath")
-      .attr("id", AVATAR_FOCUS_CLIP_ID)
-      .attr("clipPathUnits", "userSpaceOnUse")
-      .append("circle")
-      .attr("cx", 0)
-      .attr("cy", 0)
-      .attr("r", FOCUS_AVATAR_DIAMETER / 2);
-    defs
-      .append("clipPath")
-      .attr("id", AVATAR_NODE_CLIP_ID)
-      .attr("clipPathUnits", "userSpaceOnUse")
-      .append("circle")
-      .attr("cx", 0)
-      .attr("cy", 0)
-      .attr("r", NODE_AVATAR_DIAMETER / 2);
 
     const zoomBehavior = d3
       .zoom<SVGSVGElement, unknown>()
