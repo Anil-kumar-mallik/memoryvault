@@ -17,12 +17,30 @@ function getMembersById(allMembers: Member[]): Map<string, Member> {
   return byId;
 }
 
-function childLabelByGender(gender?: string): "Son" | "Daughter" {
-  return String(gender || "").toLowerCase() === "female" ? "Daughter" : "Son";
+function childLabelByGender(gender?: string): "Son" | "Daughter" | "Child" {
+  const normalized = String(gender || "").toLowerCase();
+  if (normalized === "male") {
+    return "Son";
+  }
+
+  if (normalized === "female") {
+    return "Daughter";
+  }
+
+  return "Child";
 }
 
-function parentLabelByGender(gender?: string): "Father" | "Mother" {
-  return String(gender || "").toLowerCase() === "female" ? "Mother" : "Father";
+function parentLabelByGender(gender?: string): "Father" | "Mother" | "Parent" {
+  const normalized = String(gender || "").toLowerCase();
+  if (normalized === "male") {
+    return "Father";
+  }
+
+  if (normalized === "female") {
+    return "Mother";
+  }
+
+  return "Parent";
 }
 
 export function resolveRelation(target: Member, context: Member, allMembers: Member[]): string {
@@ -34,11 +52,11 @@ export function resolveRelation(target: Member, context: Member, allMembers: Mem
     return "Self";
   }
 
-  if (resolvedTarget.fatherId === resolvedContext._id) {
+  if (resolvedTarget.fatherId === resolvedContext._id || resolvedTarget.motherId === resolvedContext._id) {
     return childLabelByGender(resolvedTarget.gender);
   }
 
-  if (resolvedContext.fatherId === resolvedTarget._id) {
+  if (resolvedContext.fatherId === resolvedTarget._id || resolvedContext.motherId === resolvedTarget._id) {
     return parentLabelByGender(resolvedTarget.gender);
   }
 

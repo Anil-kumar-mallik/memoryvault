@@ -4262,3 +4262,30 @@ Pending tasks
   - Relation subtitle under member names updates correctly when focus changes.
   - Clicking focus nodes refreshes relation labels correctly in tree and modal view.
   - No layout shift, no performance regression, no console errors during navigation.
+[2026-03-04 | Frontend Patch | relationResolver Mother Support]
+[Fixed relationResolver to support mother-based relationships]
+
+Completed modules
+1) Updated `client/utils/relationResolver.ts` relation checks
+- Child relation now matches when target parent is either `fatherId` or `motherId` of context.
+- Parent relation now matches when context parent is either `fatherId` or `motherId` of target.
+- Gender-based labels now return:
+  - Child side: `Son` / `Daughter` / `Child`
+  - Parent side: `Father` / `Mother` / `Parent`
+
+File changes
+- `client/utils/relationResolver.ts`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+
+Pending tasks
+- Manual verification:
+  - Focus mother -> child shows Son/Daughter/Child correctly.
+  - Focus father -> child shows Son/Daughter/Child correctly.
+  - Focus child -> parent shows Father/Mother/Parent correctly.
+  - Confirm no incorrect fallback to Relative.
