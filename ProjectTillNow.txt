@@ -3718,3 +3718,45 @@ Database schema state
 
 Pending tasks
 - Optional: quick manual UI verification in browser for account dropdown + tree node image fallback combinations.
+
+[2026-03-03 | Frontend Hotfix | Global Profile Image URL Resolution]
+[Fixed profile image URL resolution for production environment]
+
+Completed modules
+1) Global frontend profile image URL resolver
+- Added shared resolver: `client/lib/profileImageUrl.ts`.
+- Resolution logic now follows production-safe rule:
+  - absolute URL if `profileImage.startsWith("http")`
+  - else `${process.env.NEXT_PUBLIC_UPLOADS_URL}${profileImage}`
+- Added guard to avoid malformed URLs when env is missing.
+
+2) Account page image rendering update
+- Replaced framework-optimized image usage with direct `<img src={imageUrl}>` using resolved URL.
+- Preserved existing account card image container dimensions and styling.
+
+3) Tree rendering image URL consistency
+- Updated `FocusTreeCanvas` to use shared resolver for node avatar image URLs.
+- Updated `PersonModal` profile preview to use shared resolver + `<img src={imageUrl}>`.
+- Removed redundant `uploadsBaseUrl` prop wiring from tree page to modal.
+
+4) Build/runtime validation
+- Ran `cd client && npm run build` -> passed.
+- Tree node layout logic and dimensions remain unchanged (no geometry/transform changes introduced in this patch).
+
+File changes
+- `client/lib/profileImageUrl.ts` (new)
+- `client/app/account/page.tsx`
+- `client/components/FocusTreeCanvas.tsx`
+- `client/components/PersonModal.tsx`
+- `client/app/tree/[id]/page.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No database schema/index/model changes.
+- No backend/API route changes.
+
+Pending tasks
+- Set Vercel environment variable exactly as:
+  - `NEXT_PUBLIC_UPLOADS_URL=https://memoryvault-ktfg.onrender.com`
+  - no trailing slash.
+- Optional: if desired, suppress Next.js `no-img-element` lint warnings for these specific production URL cases.

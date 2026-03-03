@@ -2,6 +2,7 @@
 
 import { KeyboardEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
+import { resolveProfileImageUrl } from "@/lib/profileImageUrl";
 import { Member, MemberWithRelationsResponse } from "@/types";
 
 type Direction = "parent" | "child" | "sibling" | "spouse";
@@ -44,7 +45,6 @@ const NODE_RADIUS = NODE_DIAMETER / 2;
 const NODE_AVATAR_CONTAINER_CLASS = "w-[120px] h-[120px] rounded-full overflow-hidden flex items-center justify-center";
 const NODE_AVATAR_IMAGE_CLASS = "w-full h-full object-cover rounded-full";
 const NODE_AVATAR_FALLBACK_CLASS = "text-4xl font-semibold leading-none text-slate-700";
-const UPLOADS_BASE_URL = (process.env.NEXT_PUBLIC_UPLOADS_URL ?? "http://localhost:5000").replace(/\/+$/, "");
 
 const colorByGroup: Record<RelationGroup, string> = {
   focus: "#1d4ed8",
@@ -245,23 +245,6 @@ function firstLetter(name: string): string {
   }
 
   return normalized.charAt(0).toUpperCase();
-}
-
-function resolveProfileImageUrl(profileImage?: string | null): string | null {
-  const normalizedPath = String(profileImage || "").trim();
-  if (!normalizedPath) {
-    return null;
-  }
-
-  if (/^https?:\/\//i.test(normalizedPath)) {
-    return normalizedPath;
-  }
-
-  if (normalizedPath.startsWith("/")) {
-    return `${UPLOADS_BASE_URL}${normalizedPath}`;
-  }
-
-  return `${UPLOADS_BASE_URL}/${normalizedPath}`;
 }
 
 function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasProps) {

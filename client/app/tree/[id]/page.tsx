@@ -345,7 +345,6 @@ export default function TreePage() {
   const [exporting, setExporting] = useState<"pdf" | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  const uploadsBaseUrl = process.env.NEXT_PUBLIC_UPLOADS_URL ?? "http://localhost:5000";
   const memberLimitReached = Boolean(subscription?.usage.memberLimitReached);
   const memberLimitMessage =
     subscription?.plan?.name?.toLowerCase() === "free" && subscription?.usage.maxMembers === 10
@@ -1186,7 +1185,6 @@ export default function TreePage() {
             onSave={() => setMode("view")}
             loadingDetail={loadingDetail}
             detailBundle={detailBundle}
-            uploadsBaseUrl={uploadsBaseUrl}
             detailModalView={detailModalView}
             setDetailModalView={setDetailModalView}
             detailCanEdit={detailCanEdit}

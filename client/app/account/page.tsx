@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearToken, getToken, setCurrentUser } from "@/lib/auth";
 import { deleteMyAccount, getMyAccount, updateMyAccount, updateMyPassword } from "@/lib/api";
+import { resolveProfileImageUrl } from "@/lib/profileImageUrl";
 import { User } from "@/types";
 import DateFieldGroup, { ImportantDateItem, createImportantDateRow } from "@/components/DateFieldGroup";
 
@@ -52,9 +52,9 @@ const mapImportantDatesToDateOfBirth = (rows: ImportantDateItem[]): string | nul
 
 export default function AccountPage() {
   const router = useRouter();
-  const uploadsBaseUrl = process.env.NEXT_PUBLIC_UPLOADS_URL ?? "http://localhost:5000";
 
   const [account, setAccount] = useState<User | null>(null);
+  const accountImageUrl = resolveProfileImageUrl(account?.profileImage);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -258,15 +258,9 @@ export default function AccountPage() {
 
             <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
               <div>
-                {account?.profileImage ? (
+                {accountImageUrl ? (
                   <div className="relative h-52 w-full overflow-hidden rounded-lg border border-slate-200">
-                    <Image
-                      src={`${uploadsBaseUrl}${account.profileImage}`}
-                      alt={`${account.name} profile`}
-                      fill
-                      className="object-cover"
-                      sizes="220px"
-                    />
+                    <img src={accountImageUrl} alt={`${account?.name || "Account"} profile`} className="h-full w-full object-cover" />
                   </div>
                 ) : (
                   <div className="flex h-52 w-full items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500">

@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { FormEvent, memo, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n/provider";
 import MemberForm, { MemberFormSubmitData } from "@/components/MemberForm";
+import { resolveProfileImageUrl } from "@/lib/profileImageUrl";
 import {
   Member,
   MemberWithRelationsResponse,
@@ -113,7 +113,6 @@ type PersonModalProps = {
   onSave: () => void;
   loadingDetail: boolean;
   detailBundle: MemberWithRelationsResponse | null;
-  uploadsBaseUrl: string;
   detailModalView: DetailModalView;
   setDetailModalView: (view: DetailModalView) => void;
   detailCanEdit: boolean;
@@ -157,7 +156,6 @@ function PersonModal(props: PersonModalProps) {
     onSave,
     loadingDetail,
     detailBundle,
-    uploadsBaseUrl,
     detailModalView,
     setDetailModalView,
     detailCanEdit,
@@ -203,6 +201,7 @@ function PersonModal(props: PersonModalProps) {
       customDateEntries: normalizedImportantDates.filter((item) => item.type === "custom")
     };
   }, [detailBundle]);
+  const focusProfileImageUrl = detailBundle ? resolveProfileImageUrl(detailBundle.focus.profileImage) : null;
 
   return (
     <motion.div
@@ -305,14 +304,12 @@ function PersonModal(props: PersonModalProps) {
                     <div className="space-y-4">
                       <div className="space-y-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
                         <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center">
-                          {detailBundle.focus.profileImage ? (
+                          {focusProfileImageUrl ? (
                             <div className="relative h-28 w-28 overflow-hidden rounded-xl border border-slate-200 bg-white">
-                              <Image
-                                src={`${uploadsBaseUrl}${detailBundle.focus.profileImage}`}
+                              <img
+                                src={focusProfileImageUrl}
                                 alt={`${detailBundle.focus.name} profile`}
-                                fill
-                                className="object-cover"
-                                sizes="112px"
+                                className="h-full w-full object-cover"
                               />
                             </div>
                           ) : (
