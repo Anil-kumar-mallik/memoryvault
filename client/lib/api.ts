@@ -512,6 +512,10 @@ export function updateMember(
     formData.append("note", payload.note ?? "");
   }
 
+  if (payload.gender !== undefined) {
+    formData.append("gender", payload.gender ?? "");
+  }
+
   if (payload.fatherId !== undefined) {
     formData.append("fatherId", payload.fatherId ?? "");
   }

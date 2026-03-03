@@ -266,6 +266,7 @@ export interface TreeFocusResponse {
 export interface UpdateMemberPayload {
   name?: string;
   note?: string;
+  gender?: Gender | null;
   fatherId?: string | null;
   motherId?: string | null;
   spouses?: string[];

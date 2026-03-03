@@ -5,7 +5,8 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import TreeCanvas from "@/components/TreeCanvas";
 import PersonModal from "@/components/PersonModal";
-import DateFieldGroup, { ImportantDateItem, ImportantDateType, createImportantDateRow } from "@/components/DateFieldGroup";
+import MemberForm, { MemberFormSubmitData } from "@/components/MemberForm";
+import { ImportantDateItem, ImportantDateType } from "@/components/DateFieldGroup";
 import {
   clearTreeAccessPassword,
   clearTreeAccessToken,
@@ -25,7 +26,6 @@ import {
 import { getCurrentUser, getToken } from "@/lib/auth";
 import {
   AddMemberPayload,
-  Gender,
   Member,
   MemberWithRelationsResponse,
   RelationMutationAction,
@@ -38,18 +38,6 @@ import {
 } from "@/types";
 import { useI18n } from "@/lib/i18n/provider";
 
-type AddRelationOption = "none" | "father" | "mother" | "spouse" | "son" | "daughter" | "brother" | "sister";
-
-const relationOptions: { value: AddRelationOption; labelKey: string }[] = [
-  { value: "father", labelKey: "tree.father" },
-  { value: "mother", labelKey: "tree.mother" },
-  { value: "spouse", labelKey: "tree.spouse" },
-  { value: "son", labelKey: "tree.son" },
-  { value: "daughter", labelKey: "tree.daughter" },
-  { value: "brother", labelKey: "tree.brother" },
-  { value: "sister", labelKey: "tree.sister" }
-];
-
 const relationMutationOptions: { value: RelationMutationType; labelKey: string }[] = [
   { value: "father", labelKey: "tree.father" },
   { value: "mother", labelKey: "tree.mother" },
@@ -57,19 +45,6 @@ const relationMutationOptions: { value: RelationMutationType; labelKey: string }
   { value: "spouse", labelKey: "tree.spouse" },
   { value: "sibling", labelKey: "tree.sibling" }
 ];
-
-type AddFormState = {
-  name: string;
-  relationType: AddRelationOption;
-  gender: Gender | "";
-  note: string;
-  importantDates: ImportantDateItem[];
-  education: string;
-  qualification: string;
-  designation: string;
-  addressPermanent: string;
-  addressCurrent: string;
-};
 
 type DetailModalView = "edit" | "relations" | "delete";
 
@@ -83,19 +58,6 @@ type ToastItem = {
 
 const TOAST_TIMEOUT_MS = 3600;
 const EXPORT_PAGE_SIZE = 100;
-
-const initialAddForm: AddFormState = {
-  name: "",
-  relationType: "son",
-  gender: "",
-  note: "",
-  importantDates: [createImportantDateRow(1)],
-  education: "",
-  qualification: "",
-  designation: "",
-  addressPermanent: "",
-  addressCurrent: ""
-};
 
 function mergeUniqueMembers(members: Member[]): Member[] {
   const byId = new Map<string, Member>();
@@ -148,19 +110,7 @@ function mapTreeFocusToBundle(payload: TreeFocusResponse): MemberWithRelationsRe
   };
 }
 
-function oppositeGender(gender?: Gender): Gender | "" {
-  if (gender === "male") {
-    return "female";
-  }
-
-  if (gender === "female") {
-    return "male";
-  }
-
-  return "";
-}
-
-function resolveAddRelation(relation: AddRelationOption): { relationType: RelationType } {
+function resolveAddRelation(relation: MemberFormSubmitData["relationType"]): { relationType: RelationType } {
   switch (relation) {
     case "father":
       return { relationType: "father" };
@@ -180,25 +130,6 @@ function resolveAddRelation(relation: AddRelationOption): { relationType: Relati
     default:
       return { relationType: "none" };
   }
-}
-
-function autoGenderForRelation(
-  relationType: AddRelationOption,
-  focusedGender?: Gender
-): Gender | "" {
-  if (relationType === "father" || relationType === "brother" || relationType === "son") {
-    return "male";
-  }
-
-  if (relationType === "mother" || relationType === "sister" || relationType === "daughter") {
-    return "female";
-  }
-
-  if (relationType === "spouse") {
-    return oppositeGender(focusedGender);
-  }
-
-  return "";
 }
 
 function mapImportantDatesToLegacyFields(entries: ImportantDateItem[]): {
@@ -394,17 +325,10 @@ export default function TreePage() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [addForm, setAddForm] = useState<AddFormState>(initialAddForm);
-  const [addImageFile, setAddImageFile] = useState<File | null>(null);
-  const [submittingAdd, setSubmittingAdd] = useState(false);
 
   const [selectedPerson, setSelectedPerson] = useState<Member | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailBundle, setDetailBundle] = useState<MemberWithRelationsResponse | null>(null);
-  const [detailName, setDetailName] = useState("");
-  const [detailNote, setDetailNote] = useState("");
-  const [detailImageFile, setDetailImageFile] = useState<File | null>(null);
-  const [savingDetail, setSavingDetail] = useState(false);
   const [deletingDetail, setDeletingDetail] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [detailModalView, setDetailModalView] = useState<DetailModalView>("edit");
@@ -714,57 +638,41 @@ export default function TreePage() {
       return;
     }
 
-    setAddForm({
-      name: "",
-      note: "",
-      relationType: "son",
-      gender: autoGenderForRelation("son", focusBundle?.focus.gender),
-      importantDates: [createImportantDateRow(1)],
-      education: "",
-      qualification: "",
-      designation: "",
-      addressPermanent: "",
-      addressCurrent: ""
-    });
-    setAddImageFile(null);
     setIsAddModalOpen(true);
   };
 
-  const submitAddMember = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!addForm.name.trim()) {
+  const submitAddMember = async (data: MemberFormSubmitData) => {
+    if (!data.name.trim()) {
       setError("Member name is required.");
       return;
     }
 
     try {
-      setSubmittingAdd(true);
-      const resolvedRelation = resolveAddRelation(addForm.relationType);
+      const resolvedRelation = resolveAddRelation(data.relationType);
       const relationType = focusId ? resolvedRelation.relationType : undefined;
       const relationTargetId = focusId ?? undefined;
-      const mappedDates = mapImportantDatesToLegacyFields(addForm.importantDates);
+      const mappedDates = mapImportantDatesToLegacyFields(data.importantDates);
       const customDateNotes = mappedDates.customDateNotes.length ? `Important dates:\n${mappedDates.customDateNotes.join("\n")}` : "";
       const mergedImportantNotes = [customDateNotes].filter(Boolean).join("\n\n");
 
       const payload: AddMemberPayload = {
-        name: addForm.name.trim(),
-        note: addForm.note.trim() || undefined,
-        gender: addForm.gender || undefined,
+        name: data.name.trim(),
+        note: data.note.trim() || undefined,
+        gender: data.gender || undefined,
         relationType: relationType === "none" ? undefined : relationType,
         relatedMemberId: relationType === "none" ? undefined : relationTargetId,
         dateOfBirth: mappedDates.dateOfBirth,
         anniversaryDate: mappedDates.anniversaryDate,
         dateOfDeath: mappedDates.dateOfDeath,
-        education: addForm.education.trim() || undefined,
-        qualification: addForm.qualification.trim() || undefined,
-        designation: addForm.designation.trim() || undefined,
-        addressPermanent: addForm.addressPermanent.trim() || undefined,
-        addressCurrent: addForm.addressCurrent.trim() || undefined,
+        education: data.education.trim() || undefined,
+        qualification: data.qualification.trim() || undefined,
+        designation: data.designation.trim() || undefined,
+        addressPermanent: data.addressPermanent.trim() || undefined,
+        addressCurrent: data.addressCurrent.trim() || undefined,
         importantNotes: mergedImportantNotes || undefined
       };
 
-      const response = await createMember(treeId, payload, addImageFile);
+      const response = await createMember(treeId, payload, data.imageFile);
       const shouldKeepParentFocus = relationType === "child" && Boolean(focusId);
 
       if (shouldKeepParentFocus && focusId) {
@@ -788,7 +696,6 @@ export default function TreePage() {
       });
 
       setIsAddModalOpen(false);
-      setAddImageFile(null);
       setError(null);
       await loadSubscription();
       showToast("Member added successfully.", "success");
@@ -799,8 +706,6 @@ export default function TreePage() {
         await loadSubscription();
       }
       showToast(message, "error");
-    } finally {
-      setSubmittingAdd(false);
     }
   };
 
@@ -810,7 +715,6 @@ export default function TreePage() {
         setSelectedPerson(member);
         setLoadingDetail(true);
         setDetailBundle(null);
-        setDetailImageFile(null);
         setDetailModalView("edit");
         setMode("view");
         setRemovingRelationKey(null);
@@ -829,8 +733,6 @@ export default function TreePage() {
         });
         setDetailBundle(payload);
         setSelectedPerson(payload.focus);
-        setDetailName(payload.focus.name);
-        setDetailNote(payload.focus.note || "");
         setError(null);
       } catch (detailError) {
         const message = detailError instanceof Error ? detailError.message : "Failed to load member details.";
@@ -844,35 +746,43 @@ export default function TreePage() {
     [isMemberNotFoundError, showToast, treeId]
   );
 
-  const saveMemberDetails = async (event: FormEvent<HTMLFormElement>): Promise<boolean> => {
-    event.preventDefault();
-
+  const saveMemberDetails = async (data: MemberFormSubmitData): Promise<boolean> => {
     if (!detailBundle || !tree?.canEdit) {
       return false;
     }
 
-    if (!detailName.trim()) {
+    if (!data.name.trim()) {
       setError("Member name is required.");
       return false;
     }
 
     try {
-      setSavingDetail(true);
+      const mappedDates = mapImportantDatesToLegacyFields(data.importantDates);
+      const customDateNotes = mappedDates.customDateNotes.length ? `Important dates:\n${mappedDates.customDateNotes.join("\n")}` : "";
+      const mergedImportantNotes = [customDateNotes].filter(Boolean).join("\n\n");
+
       const response = await updateMember(
         treeId,
         detailBundle.focus._id,
         {
-          name: detailName.trim(),
-          note: detailNote.trim()
+          name: data.name.trim(),
+          note: data.note.trim(),
+          gender: data.gender || null,
+          dateOfBirth: mappedDates.dateOfBirth,
+          anniversaryDate: mappedDates.anniversaryDate,
+          dateOfDeath: mappedDates.dateOfDeath,
+          education: data.education.trim() || null,
+          qualification: data.qualification.trim() || null,
+          designation: data.designation.trim() || null,
+          addressPermanent: data.addressPermanent.trim() || null,
+          addressCurrent: data.addressCurrent.trim() || null,
+          importantNotes: mergedImportantNotes || null
         },
-        detailImageFile
+        data.imageFile
       );
 
       setDetailBundle(response);
       setSelectedPerson(response.focus);
-      setDetailImageFile(null);
-      setDetailName(response.focus.name);
-      setDetailNote(response.focus.note || "");
 
       if (focusId) {
         await loadFocusBundle(focusId);
@@ -886,8 +796,6 @@ export default function TreePage() {
       setError(message);
       showToast(message, "error");
       return false;
-    } finally {
-      setSavingDetail(false);
     }
   };
 
@@ -1015,7 +923,6 @@ export default function TreePage() {
 
       setSelectedPerson(null);
       setDetailBundle(null);
-      setDetailImageFile(null);
 
       const deletedFocus = focusId && response.deletedIds.includes(focusId);
 
@@ -1249,113 +1156,13 @@ export default function TreePage() {
               </button>
             </div>
 
-            <form onSubmit={submitAddMember} className="space-y-3">
-              <input
-                className="field"
-                placeholder="Name"
-                value={addForm.name}
-                onChange={(event) => setAddForm((current) => ({ ...current, name: event.target.value }))}
-                required
-              />
+            {!focusId && (
+              <p className="mb-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+                No focus member selected. This member will be created without an attached relation.
+              </p>
+            )}
 
-              <select
-                className="field"
-                value={addForm.relationType}
-                onChange={(event) => {
-                  const nextRelationType = event.target.value as AddRelationOption;
-                  setAddForm((current) => ({
-                    ...current,
-                    relationType: nextRelationType,
-                    gender: autoGenderForRelation(nextRelationType, focusBundle?.focus.gender)
-                  }));
-                }}
-              >
-                {relationOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {t(option.labelKey)}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                className="field"
-                value={addForm.gender}
-                onChange={(event) => setAddForm((current) => ({ ...current, gender: event.target.value as Gender | "" }))}
-              >
-                <option value="">Select gender</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-                <option value="unspecified">Prefer not to say</option>
-              </select>
-
-              <textarea
-                className="field min-h-20"
-                placeholder="Optional note"
-                value={addForm.note}
-                onChange={(event) => setAddForm((current) => ({ ...current, note: event.target.value }))}
-              />
-
-              <DateFieldGroup
-                importantDates={addForm.importantDates}
-                onChange={(importantDates) => setAddForm((current) => ({ ...current, importantDates }))}
-              />
-
-              <input
-                className="field"
-                type="text"
-                placeholder="Education"
-                value={addForm.education}
-                onChange={(event) => setAddForm((current) => ({ ...current, education: event.target.value }))}
-              />
-
-              <input
-                className="field"
-                type="text"
-                placeholder="Qualification"
-                value={addForm.qualification}
-                onChange={(event) => setAddForm((current) => ({ ...current, qualification: event.target.value }))}
-              />
-
-              <input
-                className="field"
-                type="text"
-                placeholder="Designation"
-                value={addForm.designation}
-                onChange={(event) => setAddForm((current) => ({ ...current, designation: event.target.value }))}
-              />
-
-              <textarea
-                className="field min-h-20"
-                placeholder="Permanent address"
-                value={addForm.addressPermanent}
-                onChange={(event) => setAddForm((current) => ({ ...current, addressPermanent: event.target.value }))}
-              />
-
-              <textarea
-                className="field min-h-20"
-                placeholder="Current address"
-                value={addForm.addressCurrent}
-                onChange={(event) => setAddForm((current) => ({ ...current, addressCurrent: event.target.value }))}
-              />
-
-              {!focusId && (
-                <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
-                  No focus member selected. This member will be created without an attached relation.
-                </p>
-              )}
-
-              <input
-                className="field"
-                type="file"
-                accept="image/*"
-                onChange={(event) => setAddImageFile(event.target.files?.[0] ?? null)}
-              />
-
-              <button type="submit" className="button-primary w-full" disabled={submittingAdd}>
-                {submittingAdd ? "Creating..." : t("tree.addMember")}
-              </button>
-            </form>
+            <MemberForm mode="add" onSubmit={submitAddMember} onCancel={() => setIsAddModalOpen(false)} />
           </div>
         </div>
       )}
@@ -1380,13 +1187,6 @@ export default function TreePage() {
           canDeleteDetailMember={canDeleteDetailMember}
           detailHasChildren={detailHasChildren}
           detailRelationLabel={detailRelationLabel}
-          detailName={detailName}
-          onDetailNameChange={setDetailName}
-          detailNote={detailNote}
-          onDetailNoteChange={setDetailNote}
-          onDetailImageChange={setDetailImageFile}
-          treeCanEdit={Boolean(tree?.canEdit)}
-          savingDetail={savingDetail}
           deletingDetail={deletingDetail}
           removingRelationKey={removingRelationKey}
           relationAction={relationAction}

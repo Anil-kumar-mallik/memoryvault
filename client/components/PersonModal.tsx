@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo } from "react";
 import { useI18n } from "@/lib/i18n/provider";
+import MemberForm, { MemberFormSubmitData } from "@/components/MemberForm";
 import {
   Member,
   MemberWithRelationsResponse,
@@ -17,9 +18,6 @@ type RelationMutationOption = {
   value: RelationMutationType;
   labelKey: string;
 };
-
-const VIRTUAL_ROW_HEIGHT = 34;
-const VIRTUAL_VIEWPORT_HEIGHT = 204;
 
 function formatDate(value?: string | null): string {
   if (!value) {
@@ -106,44 +104,6 @@ function normalizeImportantDates(member: Member): NormalizedImportantDate[] {
   return deduped.sort((left, right) => left.sortTime - right.sortTime);
 }
 
-function VirtualizedMemberList({ members }: { members: Member[] }) {
-  const [scrollTop, setScrollTop] = useState(0);
-  const totalHeight = members.length * VIRTUAL_ROW_HEIGHT;
-  const overscan = 6;
-  const startIndex = Math.max(Math.floor(scrollTop / VIRTUAL_ROW_HEIGHT) - overscan, 0);
-  const visibleCount = Math.ceil(VIRTUAL_VIEWPORT_HEIGHT / VIRTUAL_ROW_HEIGHT) + overscan * 2;
-  const endIndex = Math.min(startIndex + visibleCount, members.length);
-  const visibleMembers = members.slice(startIndex, endIndex);
-  const translateY = startIndex * VIRTUAL_ROW_HEIGHT;
-
-  if (!members.length) {
-    return <p className="text-xs text-slate-500">No children linked.</p>;
-  }
-
-  return (
-    <div
-      className="overflow-y-auto rounded-lg border border-slate-200 bg-white"
-      style={{ height: `${VIRTUAL_VIEWPORT_HEIGHT}px` }}
-      onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-    >
-      <div style={{ height: `${totalHeight}px` }}>
-        <div style={{ transform: `translateY(${translateY}px)` }}>
-          {visibleMembers.map((member) => (
-            <div
-              key={member._id}
-              className="flex items-center justify-between border-b border-slate-100 px-3 text-xs text-slate-700 last:border-b-0"
-              style={{ height: `${VIRTUAL_ROW_HEIGHT}px` }}
-            >
-              <span className="truncate">{member.name}</span>
-              <span className="ml-3 text-[10px] text-slate-400">{member._id.slice(-6)}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 type PersonModalProps = {
   person: Member;
   mode: "view" | "edit";
@@ -159,13 +119,6 @@ type PersonModalProps = {
   canDeleteDetailMember: boolean;
   detailHasChildren: boolean;
   detailRelationLabel: string;
-  detailName: string;
-  onDetailNameChange: (value: string) => void;
-  detailNote: string;
-  onDetailNoteChange: (value: string) => void;
-  onDetailImageChange: (file: File | null) => void;
-  treeCanEdit: boolean;
-  savingDetail: boolean;
   deletingDetail: boolean;
   removingRelationKey: string | null;
   relationAction: RelationMutationAction;
@@ -182,7 +135,7 @@ type PersonModalProps = {
   loadingRelationMembers: boolean;
   relationSubmitting: boolean;
   relationMutationOptions: RelationMutationOption[];
-  onSubmitMemberDetails: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
+  onSubmitMemberDetails: (data: MemberFormSubmitData) => Promise<boolean> | boolean;
   onApplyRelationMutation: (event: FormEvent<HTMLFormElement>) => Promise<void> | void;
   onRemoveRelationship: (
     relationType: RemoveRelationType,
@@ -210,13 +163,6 @@ export default function PersonModal(props: PersonModalProps) {
     canDeleteDetailMember,
     detailHasChildren,
     detailRelationLabel,
-    detailName,
-    onDetailNameChange,
-    detailNote,
-    onDetailNoteChange,
-    onDetailImageChange,
-    treeCanEdit,
-    savingDetail,
     deletingDetail,
     removingRelationKey,
     relationAction,
@@ -240,8 +186,8 @@ export default function PersonModal(props: PersonModalProps) {
     onSetFocusPerson
   } = props;
 
-  const submitMemberDetails = async (event: FormEvent<HTMLFormElement>) => {
-    const isSaved = await onSubmitMemberDetails(event);
+  const submitMemberDetails = async (data: MemberFormSubmitData) => {
+    const isSaved = await onSubmitMemberDetails(data);
     if (isSaved) {
       onSave();
     }
@@ -355,176 +301,92 @@ export default function PersonModal(props: PersonModalProps) {
               </div>
 
               {detailModalView === "edit" && (
-                <form onSubmit={submitMemberDetails} className="space-y-3">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex flex-col gap-4 sm:flex-row">
-                      {detailBundle.focus.profileImage ? (
-                        <div className="relative h-36 w-full overflow-hidden rounded-lg border border-slate-200 sm:w-32">
-                          <Image
-                            src={`${uploadsBaseUrl}${detailBundle.focus.profileImage}`}
-                            alt={`${detailBundle.focus.name} profile`}
-                            fill
-                            className="object-cover"
-                            sizes="128px"
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex h-36 w-full items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 sm:w-32">
-                          No image
-                        </div>
-                      )}
-
-                      <div className="flex-1 space-y-3">
-                        <div>
-                          <h3 className="text-2xl font-bold text-slate-900">{detailBundle.focus.name}</h3>
-                          <p className="text-sm text-slate-500">{detailRelationLabel}</p>
-                        </div>
-
-                        <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
-                          <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Personal Information</h4>
-                          <p>
-                            <span className="font-semibold">Gender:</span> {detailBundle.focus.gender || "unspecified"}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Personal Note:</span> {detailBundle.focus.note || "-"}
-                          </p>
-                        </div>
-
-                        <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
-                          <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Important Dates</h4>
-                          <p>
-                            <span className="font-semibold">Date of Birth:</span> {dateOfBirthEntry ? formatDate(dateOfBirthEntry.value) : "-"}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Anniversary:</span> {anniversaryEntry ? formatDate(anniversaryEntry.value) : "-"}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Date of Death:</span> {deathEntry ? formatDate(deathEntry.value) : "-"}
-                          </p>
+                <>
+                  {mode === "edit" ? (
+                    <MemberForm initialData={detailBundle.focus} mode="edit" onSubmit={submitMemberDetails} onCancel={onSave} />
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="space-y-3">
                           <div>
-                            <span className="font-semibold">Custom Dates:</span>
-                            {customDateEntries.length ? (
-                              <div className="mt-1 space-y-1">
-                                {customDateEntries.map((entry, index) => (
-                                  <p key={`${entry.label || "custom"}-${entry.value}-${index}`}>
-                                    {(entry.label || "Custom").trim()}: {formatDate(entry.value)}
-                                  </p>
-                                ))}
-                              </div>
-                            ) : (
-                              <span> -</span>
-                            )}
+                            <h3 className="text-2xl font-bold text-slate-900">{detailBundle.focus.name}</h3>
+                            <p className="text-sm text-slate-500">{detailRelationLabel}</p>
+                          </div>
+
+                          <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
+                            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Personal Information</h4>
+                            <p>
+                              <span className="font-semibold">Gender:</span> {detailBundle.focus.gender || "unspecified"}
+                            </p>
+                            <p>
+                              <span className="font-semibold">Personal Note:</span> {detailBundle.focus.note || "-"}
+                            </p>
+                          </div>
+
+                          <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
+                            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Important Dates</h4>
+                            <p>
+                              <span className="font-semibold">Date of Birth:</span> {dateOfBirthEntry ? formatDate(dateOfBirthEntry.value) : "-"}
+                            </p>
+                            <p>
+                              <span className="font-semibold">Anniversary:</span> {anniversaryEntry ? formatDate(anniversaryEntry.value) : "-"}
+                            </p>
+                            <p>
+                              <span className="font-semibold">Date of Death:</span> {deathEntry ? formatDate(deathEntry.value) : "-"}
+                            </p>
+                            <div>
+                              <span className="font-semibold">Custom Dates:</span>
+                              {customDateEntries.length ? (
+                                <div className="mt-1 space-y-1">
+                                  {customDateEntries.map((entry, index) => (
+                                    <p key={`${entry.label || "custom"}-${entry.value}-${index}`}>
+                                      {(entry.label || "Custom").trim()}: {formatDate(entry.value)}
+                                    </p>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span> -</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
+                            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Address</h4>
+                            <p>
+                              <span className="font-semibold">Permanent:</span> {detailBundle.focus.addressPermanent || "-"}
+                            </p>
+                            <p>
+                              <span className="font-semibold">Current:</span> {detailBundle.focus.addressCurrent || "-"}
+                            </p>
+                          </div>
+
+                          <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
+                            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Professional Information</h4>
+                            <p>
+                              <span className="font-semibold">Education:</span> {detailBundle.focus.education || "-"}
+                            </p>
+                            <p>
+                              <span className="font-semibold">Qualification:</span> {detailBundle.focus.qualification || "-"}
+                            </p>
+                            <p>
+                              <span className="font-semibold">Designation:</span> {detailBundle.focus.designation || "-"}
+                            </p>
                           </div>
                         </div>
-
-                        <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
-                          <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Address</h4>
-                          <p>
-                            <span className="font-semibold">Permanent:</span> {detailBundle.focus.addressPermanent || "-"}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Current:</span> {detailBundle.focus.addressCurrent || "-"}
-                          </p>
-                        </div>
-
-                        <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
-                          <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Professional Information</h4>
-                          <p>
-                            <span className="font-semibold">Education:</span> {detailBundle.focus.education || "-"}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Qualification:</span> {detailBundle.focus.qualification || "-"}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Designation:</span> {detailBundle.focus.designation || "-"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {mode === "edit" ? (
-                    <>
-                      <input
-                        className="field"
-                        value={detailName}
-                        onChange={(event) => onDetailNameChange(event.target.value)}
-                        placeholder="Name"
-                        required
-                        disabled={!treeCanEdit}
-                      />
-
-                      <textarea
-                        className="field min-h-24"
-                        value={detailNote}
-                        onChange={(event) => onDetailNoteChange(event.target.value)}
-                        placeholder="Optional note"
-                        disabled={!treeCanEdit}
-                      />
-
-                      <input
-                        className="field"
-                        type="file"
-                        accept="image/*"
-                        onChange={(event) => onDetailImageChange(event.target.files?.[0] ?? null)}
-                        disabled={!treeCanEdit}
-                      />
-
-                      <div className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
-                        <p>
-                          <span className="font-semibold">{t("tree.father")}:</span>{" "}
-                          {detailBundle.relations.father ? detailBundle.relations.father.name : t("common.notAvailable")}
-                        </p>
-                        <p>
-                          <span className="font-semibold">{t("tree.mother")}:</span>{" "}
-                          {detailBundle.relations.mother ? detailBundle.relations.mother.name : t("common.notAvailable")}
-                        </p>
-                        <p>
-                          <span className="font-semibold">{t("tree.spouses")}:</span>{" "}
-                          {detailBundle.relations.spouses.map((member) => member.name).join(", ") || "None"}
-                          {detailBundle.relationMeta.spouses.total > detailBundle.relations.spouses.length
-                            ? ` (+${detailBundle.relationMeta.spouses.total - detailBundle.relations.spouses.length} more)`
-                            : ""}
-                        </p>
-                        <p>
-                          <span className="font-semibold">{t("tree.siblings")}:</span>{" "}
-                          {detailBundle.relations.siblings.map((member) => member.name).join(", ") || "None"}
-                          {detailBundle.relationMeta.siblings.total > detailBundle.relations.siblings.length
-                            ? ` (+${detailBundle.relationMeta.siblings.total - detailBundle.relations.siblings.length} more)`
-                            : ""}
-                        </p>
-                        <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                          <p className="text-xs text-slate-600">
-                            <span className="font-semibold text-slate-900">{t("tree.children")}:</span>{" "}
-                            {detailBundle.relationMeta.children.loaded}/{detailBundle.relationMeta.children.total}
-                            {detailBundle.relationMeta.children.hasMore ? " loaded" : ""}
-                          </p>
-                          <VirtualizedMemberList members={detailBundle.relations.children} />
-                        </div>
                       </div>
 
-                      {treeCanEdit ? (
-                        <button type="submit" className="button-primary w-full" disabled={savingDetail}>
-                          {savingDetail ? "Saving..." : "Update Member"}
-                        </button>
-                      ) : (
-                        <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                          Read-only access. Only tree owner/admin can update members.
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <div className="rounded-lg border border-slate-200 bg-white p-3">
-                      {detailCanEdit ? (
-                        <button type="button" className="button-primary w-full" onClick={onEdit}>
-                          Edit
-                        </button>
-                      ) : (
-                        <p className="text-xs text-slate-600">Read-only access. Only tree owner/admin can update members.</p>
-                      )}
+                      <div className="rounded-lg border border-slate-200 bg-white p-3">
+                        {detailCanEdit ? (
+                          <button type="button" className="button-primary w-full" onClick={onEdit}>
+                            Edit
+                          </button>
+                        ) : (
+                          <p className="text-xs text-slate-600">Read-only access. Only tree owner/admin can update members.</p>
+                        )}
+                      </div>
                     </div>
                   )}
-                </form>
+                </>
               )}
 
               {detailModalView === "relations" && (

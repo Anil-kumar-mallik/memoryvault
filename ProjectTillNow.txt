@@ -3503,3 +3503,47 @@ Validation/build checks
 
 Pending tasks
 - Optional: add UI tests for sorted important-date rows and custom-date rendering in `PersonModal`.
+
+[Phase 3 | Unified MemberForm for Add & Edit Flow]
+
+Completed modules
+1) Unified member form extraction and reuse
+- Added shared `MemberForm` component for both Add and Edit flows.
+- Replaced duplicate add/edit member form logic with single reusable form state and submit model.
+- Added typed submit contract (`MemberFormSubmitData`) to keep add/edit payload mapping consistent.
+
+2) Add flow migration to shared form
+- Replaced tree Add Member inline form with `MemberForm mode="add"`.
+- Preserved existing add-member relation mapping logic (`father/mother/spouse/child/sibling/none`) and legacy date field mapping.
+- Preserved existing modal UI structure and behavior.
+
+3) Edit flow migration to shared form
+- Updated `PersonModal` edit view to render `MemberForm mode="edit"`.
+- Edit mode now pre-fills from selected person and replaces detail view (not stacked under it).
+- Relation selector is disabled in edit mode (relation edits remain in relationship controls).
+- Successful update returns modal mode back to view state.
+
+4) Frontend state handling cleanup
+- Removed stale tree-page local form states and modal props tied to old add/edit form duplication.
+- Kept tree focus logic and relation mutation/delete flows unchanged.
+
+File changes
+- `client/components/MemberForm.tsx` (new)
+- `client/components/PersonModal.tsx`
+- `client/app/tree/[id]/page.tsx`
+- `client/lib/api.ts`
+- `client/types/index.ts`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No database schema/index/model changes.
+- No backend/API route changes.
+- Existing API contracts remain backward-compatible.
+
+Validation/build checks
+- `cd client && npm run lint` -> passed.
+- `cd client && npm run build` -> passed.
+
+Pending tasks
+- Optional: add UI tests for unified add/edit member form state transitions and submit behavior.
+- Optional: add focused tests for relation field disabled behavior in edit mode.
