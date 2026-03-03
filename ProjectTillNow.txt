@@ -3547,3 +3547,62 @@ Validation/build checks
 Pending tasks
 - Optional: add UI tests for unified add/edit member form state transitions and submit behavior.
 - Optional: add focused tests for relation field disabled behavior in edit mode.
+
+[Phase 4 Complete | UI Polish + Animation + Performance Safeguards]
+
+Completed modules
+1) Tree node UI polish
+- Updated focus tree node presentation for cleaner hierarchy:
+  - Name remains bold with truncation + ellipsis handling.
+  - Relation now renders as a muted badge below the name.
+- Added subtle hover interaction on nodes:
+  - scale to `1.02`
+  - stronger hover shadow/glow treatment.
+
+2) Person modal view layout refinement
+- Reorganized member view-mode content into clearer sections with spacing:
+  - Profile image block
+  - Large name + muted relation text
+  - Personal Information
+  - Important Dates
+  - Addresses
+  - Professional Information (Education, Qualification, Designation)
+- Preserved existing modal tabs and relation/delete workflows.
+
+3) Smooth modal animation
+- Added `framer-motion` dependency in client.
+- Added overlay fade animation and modal scale/fade animation in `PersonModal`:
+  - `initial: { opacity: 0, scale: 0.95 }`
+  - `animate: { opacity: 1, scale: 1 }`
+  - `exit: { opacity: 0, scale: 0.95 }`
+  - `transition: { duration: 0.2 }`
+- Added `AnimatePresence` wrapper in tree page for mount/unmount modal transitions.
+
+4) Performance safeguards
+- Ensured heavy components are memoized:
+  - `FocusTreeCanvas` (already memoized, retained)
+  - `PersonModal` (wrapped with `React.memo`)
+  - `MemberForm` (wrapped with `React.memo`)
+- Memoized computed modal date summaries in `PersonModal`.
+- Memoized relation label resolution in tree page to reduce avoidable recalculation.
+
+File changes
+- `client/components/FocusTreeCanvas.tsx`
+- `client/components/PersonModal.tsx`
+- `client/components/MemberForm.tsx`
+- `client/app/tree/[id]/page.tsx`
+- `client/package.json`
+- `client/package-lock.json`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No database schema/index/model changes.
+- No backend or API changes.
+
+Validation/build checks
+- `cd client && npm run lint` -> passed.
+- `cd client && npm run build` -> passed.
+
+Pending tasks
+- Optional: if bundle size becomes a concern, lazy-load modal animation code or split modal tabs.
+- Optional: add UI interaction tests for modal enter/exit animation and node hover behavior.

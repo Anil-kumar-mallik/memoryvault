@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useMemo } from "react";
+import { FormEvent, memo, useMemo } from "react";
+import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n/provider";
 import MemberForm, { MemberFormSubmitData } from "@/components/MemberForm";
 import {
@@ -146,7 +147,7 @@ type PersonModalProps = {
   onSetFocusPerson: (memberId: string) => void;
 };
 
-export default function PersonModal(props: PersonModalProps) {
+function PersonModal(props: PersonModalProps) {
   const { t } = useI18n();
   const {
     person,
@@ -193,20 +194,32 @@ export default function PersonModal(props: PersonModalProps) {
     }
   };
 
-  const normalizedImportantDates = useMemo(
-    () => (detailBundle ? normalizeImportantDates(detailBundle.focus) : []),
-    [detailBundle]
-  );
-  const dateOfBirthEntry = normalizedImportantDates.find((item) => item.type === "dob");
-  const anniversaryEntry = normalizedImportantDates.find((item) => item.type === "anniversary");
-  const deathEntry = normalizedImportantDates.find((item) => item.type === "death");
-  const customDateEntries = normalizedImportantDates.filter((item) => item.type === "custom");
+  const importantDateSummary = useMemo(() => {
+    const normalizedImportantDates = detailBundle ? normalizeImportantDates(detailBundle.focus) : [];
+    return {
+      dateOfBirthEntry: normalizedImportantDates.find((item) => item.type === "dob"),
+      anniversaryEntry: normalizedImportantDates.find((item) => item.type === "anniversary"),
+      deathEntry: normalizedImportantDates.find((item) => item.type === "death"),
+      customDateEntries: normalizedImportantDates.filter((item) => item.type === "custom")
+    };
+  }, [detailBundle]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center" onClick={onClose}>
-      <div
+    <motion.div
+      className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center"
+      onClick={onClose}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      <motion.div
         className="relative bg-white w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl shadow-xl z-50 p-6"
         onClick={(event) => event.stopPropagation()}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.2 }}
       >
         <div className="sticky top-0 z-20 -mx-6 -mt-6 mb-4 flex items-center justify-between border-b border-slate-200 bg-white/95 px-6 py-4 backdrop-blur">
           <h2 className="text-xl font-semibold text-slate-900">Member Details</h2>
@@ -220,22 +233,6 @@ export default function PersonModal(props: PersonModalProps) {
         ) : (
           <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
             <aside className="space-y-3">
-              {detailBundle.focus.profileImage ? (
-                <div className="relative h-48 w-full overflow-hidden rounded-lg border border-slate-200">
-                  <Image
-                    src={`${uploadsBaseUrl}${detailBundle.focus.profileImage}`}
-                    alt={`${detailBundle.focus.name} profile`}
-                    fill
-                    className="object-cover"
-                    sizes="220px"
-                  />
-                </div>
-              ) : (
-                <div className="flex h-48 w-full items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500">
-                  No image
-                </div>
-              )}
-
               <button
                 type="button"
                 className="button-secondary w-full"
@@ -305,40 +302,61 @@ export default function PersonModal(props: PersonModalProps) {
                   {mode === "edit" ? (
                     <MemberForm initialData={detailBundle.focus} mode="edit" onSubmit={submitMemberDetails} onCancel={onSave} />
                   ) : (
-                    <div className="space-y-3">
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="space-y-3">
-                          <div>
-                            <h3 className="text-2xl font-bold text-slate-900">{detailBundle.focus.name}</h3>
-                            <p className="text-sm text-slate-500">{detailRelationLabel}</p>
-                          </div>
+                    <div className="space-y-4">
+                      <div className="space-y-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
+                        <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center">
+                          {detailBundle.focus.profileImage ? (
+                            <div className="relative h-28 w-28 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                              <Image
+                                src={`${uploadsBaseUrl}${detailBundle.focus.profileImage}`}
+                                alt={`${detailBundle.focus.name} profile`}
+                                fill
+                                className="object-cover"
+                                sizes="112px"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex h-28 w-28 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500">
+                              No image
+                            </div>
+                          )}
 
-                          <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
-                            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Personal Information</h4>
-                            <p>
-                              <span className="font-semibold">Gender:</span> {detailBundle.focus.gender || "unspecified"}
-                            </p>
-                            <p>
-                              <span className="font-semibold">Personal Note:</span> {detailBundle.focus.note || "-"}
-                            </p>
+                          <div className="min-w-0">
+                            <h3 className="truncate text-3xl font-bold text-slate-900">{detailBundle.focus.name}</h3>
+                            <p className="mt-1 text-sm text-slate-500">{detailRelationLabel}</p>
                           </div>
+                        </div>
 
-                          <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
+                        <div className="space-y-2 text-sm text-slate-700">
+                          <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Personal Information</h4>
+                          <p>
+                            <span className="font-semibold">Gender:</span> {detailBundle.focus.gender || "unspecified"}
+                          </p>
+                          <p>
+                            <span className="font-semibold">Personal Note:</span> {detailBundle.focus.note || "-"}
+                          </p>
+                        </div>
+
+                        <div className="grid gap-4 border-t border-slate-200 pt-4 md:grid-cols-2">
+                          <div className="space-y-2 text-sm text-slate-700">
                             <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Important Dates</h4>
                             <p>
-                              <span className="font-semibold">Date of Birth:</span> {dateOfBirthEntry ? formatDate(dateOfBirthEntry.value) : "-"}
+                              <span className="font-semibold">Date of Birth:</span>{" "}
+                              {importantDateSummary.dateOfBirthEntry ? formatDate(importantDateSummary.dateOfBirthEntry.value) : "-"}
                             </p>
                             <p>
-                              <span className="font-semibold">Anniversary:</span> {anniversaryEntry ? formatDate(anniversaryEntry.value) : "-"}
+                              <span className="font-semibold">Anniversary:</span>{" "}
+                              {importantDateSummary.anniversaryEntry ? formatDate(importantDateSummary.anniversaryEntry.value) : "-"}
                             </p>
                             <p>
-                              <span className="font-semibold">Date of Death:</span> {deathEntry ? formatDate(deathEntry.value) : "-"}
+                              <span className="font-semibold">Date of Death:</span>{" "}
+                              {importantDateSummary.deathEntry ? formatDate(importantDateSummary.deathEntry.value) : "-"}
                             </p>
                             <div>
                               <span className="font-semibold">Custom Dates:</span>
-                              {customDateEntries.length ? (
+                              {importantDateSummary.customDateEntries.length ? (
                                 <div className="mt-1 space-y-1">
-                                  {customDateEntries.map((entry, index) => (
+                                  {importantDateSummary.customDateEntries.map((entry, index) => (
                                     <p key={`${entry.label || "custom"}-${entry.value}-${index}`}>
                                       {(entry.label || "Custom").trim()}: {formatDate(entry.value)}
                                     </p>
@@ -350,8 +368,8 @@ export default function PersonModal(props: PersonModalProps) {
                             </div>
                           </div>
 
-                          <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
-                            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Address</h4>
+                          <div className="space-y-2 text-sm text-slate-700">
+                            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Addresses</h4>
                             <p>
                               <span className="font-semibold">Permanent:</span> {detailBundle.focus.addressPermanent || "-"}
                             </p>
@@ -359,19 +377,19 @@ export default function PersonModal(props: PersonModalProps) {
                               <span className="font-semibold">Current:</span> {detailBundle.focus.addressCurrent || "-"}
                             </p>
                           </div>
+                        </div>
 
-                          <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-700">
-                            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Professional Information</h4>
-                            <p>
-                              <span className="font-semibold">Education:</span> {detailBundle.focus.education || "-"}
-                            </p>
-                            <p>
-                              <span className="font-semibold">Qualification:</span> {detailBundle.focus.qualification || "-"}
-                            </p>
-                            <p>
-                              <span className="font-semibold">Designation:</span> {detailBundle.focus.designation || "-"}
-                            </p>
-                          </div>
+                        <div className="space-y-2 border-t border-slate-200 pt-4 text-sm text-slate-700">
+                          <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Professional Information</h4>
+                          <p>
+                            <span className="font-semibold">Education:</span> {detailBundle.focus.education || "-"}
+                          </p>
+                          <p>
+                            <span className="font-semibold">Qualification:</span> {detailBundle.focus.qualification || "-"}
+                          </p>
+                          <p>
+                            <span className="font-semibold">Designation:</span> {detailBundle.focus.designation || "-"}
+                          </p>
                         </div>
                       </div>
 
@@ -650,7 +668,9 @@ export default function PersonModal(props: PersonModalProps) {
             </section>
           </div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
+
+export default memo(PersonModal);

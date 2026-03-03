@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { AnimatePresence } from "framer-motion";
 import TreeCanvas from "@/components/TreeCanvas";
 import PersonModal from "@/components/PersonModal";
 import MemberForm, { MemberFormSubmitData } from "@/components/MemberForm";
@@ -954,7 +955,10 @@ export default function TreePage() {
   const detailCanEdit = Boolean(tree?.canEdit);
   const canDeleteDetailMember = Boolean(detailCanEdit && detailBundle && !detailBundle.focus.isRoot);
   const detailHasChildren = Boolean((detailBundle?.relationMeta.children.total || 0) > 0);
-  const detailRelationLabel = resolveRelationToCurrentFocus(detailBundle?.focus || null, focusBundle);
+  const detailRelationLabel = useMemo(
+    () => resolveRelationToCurrentFocus(detailBundle?.focus || null, focusBundle),
+    [detailBundle, focusBundle]
+  );
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8">
@@ -1167,49 +1171,52 @@ export default function TreePage() {
         </div>
       )}
 
-      {selectedPerson && (
-        <PersonModal
-          person={selectedPerson}
-          mode={mode}
-          onClose={() => {
-            setSelectedPerson(null);
-            setMode("view");
-            setDetailModalView("edit");
-          }}
-          onEdit={() => setMode("edit")}
-          onSave={() => setMode("view")}
-          loadingDetail={loadingDetail}
-          detailBundle={detailBundle}
-          uploadsBaseUrl={uploadsBaseUrl}
-          detailModalView={detailModalView}
-          setDetailModalView={setDetailModalView}
-          detailCanEdit={detailCanEdit}
-          canDeleteDetailMember={canDeleteDetailMember}
-          detailHasChildren={detailHasChildren}
-          detailRelationLabel={detailRelationLabel}
-          deletingDetail={deletingDetail}
-          removingRelationKey={removingRelationKey}
-          relationAction={relationAction}
-          onRelationActionChange={setRelationAction}
-          relationType={relationType}
-          onRelationTypeChange={setRelationType}
-          relationParentRole={relationParentRole}
-          onRelationParentRoleChange={setRelationParentRole}
-          relationTargetMemberId={relationTargetMemberId}
-          onRelationTargetMemberIdChange={setRelationTargetMemberId}
-          relationMemberSearch={relationMemberSearch}
-          onRelationMemberSearchChange={setRelationMemberSearch}
-          relationMemberOptions={relationMemberOptions}
-          loadingRelationMembers={loadingRelationMembers}
-          relationSubmitting={relationSubmitting}
-          relationMutationOptions={relationMutationOptions}
-          onSubmitMemberDetails={saveMemberDetails}
-          onApplyRelationMutation={applyRelationMutation}
-          onRemoveRelationship={removeRelationship}
-          onRemoveMember={removeMember}
-          onSetFocusPerson={(memberId) => setFocusId(memberId)}
-        />
-      )}
+      <AnimatePresence>
+        {selectedPerson && (
+          <PersonModal
+            key={selectedPerson._id}
+            person={selectedPerson}
+            mode={mode}
+            onClose={() => {
+              setSelectedPerson(null);
+              setMode("view");
+              setDetailModalView("edit");
+            }}
+            onEdit={() => setMode("edit")}
+            onSave={() => setMode("view")}
+            loadingDetail={loadingDetail}
+            detailBundle={detailBundle}
+            uploadsBaseUrl={uploadsBaseUrl}
+            detailModalView={detailModalView}
+            setDetailModalView={setDetailModalView}
+            detailCanEdit={detailCanEdit}
+            canDeleteDetailMember={canDeleteDetailMember}
+            detailHasChildren={detailHasChildren}
+            detailRelationLabel={detailRelationLabel}
+            deletingDetail={deletingDetail}
+            removingRelationKey={removingRelationKey}
+            relationAction={relationAction}
+            onRelationActionChange={setRelationAction}
+            relationType={relationType}
+            onRelationTypeChange={setRelationType}
+            relationParentRole={relationParentRole}
+            onRelationParentRoleChange={setRelationParentRole}
+            relationTargetMemberId={relationTargetMemberId}
+            onRelationTargetMemberIdChange={setRelationTargetMemberId}
+            relationMemberSearch={relationMemberSearch}
+            onRelationMemberSearchChange={setRelationMemberSearch}
+            relationMemberOptions={relationMemberOptions}
+            loadingRelationMembers={loadingRelationMembers}
+            relationSubmitting={relationSubmitting}
+            relationMutationOptions={relationMutationOptions}
+            onSubmitMemberDetails={saveMemberDetails}
+            onApplyRelationMutation={applyRelationMutation}
+            onRemoveRelationship={removeRelationship}
+            onRemoveMember={removeMember}
+            onSetFocusPerson={(memberId) => setFocusId(memberId)}
+          />
+        )}
+      </AnimatePresence>
     </main>
   );
 }

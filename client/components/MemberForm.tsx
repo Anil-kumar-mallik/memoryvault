@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, memo, useEffect, useMemo, useState } from "react";
 import DateFieldGroup, { ImportantDateItem, createImportantDateRow } from "@/components/DateFieldGroup";
 import { Gender, Member } from "@/types";
 
@@ -125,7 +125,7 @@ function buildInitialState(mode: "add" | "edit", initialData?: Member): MemberFo
   };
 }
 
-export default function MemberForm({ initialData, mode, onSubmit, onCancel }: MemberFormProps) {
+function MemberForm({ initialData, mode, onSubmit, onCancel }: MemberFormProps) {
   const [form, setForm] = useState<MemberFormSubmitData>(() => buildInitialState(mode, initialData));
   const [submitting, setSubmitting] = useState(false);
 
@@ -270,3 +270,5 @@ export default function MemberForm({ initialData, mode, onSubmit, onCancel }: Me
     </form>
   );
 }
+
+export default memo(MemberForm);

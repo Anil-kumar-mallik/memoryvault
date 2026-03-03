@@ -204,31 +204,35 @@ function clipName(name: string): string {
 function relationSubtitle(node: VisualNode): string {
   switch (node.group) {
     case "father":
-      return "(Father)";
+      return "Father";
     case "mother":
-      return "(Mother)";
+      return "Mother";
     case "spouse":
-      return "(Spouse)";
+      return "Spouse";
     case "child":
       if (node.member.gender === "male") {
-        return "(Son)";
+        return "Son";
       }
       if (node.member.gender === "female") {
-        return "(Daughter)";
+        return "Daughter";
       }
-      return "(Child)";
+      return "Child";
     case "sibling":
       if (node.member.gender === "male") {
-        return "(Brother)";
+        return "Brother";
       }
       if (node.member.gender === "female") {
-        return "(Sister)";
+        return "Sister";
       }
-      return "(Sibling)";
+      return "Sibling";
     case "focus":
     default:
-      return "(Self)";
+      return "Self";
   }
+}
+
+function relationBadgeWidth(label: string): number {
+  return Math.max(58, Math.min(132, label.length * 6 + 18));
 }
 
 function nodeRadius(group: RelationGroup): number {
@@ -295,6 +299,20 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
   const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(() => new Set());
 
   const graph = useMemo(() => buildVisualGraph(bundle), [bundle]);
+  const displayNameByNodeKey = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const node of graph.nodes) {
+      labels.set(node.key, clipName(node.member.name));
+    }
+    return labels;
+  }, [graph.nodes]);
+  const relationLabelByNodeKey = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const node of graph.nodes) {
+      labels.set(node.key, relationSubtitle(node));
+    }
+    return labels;
+  }, [graph.nodes]);
   const avatarConfigByMemberId = useMemo(() => {
     const map = new Map<string, AvatarConfig>();
 
@@ -433,6 +451,20 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
       .attr("width", "180%")
       .attr("height", "180%");
     shadow.append("feDropShadow").attr("dx", 0).attr("dy", 3).attr("stdDeviation", 4).attr("flood-color", "#0f172a").attr("flood-opacity", 0.2);
+    const strongShadow = defs
+      .append("filter")
+      .attr("id", "mv-node-shadow-strong")
+      .attr("x", "-40%")
+      .attr("y", "-40%")
+      .attr("width", "200%")
+      .attr("height", "200%");
+    strongShadow
+      .append("feDropShadow")
+      .attr("dx", 0)
+      .attr("dy", 5)
+      .attr("stdDeviation", 7)
+      .attr("flood-color", "#0f172a")
+      .attr("flood-opacity", 0.28);
     defs
       .append("clipPath")
       .attr("id", AVATAR_FOCUS_CLIP_ID)
@@ -616,7 +648,9 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
         return `translate(${previous.x},${previous.y})`;
       })
       .style("opacity", 0)
-      .style("transition", "transform 160ms ease")
+      .style("transition", "transform 160ms ease, filter 160ms ease")
+      .style("transform-box", "fill-box")
+      .style("transform-origin", "center")
       .on("click", (_event, item) => {
         onFocusChange(item.member._id);
       })
@@ -624,28 +658,33 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
         const baseRadius = nodeRadius(item.group);
         const node = d3.select(this);
         node.raise();
-        node.select("circle")
+        node.style("transform", "scale(1.02)");
+        node.select("circle.mv-node-shell")
           .transition()
           .duration(140)
           .attr("r", baseRadius + 4)
           .attr("stroke-width", 4.5)
-          .attr("stroke", glowByGroup[item.group]);
-        node.select("text.mv-node-name").transition().duration(140).attr("fill", "#020617").attr("font-weight", 700);
+          .attr("stroke", glowByGroup[item.group])
+          .attr("filter", "url(#mv-node-shadow-strong)");
+        node.select("text.mv-node-name").transition().duration(140).attr("fill", "#020617").attr("font-weight", 800);
       })
       .on("mouseleave", function (_event, item) {
         const baseRadius = nodeRadius(item.group);
         const node = d3.select(this);
-        node.select("circle")
+        node.style("transform", "scale(1)");
+        node.select("circle.mv-node-shell")
           .transition()
           .duration(140)
           .attr("r", baseRadius)
           .attr("stroke-width", 3.5)
-          .attr("stroke", "#ffffff");
-        node.select("text.mv-node-name").transition().duration(140).attr("fill", "#0f172a").attr("font-weight", 600);
+          .attr("stroke", "#ffffff")
+          .attr("filter", "url(#mv-node-shadow)");
+        node.select("text.mv-node-name").transition().duration(140).attr("fill", "#0f172a").attr("font-weight", 700);
       });
 
     nodeEnter
       .append("circle")
+      .attr("class", "mv-node-shell")
       .attr("r", (item) => nodeRadius(item.group))
       .attr("stroke", "#ffffff")
       .attr("stroke-width", 3.5)
@@ -658,19 +697,43 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
       .attr("text-anchor", "middle")
       .attr("dy", 72)
       .attr("font-size", 13)
-      .attr("font-weight", 600)
+      .attr("font-weight", 700)
       .attr("fill", "#0f172a")
-      .text((item) => clipName(item.member.name));
+      .text((item) => displayNameByNodeKey.get(item.key) || clipName(item.member.name));
 
-    nodeEnter
+    const relationBadge = nodeEnter
+      .append("g")
+      .attr("class", "mv-node-relation-badge")
+      .attr("transform", "translate(0,88)");
+
+    relationBadge
+      .append("rect")
+      .attr("class", "mv-node-relation-bg")
+      .attr("x", (item) => {
+        const label = relationLabelByNodeKey.get(item.key) || relationSubtitle(item);
+        return -(relationBadgeWidth(label) / 2);
+      })
+      .attr("y", -8)
+      .attr("width", (item) => {
+        const label = relationLabelByNodeKey.get(item.key) || relationSubtitle(item);
+        return relationBadgeWidth(label);
+      })
+      .attr("height", 16)
+      .attr("rx", 8)
+      .attr("ry", 8)
+      .attr("fill", "#f8fafc")
+      .attr("stroke", "#cbd5e1")
+      .attr("stroke-width", 1);
+
+    relationBadge
       .append("text")
       .attr("class", "mv-node-relation")
       .attr("text-anchor", "middle")
-      .attr("dy", 88)
-      .attr("font-size", 11)
+      .attr("dy", 4)
+      .attr("font-size", 10)
       .attr("font-weight", 500)
       .attr("fill", "#64748b")
-      .text((item) => relationSubtitle(item));
+      .text((item) => relationLabelByNodeKey.get(item.key) || relationSubtitle(item));
 
     const infoBadge = nodeEnter
       .append("g")
@@ -696,7 +759,7 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
       .attr("font-size", 12)
       .attr("font-weight", 700)
       .attr("fill", "#0f172a")
-      .text("ℹ");
+      .text("i");
 
     const mergedNodes = nodeEnter.merge(
       nodeSelection as unknown as d3.Selection<SVGGElement, VisualNode, SVGGElement, unknown>
@@ -706,24 +769,35 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
 
     if (transition) {
       mergedNodes
-        .select("circle")
+        .select("circle.mv-node-shell")
         .transition(transition)
         .attr("fill", (item) => colorByGroup[item.group])
         .attr("r", (item) => nodeRadius(item.group));
     } else {
       mergedNodes
-        .select("circle")
+        .select("circle.mv-node-shell")
         .attr("fill", (item) => colorByGroup[item.group])
         .attr("r", (item) => nodeRadius(item.group));
     }
 
     mergedNodes
       .select("text.mv-node-name")
-      .text((item) => clipName(item.member.name));
+      .text((item) => displayNameByNodeKey.get(item.key) || clipName(item.member.name));
 
     mergedNodes
       .select("text.mv-node-relation")
-      .text((item) => relationSubtitle(item));
+      .text((item) => relationLabelByNodeKey.get(item.key) || relationSubtitle(item));
+
+    mergedNodes
+      .select("rect.mv-node-relation-bg")
+      .attr("x", (item) => {
+        const label = relationLabelByNodeKey.get(item.key) || relationSubtitle(item);
+        return -(relationBadgeWidth(label) / 2);
+      })
+      .attr("width", (item) => {
+        const label = relationLabelByNodeKey.get(item.key) || relationSubtitle(item);
+        return relationBadgeWidth(label);
+      });
 
     mergedNodes
       .select("g.mv-node-info")
@@ -755,7 +829,7 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
     } else {
       svg.call(zoomBehavior.transform, targetTransform);
     }
-  }, [bundle, graph, onFocusChange, onNodeInfo, renderNodeAvatar]);
+  }, [bundle, displayNameByNodeKey, graph, onFocusChange, onNodeInfo, relationLabelByNodeKey, renderNodeAvatar]);
 
   const handleKeyboardNavigation = (event: KeyboardEvent<HTMLDivElement>) => {
     let direction: Direction | null = null;
