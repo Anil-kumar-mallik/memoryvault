@@ -4480,3 +4480,31 @@ Pending tasks
   - previous center loses `Self`;
   - other relation labels remain correct;
   - no layout shift/jitter and no console errors.
+
+[2026-03-04 | Frontend Patch | Relation Context Normalization]
+[Fixed relation normalization to eliminate stale reference bug]
+
+Completed modules
+1) Relation label mapping normalization in `FocusTreeCanvas`
+- Updated only `relationLabelByNodeKey` mapping flow to normalize references before relation resolution.
+- `context` is now resolved from `membersForRelation` by focused member id.
+- `target` is now resolved from `membersForRelation` by node member id.
+- `resolveRelation` logic remains unchanged.
+
+File changes
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build completed with existing non-blocking `no-img-element` warnings only.
+
+Pending tasks
+- Manual browser verification:
+  - click node -> focused node shows `Self`,
+  - previous focused node loses `Self`,
+  - other relations remain correct,
+  - no layout shift and no console errors.
