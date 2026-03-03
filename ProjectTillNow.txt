@@ -3606,3 +3606,37 @@ Validation/build checks
 Pending tasks
 - Optional: if bundle size becomes a concern, lazy-load modal animation code or split modal tabs.
 - Optional: add UI interaction tests for modal enter/exit animation and node hover behavior.
+
+[Tree Stability Patch | Removed hover-triggered focus mutation]
+
+Completed modules
+1) Hover behavior safety fix in tree canvas (frontend only)
+- Removed JS-driven hover mutation handlers from `FocusTreeCanvas` node rendering (`mouseenter`/`mouseleave` mutations).
+- Ensured hover no longer mutates node transform/radius/stroke via event callbacks.
+- Preserved focus changes strictly on click (`onClick -> onFocusChange(memberId)`).
+
+2) CSS-only hover visuals
+- Moved node hover styling to CSS-only rules scoped to tree SVG:
+  - subtle scale on hover
+  - stronger shell stroke/shadow on hover
+  - name color emphasis on hover
+- No React/D3 state updates are triggered by hover.
+
+3) Render stability/performance behavior
+- Existing layout computation memoization remains intact (`useMemo` for graph build) and unaffected by modal/edit hover state.
+- `FocusTreeCanvas` remains wrapped with `React.memo` to avoid unnecessary re-renders from unrelated parent state.
+
+File changes
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No database schema/index/model changes.
+- No backend/API changes.
+
+Validation/build checks
+- `cd client && npm run lint` -> passed.
+- `cd client && npm run build` -> passed.
+
+Pending tasks
+- Optional: if any remaining perceived jitter occurs on very large graphs, reduce CSS hover scale factor slightly.

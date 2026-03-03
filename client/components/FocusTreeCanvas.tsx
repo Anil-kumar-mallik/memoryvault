@@ -60,15 +60,6 @@ const colorByGroup: Record<RelationGroup, string> = {
   sibling: "#475569"
 };
 
-const glowByGroup: Record<RelationGroup, string> = {
-  focus: "#1d4ed8",
-  father: "#60a5fa",
-  mother: "#c4b5fd",
-  spouse: "#5eead4",
-  child: "#67e8f9",
-  sibling: "#94a3b8"
-};
-
 function spread(count: number, spacing: number): number[] {
   if (count <= 1) {
     return [0];
@@ -648,38 +639,8 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
         return `translate(${previous.x},${previous.y})`;
       })
       .style("opacity", 0)
-      .style("transition", "transform 160ms ease, filter 160ms ease")
-      .style("transform-box", "fill-box")
-      .style("transform-origin", "center")
       .on("click", (_event, item) => {
         onFocusChange(item.member._id);
-      })
-      .on("mouseenter", function (_event, item) {
-        const baseRadius = nodeRadius(item.group);
-        const node = d3.select(this);
-        node.raise();
-        node.style("transform", "scale(1.02)");
-        node.select("circle.mv-node-shell")
-          .transition()
-          .duration(140)
-          .attr("r", baseRadius + 4)
-          .attr("stroke-width", 4.5)
-          .attr("stroke", glowByGroup[item.group])
-          .attr("filter", "url(#mv-node-shadow-strong)");
-        node.select("text.mv-node-name").transition().duration(140).attr("fill", "#020617").attr("font-weight", 800);
-      })
-      .on("mouseleave", function (_event, item) {
-        const baseRadius = nodeRadius(item.group);
-        const node = d3.select(this);
-        node.style("transform", "scale(1)");
-        node.select("circle.mv-node-shell")
-          .transition()
-          .duration(140)
-          .attr("r", baseRadius)
-          .attr("stroke-width", 3.5)
-          .attr("stroke", "#ffffff")
-          .attr("filter", "url(#mv-node-shadow)");
-        node.select("text.mv-node-name").transition().duration(140).attr("fill", "#0f172a").attr("font-weight", 700);
       });
 
     nodeEnter
@@ -892,7 +853,31 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
         </button>
       </div>
 
-      <svg ref={svgRef} className="h-[620px] w-full rounded-lg border border-slate-200 bg-slate-50" />
+      <svg ref={svgRef} className="mv-tree-svg h-[620px] w-full rounded-lg border border-slate-200 bg-slate-50" />
+      <style jsx>{`
+        .mv-tree-svg :global(.mv-node) {
+          transform-box: fill-box;
+          transform-origin: center;
+          transition: transform 140ms ease;
+        }
+        .mv-tree-svg :global(.mv-node .mv-node-shell) {
+          transition: stroke 140ms ease, stroke-width 140ms ease, filter 140ms ease;
+        }
+        .mv-tree-svg :global(.mv-node .mv-node-name) {
+          transition: fill 140ms ease;
+        }
+        .mv-tree-svg :global(.mv-node:hover) {
+          transform: scale(1.02);
+        }
+        .mv-tree-svg :global(.mv-node:hover .mv-node-shell) {
+          stroke: #94a3b8;
+          stroke-width: 4.5px;
+          filter: url(#mv-node-shadow-strong);
+        }
+        .mv-tree-svg :global(.mv-node:hover .mv-node-name) {
+          fill: #020617;
+        }
+      `}</style>
     </div>
   );
 }
