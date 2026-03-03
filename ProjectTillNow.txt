@@ -4289,3 +4289,38 @@ Pending tasks
   - Focus father -> child shows Son/Daughter/Child correctly.
   - Focus child -> parent shows Father/Mother/Parent correctly.
   - Confirm no incorrect fallback to Relative.
+
+[2026-03-04 | Frontend UI Patch | Focus Tree Node Internal Layout]
+[Improved Tree Node UI structure and overflow handling]
+
+Completed modules
+1) Focus tree node internal UI structure refinement (safe)
+- Updated `FocusTreeCanvas` node content to render inside a single HTML wrapper with fixed width:
+  - `<div className="flex flex-col items-center text-center w-[140px]">`
+- Updated avatar container markup/class to:
+  - `<div className="w-20 h-20 rounded-full overflow-hidden">`
+- Updated name markup/class to:
+  - `<h3 className="mt-2 font-semibold text-sm truncate w-full">`
+- Updated relation markup/class to:
+  - `<p className="text-xs text-gray-500 truncate w-full">`
+- Added name tooltip support:
+  - `title={member.name}` behavior implemented on node name.
+- Removed old SVG text/relation-badge internals and moved name/relation overflow handling to truncation classes.
+- Preserved focus engine, node positioning logic, and node dimensions.
+
+File changes
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build completed successfully with existing non-blocking `no-img-element` warnings only.
+
+Pending tasks
+- Manual UI sanity check in browser for very long member names:
+  - confirm truncation + tooltip visibility,
+  - confirm no hover jitter/size shift,
+  - confirm tree rendering/focus navigation remains unchanged.
