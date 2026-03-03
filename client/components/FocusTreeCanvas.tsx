@@ -254,8 +254,6 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
     return membersForRelation.find((member) => member._id?.toString() === bundle.focus._id?.toString()) || bundle.focus;
   }, [bundle, membersForRelation]);
 
-console.log("Focused:", focusedMember?._id);
-
   const relationLabelByNodeKey = useMemo(() => {
     const labels = new Map<string, string>();
     if (!focusedMember) {
@@ -316,20 +314,20 @@ console.log("Focused:", focusedMember?._id);
 
         const containerSelection = avatarGroup
           .selectAll<SVGForeignObjectElement, VisualNode>("foreignObject.mv-node-content-shell")
-          .selectAll<HTMLDivElement, VisualNode>("div.mv-node-content")
+          .selectAll<HTMLDivElement, VisualNode>(".mv-node-content")
           .data([item], (datum) => datum.member._id)
           .join("xhtml:div")
           .attr("class", NODE_CONTENT_CLASS);
 
         const avatarContainerSelection = containerSelection
-          .selectAll<HTMLDivElement, AvatarConfig>("div.mv-avatar-container")
+          .selectAll<HTMLDivElement, AvatarConfig>(".mv-avatar-container")
           .data([avatarConfig])
           .join("xhtml:div")
           .attr("class", NODE_AVATAR_CONTAINER_CLASS)
           .style("background-color", (datum) => (datum.imageUrl ? "transparent" : datum.fallbackColor));
 
         avatarContainerSelection
-          .selectAll<HTMLImageElement, string>("img.mv-avatar-image")
+          .selectAll<HTMLImageElement, string>(".mv-avatar-image")
           .data(avatarConfig.imageUrl ? [avatarConfig.imageUrl] : [], (datum) => datum)
           .join(
             (enter) =>
@@ -358,14 +356,14 @@ console.log("Focused:", focusedMember?._id);
           .attr("alt", `${item.member.name || "Member"} profile image`);
 
         avatarContainerSelection
-          .selectAll<HTMLSpanElement, string>("span.mv-avatar-fallback")
+          .selectAll<HTMLSpanElement, string>(".mv-avatar-fallback")
           .data(avatarConfig.imageUrl ? [] : [avatarConfig.initial])
           .join("xhtml:span")
           .attr("class", `mv-avatar-fallback ${NODE_AVATAR_FALLBACK_CLASS}`)
           .text((datum) => datum);
 
         containerSelection
-          .selectAll<HTMLHeadingElement, VisualNode>("h3.mv-node-name")
+          .selectAll<HTMLHeadingElement, VisualNode>(".mv-node-name")
           .data([item], (datum) => datum.member._id)
           .join("xhtml:h3")
           .attr("class", NODE_NAME_CLASS)
@@ -373,7 +371,7 @@ console.log("Focused:", focusedMember?._id);
           .text((datum) => datum.member.name || "Unnamed");
 
         containerSelection
-          .selectAll<HTMLParagraphElement, VisualNode>("p.mv-node-relation")
+          .selectAll<HTMLParagraphElement, VisualNode>(".mv-node-relation")
           .data([item], (datum) => datum.member._id)
           .join("xhtml:p")
           .attr("class", NODE_RELATION_CLASS)

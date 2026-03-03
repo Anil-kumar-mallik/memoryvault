@@ -4407,3 +4407,44 @@ Pending tasks
   - click nodes and confirm focused member updates correctly,
   - confirm `Self` shifts to the new center node,
   - confirm no layout shift and no console errors.
+
+[2026-03-04 | Frontend Bug Fix | Relation Label Self Context Render Stability]
+[Fixed stale relation label binding in tree node XHTML rendering]
+
+Completed modules
+1) Root-cause fix for `Self` label not moving with focus
+- Identified issue in D3 + `foreignObject` XHTML data-join selectors in `FocusTreeCanvas`:
+  - Existing joins queried XHTML nodes using tag selectors (`div.*`, `h3.*`, `p.*`) while elements were created with `xhtml:*`.
+  - This can cause update selections to miss existing nodes and preserve stale first-render relation text.
+- Applied minimal stable fix by switching join selectors to class selectors for XHTML children:
+  - `.mv-node-content`
+  - `.mv-avatar-container`
+  - `.mv-avatar-image`
+  - `.mv-avatar-fallback`
+  - `.mv-node-name`
+  - `.mv-node-relation`
+- Removed temporary debug `console.log` in `FocusTreeCanvas`.
+
+2) Architecture impact
+- No changes to backend.
+- No changes to focus engine/navigation logic.
+- No changes to relation resolution rules.
+- Tree layout/positioning/size behavior remains unchanged.
+
+File changes
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build completed with existing non-blocking `no-img-element` warnings only.
+
+Pending tasks
+- Manual runtime validation:
+  - click node -> focused node shows `Self`,
+  - previous focus no longer shows `Self`,
+  - relation labels continue updating correctly,
+  - no layout shift/jitter and no console errors.
