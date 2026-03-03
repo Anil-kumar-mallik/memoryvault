@@ -4536,3 +4536,33 @@ Pending tasks
   - previous focused node loses `Self`,
   - other relation labels remain correct,
   - no console errors and no UI regressions.
+
+[2026-03-04 | Frontend Patch | Focus-Bound Self Tag]
+[Self tag now strictly bound to focused member]
+
+Completed modules
+1) Relation label mapping update in `FocusTreeCanvas` (relationLabelByNodeKey only)
+- Updated mapping loop so `Self` is determined strictly by focused member id:
+  - `node.member._id?.toString() === bundle?.focus?._id?.toString()`
+- When focused match is true, label is hard-set to `Self`.
+- For non-focused nodes, relation stays resolved through existing resolver call:
+  - `resolveRelation(node.member, focusedMember, membersForRelation)`
+- No changes to `resolveRelation` logic or tree graph/focus engine.
+
+File changes
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build completed with existing non-blocking `no-img-element` warnings only.
+
+Pending tasks
+- Manual runtime verification:
+  - click node -> clicked node shows `Self`,
+  - previous node loses `Self`,
+  - non-self relations remain correct,
+  - no UI regression and no console errors.

@@ -253,15 +253,16 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
       return labels;
     }
 
-    const membersById = new Map(membersForRelation.map((member) => [member._id?.toString(), member]));
-    const focusedMemberId = bundle.focus._id?.toString();
-    const normalizedContext = (focusedMemberId && membersById.get(focusedMemberId)) || bundle.focus;
+    const focusedMember = bundle.focus;
 
     for (const node of graph.nodes) {
-      const nodeId = node.member._id?.toString() || node.key;
-      const normalizedTarget = membersById.get(node.member._id?.toString()) || node.member;
+      const isFocused = node.member._id?.toString() === bundle?.focus?._id?.toString();
 
-      labels.set(nodeId, resolveRelation(normalizedTarget, normalizedContext, membersForRelation));
+      if (isFocused) {
+        labels.set(node.key, "Self");
+      } else {
+        labels.set(node.key, resolveRelation(node.member, focusedMember, membersForRelation));
+      }
     }
     return labels;
   }, [bundle, graph.nodes, membersForRelation]);
