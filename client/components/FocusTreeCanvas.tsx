@@ -83,10 +83,19 @@ function nextFocusId(direction: Direction, bundle: MemberWithRelationsResponse |
   }
 }
 
-function buildVisualGraph(bundle: MemberWithRelationsResponse | null): { nodes: VisualNode[]; links: VisualLink[] } {
+function buildVisualGraph(
+  bundle: MemberWithRelationsResponse | null,
+  treeData?: Member[]
+): { nodes: VisualNode[]; links: VisualLink[] } {
   if (!bundle) {
     return { nodes: [], links: [] };
   }
+
+  const memberById = new Map((treeData || []).map((member) => [member._id, member]));
+  const resolveMember = (member: Member): Member => {
+    const updated = memberById.get(member._id);
+    return updated ? { ...member, ...updated } : member;
+  };
 
   const nodes = new Map<string, VisualNode>();
   const links: VisualLink[] = [];
@@ -114,32 +123,35 @@ function buildVisualGraph(bundle: MemberWithRelationsResponse | null): { nodes: 
     }
   };
 
-  const focus = bundle.focus;
+  const focus = resolveMember(bundle.focus);
   setNode(focus, "focus", 0, 0);
 
   if (bundle.relations.father) {
-    setNode(bundle.relations.father, "father", -150, -220);
+    const father = resolveMember(bundle.relations.father);
+    setNode(father, "father", -150, -220);
     links.push({
-      key: `father-${bundle.relations.father._id}`,
+      key: `father-${father._id}`,
       sourceId: focus._id,
-      targetId: bundle.relations.father._id,
+      targetId: father._id,
       group: "father"
     });
   }
 
   if (bundle.relations.mother) {
-    setNode(bundle.relations.mother, "mother", 150, -220);
+    const mother = resolveMember(bundle.relations.mother);
+    setNode(mother, "mother", 150, -220);
     links.push({
-      key: `mother-${bundle.relations.mother._id}`,
+      key: `mother-${mother._id}`,
       sourceId: focus._id,
-      targetId: bundle.relations.mother._id,
+      targetId: mother._id,
       group: "mother"
     });
   }
 
   const visibleSpouses = bundle.relations.spouses.slice(0, MAX_RENDERED_SPOUSES);
   const spouseOffsets = spread(visibleSpouses.length, 120);
-  visibleSpouses.forEach((member, index) => {
+  visibleSpouses.forEach((sourceMember, index) => {
+    const member = resolveMember(sourceMember);
     setNode(member, "spouse", 330, spouseOffsets[index] ?? 0);
     links.push({
       key: `spouse-${member._id}`,
@@ -151,7 +163,8 @@ function buildVisualGraph(bundle: MemberWithRelationsResponse | null): { nodes: 
 
   const visibleSiblings = bundle.relations.siblings.slice(0, MAX_RENDERED_SIBLINGS);
   const siblingOffsets = spread(visibleSiblings.length, 120);
-  visibleSiblings.forEach((member, index) => {
+  visibleSiblings.forEach((sourceMember, index) => {
+    const member = resolveMember(sourceMember);
     setNode(member, "sibling", -330, siblingOffsets[index] ?? 0);
     links.push({
       key: `sibling-${member._id}`,
@@ -163,7 +176,8 @@ function buildVisualGraph(bundle: MemberWithRelationsResponse | null): { nodes: 
 
   const visibleChildren = bundle.relations.children.slice(0, MAX_RENDERED_CHILDREN);
   const childOffsets = spread(visibleChildren.length, 170);
-  visibleChildren.forEach((member, index) => {
+  visibleChildren.forEach((sourceMember, index) => {
+    const member = resolveMember(sourceMember);
     setNode(member, "child", childOffsets[index] ?? 0, 240);
     links.push({
       key: `child-${member._id}`,
@@ -258,8 +272,9 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
   const previousPositionRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   const lastWheelNavigationRef = useRef(0);
   const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(() => new Set());
+  const treeData = bundle?.nodes;
 
-  const graph = useMemo(() => buildVisualGraph(bundle), [bundle]);
+  const graph = useMemo(() => buildVisualGraph(bundle, treeData), [bundle, treeData]);
   const displayNameByNodeKey = useMemo(() => {
     const labels = new Map<string, string>();
     for (const node of graph.nodes) {

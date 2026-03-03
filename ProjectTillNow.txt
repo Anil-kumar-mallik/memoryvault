@@ -4067,3 +4067,37 @@ Pending tasks
   - Edit a member text field and confirm tree node updates instantly.
   - Upload/replace member image and confirm tree node avatar updates instantly.
   - Confirm no flicker/layout shift during update.
+[2026-03-03 | Frontend Tree Canvas Memo Patch]
+[Fixed tree memo dependency to include treeData]
+
+Completed modules
+1) Focus tree layout memo dependency update (frontend-only)
+- Updated graph/layout memo in `FocusTreeCanvas` to include tree member data input.
+- Added explicit `treeData` derivation from bundle nodes and used it in layout computation memo:
+  - `const treeData = bundle?.nodes;`
+  - `const graph = useMemo(() => buildVisualGraph(bundle, treeData), [bundle, treeData]);`
+
+2) Safe graph member resolution for latest member updates
+- `buildVisualGraph` now accepts optional `treeData` and resolves nodes by member id from that list before rendering.
+- Keeps node positions/layout algorithm unchanged while ensuring latest edited fields/image are reflected immediately.
+
+3) Stability constraints preserved
+- Backend untouched.
+- API untouched.
+- Focus navigation logic untouched.
+- No refetch/reload added.
+- No hover/transform/layout behavior changes introduced.
+
+File changes
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No database schema/index/model changes.
+- No backend storage/auth/route changes.
+
+Pending tasks
+- Manual browser check:
+  - Edit member text and verify tree node updates immediately.
+  - Upload/update member image and verify instant avatar update.
+  - Confirm no jitter/flicker/layout shift in tree interactions.
