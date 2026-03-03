@@ -3760,3 +3760,62 @@ Pending tasks
   - `NEXT_PUBLIC_UPLOADS_URL=https://memoryvault-ktfg.onrender.com`
   - no trailing slash.
 - Optional: if desired, suppress Next.js `no-img-element` lint warnings for these specific production URL cases.
+
+[2026-03-03 | Backend Patch | Uploads Static Serving]
+[Enabled static serving for uploads folder]
+
+Completed modules
+1) Static serving enabled for uploads (server only)
+- Kept backend routes and auth logic unchanged.
+- Exposed `server/uploads` at `/uploads` via Express static middleware.
+- Middleware placement updated so static serving is registered immediately after `app.use(express.json(...))`.
+
+2) Middleware/order cleanup
+- Removed duplicate/older uploads static registration to avoid overlap.
+- No API route behavior modified.
+
+3) Environment/path alignment
+- Static root now resolves from server root using `path.resolve()` + `uploads` directory.
+- Confirmed local uploads directory exists: `server/uploads`.
+
+4) Validation
+- Ran `cd server && npm run build` -> passed (`check:syntax` passed).
+
+File changes
+- `server/src/app.js`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/index/model changes.
+- No DB migration required.
+
+Pending tasks
+- Deploy updated server build to Render, then verify with a real uploaded filename:
+  - `https://memoryvault-ktfg.onrender.com/uploads/<filename>.jpg`
+- Optional: add a small smoke test after deployment to confirm static-file reachability for uploaded assets.
+
+[2026-03-03 | Verification | Uploads Static Serving Rechecked]
+[Enabled static serving for uploads folder]
+
+Completed modules
+1) Express uploads static exposure validated
+- `server/src/app.js` serves `server/uploads` at `/uploads` using Express static middleware.
+- Static middleware remains immediately after `express.json(...)`.
+- No auth added to `/uploads` and no route handlers modified.
+
+2) Startup/build verification
+- `cd server && npm run build` -> passed.
+- App boot smoke test -> `server-start-ok`.
+
+3) Remote endpoint check
+- `https://memoryvault-ktfg.onrender.com/` -> HTTP 200.
+- `https://memoryvault-ktfg.onrender.com/uploads/filename.jpg` -> HTTP 404 (placeholder filename not found on server).
+
+File changes
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/index/model changes.
+
+Pending tasks
+- Upload a real image file and verify with its actual filename under `/uploads/<real-file-name>` for a 200 response.

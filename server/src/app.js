@@ -12,6 +12,7 @@ const { createOriginGuard, sanitizeRequest } = require("./middleware/requestSecu
 const { errorHandler, notFound } = require("./middleware/errorMiddleware");
 
 const app = express();
+const serverRootDir = path.resolve();
 
 /* ===============================
    ENV + ORIGIN CONFIG
@@ -137,6 +138,7 @@ app.use(
 ================================= */
 
 app.use(express.json({ limit: "5mb" }));
+app.use("/uploads", express.static(path.join(serverRootDir, "uploads")));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(
@@ -155,12 +157,6 @@ app.use(performanceLogger);
 if (process.env.NODE_ENV === "development" && process.env.DISABLE_MORGAN !== "true") {
   app.use(morgan("dev"));
 }
-
-/* ===============================
-   STATIC FILES
-================================= */
-
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 /* ===============================
    ROUTES
