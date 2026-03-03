@@ -267,6 +267,7 @@ export interface UpdateMemberPayload {
   name?: string;
   note?: string;
   gender?: Gender | null;
+  profileImage?: string | null;
   fatherId?: string | null;
   motherId?: string | null;
   spouses?: string[];

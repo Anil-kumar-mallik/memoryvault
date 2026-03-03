@@ -3981,3 +3981,55 @@ Validation/build checks
 
 Pending tasks
 - Optional: run manual UI check on deployed environment for instant image swap in account + tree modal edit flow.
+
+[2026-03-03 | Frontend UX Patch | Image Instant Refresh + Remove Actions]
+[Improved Image UX | Instant Update + Remove Button + Layout Reposition]
+
+Completed modules
+1) Instant account profile UI update (frontend state only)
+- Account profile save now uses update response state directly (`syncAccountState(payload)`) without post-save page refresh/reload behavior.
+- Removed follow-up profile re-fetch dependency from save path to keep UI instant.
+
+2) Instant tree member image state update (frontend state only)
+- Member update flow now patches focus tree state using in-memory replacement of the updated member across visible bundle data (focus/relations/nodes).
+- `selectedPerson` state is updated immediately after member update response.
+- No full page reload, no `window.location.reload()`, no `router.refresh()` added.
+
+3) Image upload UI moved to top in Account edit and MemberForm
+- Repositioned image preview + upload controls to top section with side-by-side layout pattern:
+  - container uses `flex` + gap-based structure with preview block and basic fields block.
+- Account edit modal now starts with top image panel.
+- `MemberForm` now starts with top image panel and basic fields grouping.
+
+4) Remove image action added (frontend-only handling)
+- Account edit now shows `Remove Image` button when image exists.
+- Remove action calls account update API with `profileImage: null` payload field and updates local state immediately to show fallback.
+- Member edit form now shows `Remove Image` button (when image exists) and triggers immediate remove action via parent callback in tree detail flow.
+- Tree detail remove-image path calls member update API, then updates local member + tree bundle state immediately.
+
+5) Fallback display behavior
+- Account profile card fallback now shows first-letter avatar when image is absent.
+- MemberForm preview fallback uses first-letter avatar when image is absent.
+
+6) Client API/type support (frontend only)
+- Added optional `profileImage?: string | null` in client update payload types so remove-image intent can be sent without backend route changes.
+- Existing upload behavior preserved: image is only replaced via file upload when file exists.
+
+File changes
+- `client/app/account/page.tsx`
+- `client/app/tree/[id]/page.tsx`
+- `client/components/MemberForm.tsx`
+- `client/components/PersonModal.tsx`
+- `client/lib/api.ts`
+- `client/types/index.ts`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No database schema/index/model changes.
+- No backend/API route changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+
+Pending tasks
+- Optional: manually verify end-to-end remove-image persistence behavior against deployed backend policy for `profileImage` null field handling.

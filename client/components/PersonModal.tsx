@@ -136,6 +136,8 @@ type PersonModalProps = {
   relationSubmitting: boolean;
   relationMutationOptions: RelationMutationOption[];
   onSubmitMemberDetails: (data: MemberFormSubmitData) => Promise<boolean> | boolean;
+  onRemoveMemberImage: () => Promise<void> | void;
+  removingMemberImage: boolean;
   onApplyRelationMutation: (event: FormEvent<HTMLFormElement>) => Promise<void> | void;
   onRemoveRelationship: (
     relationType: RemoveRelationType,
@@ -179,6 +181,8 @@ function PersonModal(props: PersonModalProps) {
     relationSubmitting,
     relationMutationOptions,
     onSubmitMemberDetails,
+    onRemoveMemberImage,
+    removingMemberImage,
     onApplyRelationMutation,
     onRemoveRelationship,
     onRemoveMember,
@@ -299,7 +303,14 @@ function PersonModal(props: PersonModalProps) {
               {detailModalView === "edit" && (
                 <>
                   {mode === "edit" ? (
-                    <MemberForm initialData={detailBundle.focus} mode="edit" onSubmit={submitMemberDetails} onCancel={onSave} />
+                    <MemberForm
+                      initialData={detailBundle.focus}
+                      mode="edit"
+                      onSubmit={submitMemberDetails}
+                      onCancel={onSave}
+                      onRemoveImage={onRemoveMemberImage}
+                      removingImage={removingMemberImage}
+                    />
                   ) : (
                     <div className="space-y-4">
                       <div className="space-y-5 rounded-xl border border-slate-200 bg-slate-50 p-5">

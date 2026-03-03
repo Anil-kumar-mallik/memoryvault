@@ -355,6 +355,7 @@ export default function TreePage() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailBundle, setDetailBundle] = useState<MemberWithRelationsResponse | null>(null);
   const [deletingDetail, setDeletingDetail] = useState(false);
+  const [removingMemberImage, setRemovingMemberImage] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [detailModalView, setDetailModalView] = useState<DetailModalView>("edit");
   const [removingRelationKey, setRemovingRelationKey] = useState<string | null>(null);
@@ -792,6 +793,7 @@ export default function TreePage() {
           name: data.name.trim(),
           note: data.note.trim(),
           gender: data.gender || null,
+          profileImage: data.removeImage ? null : undefined,
           dateOfBirth: mappedDates.dateOfBirth,
           anniversaryDate: mappedDates.anniversaryDate,
           dateOfDeath: mappedDates.dateOfDeath,
@@ -805,18 +807,21 @@ export default function TreePage() {
         data.imageFile
       );
 
-      setDetailBundle(response);
-      setSelectedPerson(response.focus);
+      const nextFocusMember = data.removeImage ? { ...response.focus, profileImage: null } : response.focus;
+      const nextDetailBundle = data.removeImage ? replaceMemberInBundle(response, nextFocusMember) || response : response;
+
+      setDetailBundle(nextDetailBundle);
+      setSelectedPerson(nextFocusMember);
       setFocusBundle((current) => {
         if (!current) {
           return current;
         }
 
-        if (focusId === response.focus._id) {
-          return response;
+        if (focusId === nextFocusMember._id) {
+          return nextDetailBundle;
         }
 
-        return replaceMemberInBundle(current, response.focus);
+        return replaceMemberInBundle(current, nextFocusMember);
       });
 
       setError(null);
@@ -827,6 +832,44 @@ export default function TreePage() {
       setError(message);
       showToast(message, "error");
       return false;
+    }
+  };
+
+  const removeMemberImage = async () => {
+    if (!detailBundle || !tree?.canEdit) {
+      return;
+    }
+
+    try {
+      setRemovingMemberImage(true);
+      const response = await updateMember(treeId, detailBundle.focus._id, {
+        profileImage: null
+      });
+      const nextFocusMember = { ...response.focus, profileImage: null };
+      const nextDetailBundle = replaceMemberInBundle(response, nextFocusMember) || response;
+
+      setDetailBundle(nextDetailBundle);
+      setSelectedPerson(nextFocusMember);
+      setFocusBundle((current) => {
+        if (!current) {
+          return current;
+        }
+
+        if (focusId === nextFocusMember._id) {
+          return nextDetailBundle;
+        }
+
+        return replaceMemberInBundle(current, nextFocusMember);
+      });
+
+      setError(null);
+      showToast("Member image removed.", "success");
+    } catch (removeError) {
+      const message = removeError instanceof Error ? removeError.message : "Failed to remove member image.";
+      setError(message);
+      showToast(message, "error");
+    } finally {
+      setRemovingMemberImage(false);
     }
   };
 
@@ -1211,6 +1254,7 @@ export default function TreePage() {
               setSelectedPerson(null);
               setMode("view");
               setDetailModalView("edit");
+              setRemovingMemberImage(false);
             }}
             onEdit={() => setMode("edit")}
             onSave={() => setMode("view")}
@@ -1239,6 +1283,8 @@ export default function TreePage() {
             relationSubmitting={relationSubmitting}
             relationMutationOptions={relationMutationOptions}
             onSubmitMemberDetails={saveMemberDetails}
+            onRemoveMemberImage={removeMemberImage}
+            removingMemberImage={removingMemberImage}
             onApplyRelationMutation={applyRelationMutation}
             onRemoveRelationship={removeRelationship}
             onRemoveMember={removeMember}

@@ -35,6 +35,11 @@ const toDisplayDate = (value?: string | null) => {
   return date.toLocaleDateString();
 };
 
+const firstLetter = (value?: string | null) => {
+  const normalized = String(value || "").trim();
+  return normalized ? normalized.charAt(0).toUpperCase() : "?";
+};
+
 const mapDateOfBirthToImportantDates = (value?: string | null): ImportantDateItem[] => {
   const row = createImportantDateRow(1);
   const dateOfBirth = toDateInputValue(value);
@@ -69,6 +74,7 @@ export default function AccountPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [removingProfileImage, setRemovingProfileImage] = useState(false);
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -155,12 +161,6 @@ export default function AccountPage() {
       );
 
       syncAccountState(payload);
-      try {
-        const refreshedPayload = await getMyAccount();
-        syncAccountState(refreshedPayload);
-      } catch (_refreshError) {
-        // Keep optimistic state from update response if refresh fails.
-      }
       setProfileImageFile(null);
       setIsEditProfileModalOpen(false);
       setNotice("Profile updated successfully.");
@@ -169,6 +169,41 @@ export default function AccountPage() {
       setError(saveError instanceof Error ? saveError.message : "Failed to update account.");
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handleRemoveImage = async () => {
+    if (!account?.profileImage) {
+      return;
+    }
+
+    const mappedDateOfBirth = mapImportantDatesToDateOfBirth(importantDates);
+
+    try {
+      setRemovingProfileImage(true);
+      const payload = await updateMyAccount({
+        name: name.trim(),
+        profileImage: null,
+        dateOfBirth: mappedDateOfBirth,
+        education: education.trim(),
+        qualification: qualification.trim(),
+        designation: designation.trim(),
+        addressPermanent: addressPermanent.trim(),
+        addressCurrent: addressCurrent.trim(),
+        phoneNumber: phoneNumber.trim()
+      });
+
+      syncAccountState({
+        ...payload,
+        profileImage: null
+      });
+      setProfileImageFile(null);
+      setNotice("Profile image removed.");
+      setError(null);
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : "Failed to remove profile image.");
+    } finally {
+      setRemovingProfileImage(false);
     }
   };
 
@@ -269,8 +304,8 @@ export default function AccountPage() {
                     <img src={accountImageUrl} alt={`${account?.name || "Account"} profile`} className="h-full w-full object-cover" />
                   </div>
                 ) : (
-                  <div className="flex h-52 w-full items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500">
-                    No image
+                  <div className="flex h-52 w-full items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-6xl font-semibold text-slate-500">
+                    {firstLetter(account?.name)}
                   </div>
                 )}
               </div>
@@ -393,67 +428,93 @@ export default function AccountPage() {
             </div>
 
             <form onSubmit={handleProfileSave} className="space-y-3">
-              <input
-                className="field"
-                type="text"
-                placeholder="Name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                required
-              />
-              <DateFieldGroup importantDates={importantDates} onChange={setImportantDates} allowedTypes={["dob", "anniversary", "custom"]} />
-              <input
-                className="field"
-                type="text"
-                placeholder="Phone number"
-                value={phoneNumber}
-                onChange={(event) => setPhoneNumber(event.target.value)}
-              />
-              <textarea
-                className="field min-h-20"
-                placeholder="Permanent address"
-                value={addressPermanent}
-                onChange={(event) => setAddressPermanent(event.target.value)}
-              />
-              <textarea
-                className="field min-h-20"
-                placeholder="Current address"
-                value={addressCurrent}
-                onChange={(event) => setAddressCurrent(event.target.value)}
-              />
-              <input
-                className="field"
-                type="text"
-                placeholder="Education"
-                value={education}
-                onChange={(event) => setEducation(event.target.value)}
-              />
-              <input
-                className="field"
-                type="text"
-                placeholder="Qualification"
-                value={qualification}
-                onChange={(event) => setQualification(event.target.value)}
-              />
-              <input
-                className="field"
-                type="text"
-                placeholder="Designation"
-                value={designation}
-                onChange={(event) => setDesignation(event.target.value)}
-              />
-              <input
-                className="field"
-                type="file"
-                accept="image/*"
-                onChange={(event) => setProfileImageFile(event.target.files?.[0] ?? null)}
-              />
+              <div className="flex flex-col gap-6 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:flex-row">
+                <div className="space-y-2 sm:w-40">
+                  <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white text-3xl font-semibold text-slate-600">
+                    {accountImageUrl ? (
+                      <img src={accountImageUrl} alt={`${account?.name || "Account"} profile`} className="h-full w-full object-cover" />
+                    ) : (
+                      <span>{firstLetter(name || account?.name)}</span>
+                    )}
+                  </div>
+
+                  <input
+                    className="field"
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => setProfileImageFile(event.target.files?.[0] ?? null)}
+                  />
+
+                  {account?.profileImage && (
+                    <button
+                      type="button"
+                      className="button-secondary w-full"
+                      onClick={() => void handleRemoveImage()}
+                      disabled={savingProfile || removingProfileImage}
+                    >
+                      {removingProfileImage ? "Removing..." : "Remove Image"}
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex-1 space-y-3">
+                  <input
+                    className="field"
+                    type="text"
+                    placeholder="Name"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    required
+                  />
+                  <DateFieldGroup importantDates={importantDates} onChange={setImportantDates} allowedTypes={["dob", "anniversary", "custom"]} />
+                  <input
+                    className="field"
+                    type="text"
+                    placeholder="Phone number"
+                    value={phoneNumber}
+                    onChange={(event) => setPhoneNumber(event.target.value)}
+                  />
+                  <textarea
+                    className="field min-h-20"
+                    placeholder="Permanent address"
+                    value={addressPermanent}
+                    onChange={(event) => setAddressPermanent(event.target.value)}
+                  />
+                  <textarea
+                    className="field min-h-20"
+                    placeholder="Current address"
+                    value={addressCurrent}
+                    onChange={(event) => setAddressCurrent(event.target.value)}
+                  />
+                  <input
+                    className="field"
+                    type="text"
+                    placeholder="Education"
+                    value={education}
+                    onChange={(event) => setEducation(event.target.value)}
+                  />
+                  <input
+                    className="field"
+                    type="text"
+                    placeholder="Qualification"
+                    value={qualification}
+                    onChange={(event) => setQualification(event.target.value)}
+                  />
+                  <input
+                    className="field"
+                    type="text"
+                    placeholder="Designation"
+                    value={designation}
+                    onChange={(event) => setDesignation(event.target.value)}
+                  />
+                </div>
+              </div>
 
               <div className="flex gap-2 pt-2">
                 <button type="button" className="button-secondary flex-1" onClick={() => setIsEditProfileModalOpen(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="button-primary flex-1" disabled={savingProfile}>
+                <button type="submit" className="button-primary flex-1" disabled={savingProfile || removingProfileImage}>
                   {savingProfile ? "Saving..." : "Save Profile"}
                 </button>
               </div>

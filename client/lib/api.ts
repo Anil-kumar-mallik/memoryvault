@@ -189,6 +189,7 @@ export function getMyAccount(): Promise<User> {
 export function updateMyAccount(
   payload: {
     name?: string;
+    profileImage?: string | null;
     dateOfBirth?: string | null;
     education?: string;
     qualification?: string;
@@ -203,6 +204,10 @@ export function updateMyAccount(
 
   if (payload.name !== undefined) {
     formData.append("name", payload.name);
+  }
+
+  if (payload.profileImage !== undefined) {
+    formData.append("profileImage", payload.profileImage ?? "");
   }
 
   if (payload.dateOfBirth !== undefined) {
@@ -514,6 +519,10 @@ export function updateMember(
 
   if (payload.gender !== undefined) {
     formData.append("gender", payload.gender ?? "");
+  }
+
+  if (payload.profileImage !== undefined) {
+    formData.append("profileImage", payload.profileImage ?? "");
   }
 
   if (payload.fatherId !== undefined) {
