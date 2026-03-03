@@ -4,6 +4,7 @@ import { KeyboardEvent, memo, useCallback, useEffect, useMemo, useRef, useState 
 import * as d3 from "d3";
 import { resolveProfileImageUrl } from "@/lib/profileImageUrl";
 import { Member, MemberWithRelationsResponse } from "@/types";
+import { resolveRelation } from "@/utils/relationResolver";
 
 type Direction = "parent" | "child" | "sibling" | "spouse";
 type RelationGroup = "focus" | "father" | "mother" | "spouse" | "child" | "sibling";
@@ -201,36 +202,6 @@ function clipName(name: string): string {
   return `${name.slice(0, 17)}...`;
 }
 
-function relationSubtitle(node: VisualNode): string {
-  switch (node.group) {
-    case "father":
-      return "Father";
-    case "mother":
-      return "Mother";
-    case "spouse":
-      return "Spouse";
-    case "child":
-      if (node.member.gender === "male") {
-        return "Son";
-      }
-      if (node.member.gender === "female") {
-        return "Daughter";
-      }
-      return "Child";
-    case "sibling":
-      if (node.member.gender === "male") {
-        return "Brother";
-      }
-      if (node.member.gender === "female") {
-        return "Sister";
-      }
-      return "Sibling";
-    case "focus":
-    default:
-      return "Self";
-  }
-}
-
 function relationBadgeWidth(label: string): number {
   return Math.max(58, Math.min(132, label.length * 6 + 18));
 }
@@ -275,6 +246,20 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
   const treeData = bundle?.nodes;
 
   const graph = useMemo(() => buildVisualGraph(bundle, treeData), [bundle, treeData]);
+  const membersForRelation = useMemo(() => {
+    if (treeData && treeData.length > 0) {
+      return treeData;
+    }
+
+    return graph.nodes.map((node) => node.member);
+  }, [graph.nodes, treeData]);
+  const focusedMemberForRelation = useMemo(() => {
+    if (!bundle) {
+      return null;
+    }
+
+    return membersForRelation.find((member) => member._id === bundle.focus._id) || bundle.focus;
+  }, [bundle, membersForRelation]);
   const displayNameByNodeKey = useMemo(() => {
     const labels = new Map<string, string>();
     for (const node of graph.nodes) {
@@ -284,11 +269,15 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
   }, [graph.nodes]);
   const relationLabelByNodeKey = useMemo(() => {
     const labels = new Map<string, string>();
+    if (!focusedMemberForRelation) {
+      return labels;
+    }
+
     for (const node of graph.nodes) {
-      labels.set(node.key, relationSubtitle(node));
+      labels.set(node.key, resolveRelation(node.member, focusedMemberForRelation, membersForRelation));
     }
     return labels;
-  }, [graph.nodes]);
+  }, [focusedMemberForRelation, graph.nodes, membersForRelation]);
   const avatarConfigByMemberId = useMemo(() => {
     const map = new Map<string, AvatarConfig>();
 
@@ -634,12 +623,12 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
       .append("rect")
       .attr("class", "mv-node-relation-bg")
       .attr("x", (item) => {
-        const label = relationLabelByNodeKey.get(item.key) || relationSubtitle(item);
+        const label = relationLabelByNodeKey.get(item.key) || "Relative";
         return -(relationBadgeWidth(label) / 2);
       })
       .attr("y", -8)
       .attr("width", (item) => {
-        const label = relationLabelByNodeKey.get(item.key) || relationSubtitle(item);
+        const label = relationLabelByNodeKey.get(item.key) || "Relative";
         return relationBadgeWidth(label);
       })
       .attr("height", 16)
@@ -657,7 +646,7 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
       .attr("font-size", 10)
       .attr("font-weight", 500)
       .attr("fill", "#64748b")
-      .text((item) => relationLabelByNodeKey.get(item.key) || relationSubtitle(item));
+      .text((item) => relationLabelByNodeKey.get(item.key) || "Relative");
 
     const infoBadge = nodeEnter
       .append("g")
@@ -710,16 +699,16 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
 
     mergedNodes
       .select("text.mv-node-relation")
-      .text((item) => relationLabelByNodeKey.get(item.key) || relationSubtitle(item));
+      .text((item) => relationLabelByNodeKey.get(item.key) || "Relative");
 
     mergedNodes
       .select("rect.mv-node-relation-bg")
       .attr("x", (item) => {
-        const label = relationLabelByNodeKey.get(item.key) || relationSubtitle(item);
+        const label = relationLabelByNodeKey.get(item.key) || "Relative";
         return -(relationBadgeWidth(label) / 2);
       })
       .attr("width", (item) => {
-        const label = relationLabelByNodeKey.get(item.key) || relationSubtitle(item);
+        const label = relationLabelByNodeKey.get(item.key) || "Relative";
         return relationBadgeWidth(label);
       });
 

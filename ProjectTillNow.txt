@@ -4215,3 +4215,50 @@ Pending tasks
   - Edit member important dates works.
   - Tree focus/detail flows show correct dates.
   - No console errors during create/edit/view flows.
+[2026-03-04 | Frontend Refactor | Centralized Relation Resolver]
+[Centralized relation resolution logic for tree nodes]
+
+Completed modules
+1) Reusable relation resolver utility
+- Added `client/utils/relationResolver.ts`.
+- Exported `resolveRelation(target, context, allMembers)` and centralized relation text rules:
+  - Self
+  - Son/Daughter (child of context via `fatherId` check)
+  - Father/Mother (parent of context via `fatherId` check)
+  - Spouse
+  - Sibling
+  - Relative fallback
+
+2) Focus tree relation labels migrated to utility
+- Replaced hardcoded relation subtitle logic in `client/components/FocusTreeCanvas.tsx` with `resolveRelation(...)`.
+- Added memoized relation inputs (`membersForRelation`, `focusedMemberForRelation`) and memoized label map (`relationLabelByNodeKey`) to avoid repeated render-time recomputation.
+
+3) Member modal relation label migrated to utility
+- Replaced external hardcoded detail relation helper path with in-component `resolveRelation(...)` usage in `client/components/MemberModal.tsx` (view mode label under member name).
+- Added memoized relation label computation based on `detailBundle.focus`, `focusedMember`, and `treeData`.
+
+4) Tree page relation helper cleanup
+- Removed duplicated relation text helper from `client/app/tree/[id]/page.tsx`.
+- Passed `focusedMember` and `treeData` into `MemberModal` for centralized relation resolution.
+
+File changes
+- `client/utils/relationResolver.ts` (new)
+- `client/components/FocusTreeCanvas.tsx`
+- `client/components/MemberModal.tsx`
+- `client/app/tree/[id]/page.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend changes.
+- No schema/index/model changes.
+- No API contract changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build completed with existing non-blocking `no-img-element` warnings only.
+
+Pending tasks
+- Manual UI checks:
+  - Relation subtitle under member names updates correctly when focus changes.
+  - Clicking focus nodes refreshes relation labels correctly in tree and modal view.
+  - No layout shift, no performance regression, no console errors during navigation.

@@ -133,50 +133,6 @@ function resolveAddRelation(relation: MemberFormSubmitData["relationType"]): { r
   }
 }
 
-function resolveRelationToCurrentFocus(member: Member | null, focusBundle: MemberWithRelationsResponse | null): string {
-  if (!member || !focusBundle) {
-    return "Family Member";
-  }
-
-  if (member._id === focusBundle.focus._id) {
-    return "Self";
-  }
-
-  if (focusBundle.relations.father?._id === member._id) {
-    return "Father";
-  }
-
-  if (focusBundle.relations.mother?._id === member._id) {
-    return "Mother";
-  }
-
-  if (focusBundle.relations.spouses.some((item) => item._id === member._id)) {
-    return "Spouse";
-  }
-
-  if (focusBundle.relations.children.some((item) => item._id === member._id)) {
-    if (member.gender === "male") {
-      return "Son";
-    }
-    if (member.gender === "female") {
-      return "Daughter";
-    }
-    return "Child";
-  }
-
-  if (focusBundle.relations.siblings.some((item) => item._id === member._id)) {
-    if (member.gender === "male") {
-      return "Brother";
-    }
-    if (member.gender === "female") {
-      return "Sister";
-    }
-    return "Sibling";
-  }
-
-  return "Family Member";
-}
-
 function replaceMemberInBundle(
   bundle: MemberWithRelationsResponse | null,
   updatedMember: Member
@@ -1085,10 +1041,6 @@ export default function TreePage() {
   const detailCanEdit = Boolean(tree?.canEdit);
   const canDeleteDetailMember = Boolean(detailCanEdit && detailBundle && !detailBundle.focus.isRoot);
   const detailHasChildren = Boolean((detailBundle?.relationMeta.children.total || 0) > 0);
-  const detailRelationLabel = useMemo(
-    () => resolveRelationToCurrentFocus(detailBundle?.focus || null, focusBundle),
-    [detailBundle, focusBundle]
-  );
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8">
@@ -1329,7 +1281,8 @@ export default function TreePage() {
             detailCanEdit={detailCanEdit}
             canDeleteDetailMember={canDeleteDetailMember}
             detailHasChildren={detailHasChildren}
-            detailRelationLabel={detailRelationLabel}
+            focusedMember={focusBundle?.focus || null}
+            treeData={treeData}
             deletingDetail={deletingDetail}
             removingRelationKey={removingRelationKey}
             relationAction={relationAction}

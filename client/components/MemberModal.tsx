@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n/provider";
 import MemberForm, { MemberFormSubmitData } from "@/components/MemberForm";
 import { resolveMemberImportantDates } from "@/lib/importantDates";
 import { resolveProfileImageUrl } from "@/lib/profileImageUrl";
+import { resolveRelation } from "@/utils/relationResolver";
 import {
   Member,
   MemberWithRelationsResponse,
@@ -51,7 +52,8 @@ type MemberModalInternalProps = MemberModalProps & {
   detailCanEdit: boolean;
   canDeleteDetailMember: boolean;
   detailHasChildren: boolean;
-  detailRelationLabel: string;
+  focusedMember: Member | null;
+  treeData: Member[];
   deletingDetail: boolean;
   removingRelationKey: string | null;
   relationAction: RelationMutationAction;
@@ -97,7 +99,8 @@ function MemberModal(props: MemberModalInternalProps) {
     detailCanEdit,
     canDeleteDetailMember,
     detailHasChildren,
-    detailRelationLabel,
+    focusedMember,
+    treeData,
     deletingDetail,
     removingRelationKey,
     relationAction,
@@ -132,6 +135,13 @@ function MemberModal(props: MemberModalInternalProps) {
       customDateEntries: normalizedImportantDates.filter((item) => item.type === "custom")
     };
   }, [detailBundle]);
+  const detailRelationLabel = useMemo(() => {
+    if (!detailBundle?.focus || !focusedMember) {
+      return "Relative";
+    }
+
+    return resolveRelation(detailBundle.focus, focusedMember, treeData);
+  }, [detailBundle, focusedMember, treeData]);
   const focusProfileImageUrl = detailBundle ? resolveProfileImageUrl(detailBundle.focus.profileImage) : null;
 
   if (!isOpen || !member) {
