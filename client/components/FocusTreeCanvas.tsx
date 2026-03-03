@@ -43,6 +43,8 @@ const VIEWBOX_HEIGHT = 760;
 const MAX_RENDERED_CHILDREN = 80;
 const MAX_RENDERED_SIBLINGS = 48;
 const MAX_RENDERED_SPOUSES = 32;
+const NODE_DIAMETER = 120;
+const NODE_RADIUS = NODE_DIAMETER / 2;
 const FOCUS_AVATAR_DIAMETER = 58;
 const NODE_AVATAR_DIAMETER = 50;
 const AVATAR_BORDER_COLOR = "#cbd5e1";
@@ -644,6 +646,19 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
       });
 
     nodeEnter
+      .append("rect")
+      .attr("class", "mv-node-hitbox")
+      .attr("x", -NODE_RADIUS)
+      .attr("y", -NODE_RADIUS)
+      .attr("width", NODE_DIAMETER)
+      .attr("height", NODE_DIAMETER)
+      .attr("rx", 20)
+      .attr("ry", 20)
+      .attr("fill", "transparent")
+      .attr("stroke", "transparent")
+      .attr("pointer-events", "all");
+
+    nodeEnter
       .append("circle")
       .attr("class", "mv-node-shell")
       .attr("r", (item) => nodeRadius(item.group))
@@ -855,10 +870,8 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
 
       <svg ref={svgRef} className="mv-tree-svg h-[620px] w-full rounded-lg border border-slate-200 bg-slate-50" />
       <style jsx>{`
-        .mv-tree-svg :global(.mv-node) {
-          transform-box: fill-box;
-          transform-origin: center;
-          transition: transform 140ms ease;
+        .mv-tree-svg :global(.mv-node .mv-node-hitbox) {
+          transition: fill 140ms ease;
         }
         .mv-tree-svg :global(.mv-node .mv-node-shell) {
           transition: stroke 140ms ease, stroke-width 140ms ease, filter 140ms ease;
@@ -866,8 +879,8 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
         .mv-tree-svg :global(.mv-node .mv-node-name) {
           transition: fill 140ms ease;
         }
-        .mv-tree-svg :global(.mv-node:hover) {
-          transform: scale(1.02);
+        .mv-tree-svg :global(.mv-node:hover .mv-node-hitbox) {
+          fill: rgba(148, 163, 184, 0.14);
         }
         .mv-tree-svg :global(.mv-node:hover .mv-node-shell) {
           stroke: #94a3b8;

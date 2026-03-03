@@ -3640,3 +3640,45 @@ Validation/build checks
 
 Pending tasks
 - Optional: if any remaining perceived jitter occurs on very large graphs, reduce CSS hover scale factor slightly.
+
+[Tree Stability Final Fix | Removed transform-based layout interference]
+
+Completed modules
+1) Fixed-size node hover stabilization (frontend only)
+- Removed transform-based hover scaling from tree nodes.
+- Hover visuals are now non-geometry effects only:
+  - ring/stroke emphasis
+  - shadow emphasis
+  - subtle background opacity via fixed hitbox fill
+- Focus behavior remains click-driven only.
+
+2) Fixed-size node container applied
+- Added explicit fixed-size node hitbox constants in tree canvas:
+  - `NODE_DIAMETER = 120`
+  - `NODE_RADIUS = NODE_DIAMETER / 2`
+- Added fixed-size SVG hitbox rectangle (`mv-node-hitbox`) per node (`120x120`) to keep hover interaction area stable.
+
+3) Layout stability safeguards confirmed
+- Layout computation remains memoized with:
+  - `useMemo(() => buildVisualGraph(bundle), [bundle])`
+- No hover/edit/modal state is used in layout computation dependencies.
+- No DOM measurement usage (`getBoundingClientRect`, `offsetWidth`, `offsetHeight`) in tree layout math.
+
+4) Performance/focus constraints preserved
+- Focus logic and relationship logic unchanged.
+- `FocusTreeCanvas` remains `React.memo` wrapped.
+
+File changes
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/index/model changes.
+- No backend/API changes.
+
+Validation/build checks
+- `cd client && npm run lint` -> passed.
+- `cd client && npm run build` -> passed.
+
+Pending tasks
+- Optional: tune hover background opacity for exact visual preference.
