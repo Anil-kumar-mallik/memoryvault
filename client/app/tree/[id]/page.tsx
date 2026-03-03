@@ -234,6 +234,42 @@ function replaceMemberInBundle(
   };
 }
 
+function mergeTreeDataIntoBundle(
+  bundle: MemberWithRelationsResponse | null,
+  treeData: Member[]
+): MemberWithRelationsResponse | null {
+  if (!bundle || treeData.length === 0) {
+    return bundle;
+  }
+
+  const membersById = new Map(treeData.map((member) => [member._id, member]));
+  const mergeMember = (member: Member | null): Member | null => {
+    if (!member) {
+      return member;
+    }
+
+    const updated = membersById.get(member._id);
+    return updated ? { ...member, ...updated } : member;
+  };
+
+  return {
+    ...bundle,
+    focus: mergeMember(bundle.focus) || bundle.focus,
+    relations: {
+      father: mergeMember(bundle.relations.father),
+      mother: mergeMember(bundle.relations.mother),
+      spouses: bundle.relations.spouses.map((member) => mergeMember(member) || member),
+      siblings: bundle.relations.siblings.map((member) => mergeMember(member) || member),
+      children: bundle.relations.children.map((member) => mergeMember(member) || member)
+    },
+    nodes: bundle.nodes.map((member) => mergeMember(member) || member)
+  };
+}
+
+function replaceMemberInTreeData(treeData: Member[], updatedMember: Member): Member[] {
+  return treeData.map((member) => (member._id === updatedMember._id ? { ...member, ...updatedMember } : member));
+}
+
 function createDownload(fileName: string, content: Blob): void {
   const link = document.createElement("a");
   const objectUrl = URL.createObjectURL(content);
@@ -337,6 +373,7 @@ export default function TreePage() {
   const [tree, setTree] = useState<TreeDetails | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [focusBundle, setFocusBundle] = useState<MemberWithRelationsResponse | null>(null);
+  const [treeData, setTreeData] = useState<Member[]>([]);
 
   const [loadingTree, setLoadingTree] = useState(true);
   const [loadingFocus, setLoadingFocus] = useState(false);
@@ -381,6 +418,7 @@ export default function TreePage() {
       currentUserId &&
       String(focusBundle.focus.linkedUserId) === String(currentUserId)
   );
+  const treeCanvasBundle = useMemo(() => mergeTreeDataIntoBundle(focusBundle, treeData), [focusBundle, treeData]);
 
   const isPasswordError = (message: string) => {
     const normalized = message.toLowerCase();
@@ -558,12 +596,17 @@ export default function TreePage() {
     setTree(null);
     setFocusId(null);
     setFocusBundle(null);
+    setTreeData([]);
     setSubscription(null);
     setRequiresPassword(false);
     setPasswordError(null);
     clearTreeAccessPassword(treeId);
     clearTreeAccessToken(treeId);
   }, [treeId]);
+
+  useEffect(() => {
+    setTreeData(focusBundle?.nodes || []);
+  }, [focusBundle]);
 
   useEffect(() => {
     if (!treeId) {
@@ -811,6 +854,7 @@ export default function TreePage() {
       const nextDetailBundle = data.removeImage ? replaceMemberInBundle(response, nextFocusMember) || response : response;
 
       setDetailBundle(nextDetailBundle);
+      setTreeData((prev) => replaceMemberInTreeData(prev, nextFocusMember));
       setSelectedPerson(nextFocusMember);
       setFocusBundle((current) => {
         if (!current) {
@@ -849,6 +893,7 @@ export default function TreePage() {
       const nextDetailBundle = replaceMemberInBundle(response, nextFocusMember) || response;
 
       setDetailBundle(nextDetailBundle);
+      setTreeData((prev) => replaceMemberInTreeData(prev, nextFocusMember));
       setSelectedPerson(nextFocusMember);
       setFocusBundle((current) => {
         if (!current) {
@@ -1170,7 +1215,7 @@ export default function TreePage() {
         </aside>
 
         <div className="relative">
-          <TreeCanvas bundle={focusBundle} onFocusChange={handleFocusChange} onNodeInfo={openDetailModal} />
+          <TreeCanvas bundle={treeCanvasBundle} onFocusChange={handleFocusChange} onNodeInfo={openDetailModal} />
           {loadingFocus && (
             <div className="absolute inset-0 rounded-xl border border-slate-200/70 bg-white/60 p-6 backdrop-blur-[1px]">
               <div className="mb-4 flex items-center gap-3">

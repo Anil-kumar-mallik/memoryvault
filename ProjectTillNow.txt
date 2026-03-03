@@ -4033,3 +4033,37 @@ Validation/build checks
 
 Pending tasks
 - Optional: manually verify end-to-end remove-image persistence behavior against deployed backend policy for `profileImage` null field handling.
+[2026-03-03 | Frontend Tree Patch | Member Edit State Replacement]
+[Fixed tree state replacement after member update]
+
+Completed modules
+1) Tree member edit immediate state replacement (frontend-only)
+- Added local `treeData` member state in tree page and synced it from current focus bundle nodes.
+- After successful member save (data/image), now patches `treeData` in-place using id-based replacement:
+  - `setTreeData(prev => prev.map(member => member._id === updatedMember._id ? { ...member, ...updatedMember } : member))`
+- Kept `setSelectedPerson(updatedMember)` behavior.
+
+2) Tree canvas state source alignment
+- Added a merged bundle path (`treeCanvasBundle`) that applies `treeData` values onto focus/relations/nodes.
+- `TreeCanvas` now receives `bundle={treeCanvasBundle}` so updated member fields/images render immediately.
+- No tree refetch, no full reload, no router refresh added.
+
+3) Stability constraints preserved
+- Backend untouched.
+- API untouched.
+- Tree layout/positioning logic untouched.
+- No transform/scale changes introduced.
+
+File changes
+- `client/app/tree/[id]/page.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No database schema/index/model changes.
+- No backend storage/path/auth changes.
+
+Pending tasks
+- Manual runtime verification in browser:
+  - Edit a member text field and confirm tree node updates instantly.
+  - Upload/replace member image and confirm tree node avatar updates instantly.
+  - Confirm no flicker/layout shift during update.
