@@ -4381,3 +4381,29 @@ Pending tasks
   - click a node -> selected focus node shows `Self`,
   - previous center no longer shows `Self`,
   - relation labels update correctly without layout shift or console errors.
+
+[2026-03-04 | Frontend Patch | Focused Member ID Normalization]
+[Fixed focusedMember ID comparison using string normalization]
+
+Completed modules
+1) Focused member identity comparison safety fix (frontend-only)
+- Updated `FocusTreeCanvas` focused-member lookup comparison from direct `_id` equality to string-normalized equality:
+  - `member._id?.toString() === bundle.focus._id?.toString()`
+- Logic flow remains identical; only ID comparison normalization was changed.
+
+File changes
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build completed with existing non-blocking `no-img-element` warnings only.
+
+Pending tasks
+- Manual runtime verification in browser:
+  - click nodes and confirm focused member updates correctly,
+  - confirm `Self` shifts to the new center node,
+  - confirm no layout shift and no console errors.

@@ -251,7 +251,7 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
       return null;
     }
 
-    return membersForRelation.find((member) => member._id === bundle.focus._id) || bundle.focus;
+    return membersForRelation.find((member) => member._id?.toString() === bundle.focus._id?.toString()) || bundle.focus;
   }, [bundle, membersForRelation]);
   const relationLabelByNodeKey = useMemo(() => {
     const labels = new Map<string, string>();
