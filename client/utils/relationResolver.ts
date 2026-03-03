@@ -44,13 +44,13 @@ function parentLabelByGender(gender?: string): "Father" | "Mother" | "Parent" {
 }
 
 export function resolveRelation(target: Member, context: Member, allMembers: Member[]): string {
+  if (target._id === context._id) {
+    return "Self";
+  }
+
   const byId = getMembersById(allMembers);
   const resolvedTarget = byId.get(target._id) || target;
   const resolvedContext = byId.get(context._id) || context;
-
-  if (resolvedTarget._id === resolvedContext._id) {
-    return "Self";
-  }
 
   if (resolvedTarget.fatherId === resolvedContext._id || resolvedTarget.motherId === resolvedContext._id) {
     return childLabelByGender(resolvedTarget.gender);

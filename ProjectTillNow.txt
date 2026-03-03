@@ -4350,3 +4350,34 @@ Pending tasks
   - click different nodes and confirm `Self` shifts to active focus,
   - confirm relation labels update dynamically,
   - confirm no layout shift/jitter and no console errors.
+
+[2026-03-04 | Frontend Patch | Self Relation Context Fix]
+[Fixed Self relation to use focused member context]
+
+Completed modules
+1) Self relation context correction (frontend-only)
+- Updated `resolveRelation` self check in `client/utils/relationResolver.ts` from resolved cached-context comparison to direct input-context comparison:
+  - `if (target._id === context._id) return "Self";`
+- This ensures `Self` always follows the actively focused member context passed by the tree UI.
+
+2) Focus context path verification
+- Verified `FocusTreeCanvas` relation calls use focused node context:
+  - `resolveRelation(node.member, focusedMember, membersForRelation)`
+- No focus engine or tree layout logic changed.
+
+File changes
+- `client/utils/relationResolver.ts`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build completed with existing non-blocking `no-img-element` warnings only.
+
+Pending tasks
+- Manual browser verification:
+  - click a node -> selected focus node shows `Self`,
+  - previous center no longer shows `Self`,
+  - relation labels update correctly without layout shift or console errors.
