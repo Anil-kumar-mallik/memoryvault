@@ -4508,3 +4508,31 @@ Pending tasks
   - previous focused node loses `Self`,
   - other relations remain correct,
   - no layout shift and no console errors.
+
+[2026-03-04 | Frontend Patch | Bundle Focus Relation Context]
+[Fixed relation context to use bundle.focus as single source of truth]
+
+Completed modules
+1) Focus context source simplification in tree relation mapping
+- Removed `focusedMember` `useMemo` from `FocusTreeCanvas`.
+- Updated `relationLabelByNodeKey` to use `bundle.focus` directly as the single context source.
+- Updated relation label memo dependencies to include `bundle` (no derived focus dependency).
+- Kept target/context normalization via `membersForRelation` before calling `resolveRelation`.
+
+File changes
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build completed with existing non-blocking `no-img-element` warnings only.
+
+Pending tasks
+- Manual browser verification:
+  - click node -> clicked focused node shows `Self` immediately,
+  - previous focused node loses `Self`,
+  - other relation labels remain correct,
+  - no console errors and no UI regressions.
