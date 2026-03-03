@@ -451,6 +451,10 @@ export function createMember(
     formData.append("relatedMemberId", payload.relatedMemberId);
   }
 
+  if (payload.importantDates !== undefined) {
+    formData.append("importantDates", JSON.stringify(payload.importantDates));
+  }
+
   if (payload.dateOfBirth !== undefined) {
     formData.append("dateOfBirth", payload.dateOfBirth ?? "");
   }
@@ -535,6 +539,10 @@ export function updateMember(
 
   if (payload.spouses !== undefined) {
     formData.append("spouses", JSON.stringify(payload.spouses));
+  }
+
+  if (payload.importantDates !== undefined) {
+    formData.append("importantDates", JSON.stringify(payload.importantDates));
   }
 
   if (payload.dateOfBirth !== undefined) {

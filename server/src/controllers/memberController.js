@@ -7,6 +7,7 @@ const { ensureMemberCreateAllowed } = require("../utils/subscriptionService");
 const { createAuditLog } = require("../utils/auditLogger");
 const { createNotification } = require("../utils/notificationService");
 const { resolveUploadedFileId } = require("../utils/uploadFile");
+const { mapImportantDatesToLegacy, normalizeDatesFromLegacy } = require("../utils/dateNormalizer");
 
 const RELATION_TYPES = new Set(["none", "father", "mother", "child", "spouse", "sibling"]);
 const MUTATION_RELATIONS = new Set(["father", "mother", "child", "spouse", "sibling"]);
@@ -211,6 +212,40 @@ const parseNullableTextInput = (rawValue) => {
   return { provided: true, value: text || null };
 };
 
+const parseImportantDatesInput = (rawValue) => {
+  if (rawValue === undefined) {
+    return { provided: false, value: [] };
+  }
+
+  if (rawValue === null || rawValue === "" || rawValue === "null") {
+    return { provided: true, value: [] };
+  }
+
+  if (Array.isArray(rawValue)) {
+    return { provided: true, value: rawValue };
+  }
+
+  if (typeof rawValue === "string") {
+    const trimmed = rawValue.trim();
+    if (!trimmed || trimmed === "null") {
+      return { provided: true, value: [] };
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (!Array.isArray(parsed)) {
+        throw new Error("importantDates must be an array.");
+      }
+
+      return { provided: true, value: parsed };
+    } catch (_error) {
+      throw badRequest("importantDates must be a valid JSON array.");
+    }
+  }
+
+  throw badRequest("importantDates must be an array.");
+};
+
 const parseExtendedMemberInputs = (input = {}) => {
   const textInputs = {};
 
@@ -218,11 +253,37 @@ const parseExtendedMemberInputs = (input = {}) => {
     textInputs[field] = parseNullableTextInput(input[field]);
   }
 
+  const importantDatesInput = parseImportantDatesInput(input.importantDates);
+  const mappedLegacyDates = importantDatesInput.provided ? mapImportantDatesToLegacy(importantDatesInput.value) : null;
+  if (importantDatesInput.provided) {
+    textInputs.importantNotes = {
+      provided: true,
+      value: mappedLegacyDates.importantNotes
+    };
+  }
+
   return {
-    dateOfBirthInput: parseNullableDateInput(input.dateOfBirth, "dateOfBirth"),
-    anniversaryDateInput: parseNullableDateInput(input.anniversaryDate, "anniversaryDate"),
-    dateOfDeathInput: parseNullableDateInput(input.dateOfDeath, "dateOfDeath"),
+    dateOfBirthInput: importantDatesInput.provided
+      ? { provided: true, value: mappedLegacyDates.dateOfBirth }
+      : parseNullableDateInput(input.dateOfBirth, "dateOfBirth"),
+    anniversaryDateInput: importantDatesInput.provided
+      ? { provided: true, value: mappedLegacyDates.anniversaryDate }
+      : parseNullableDateInput(input.anniversaryDate, "anniversaryDate"),
+    dateOfDeathInput: importantDatesInput.provided
+      ? { provided: true, value: mappedLegacyDates.dateOfDeath }
+      : parseNullableDateInput(input.dateOfDeath, "dateOfDeath"),
     textInputs
+  };
+};
+
+const withNormalizedImportantDates = (member) => {
+  if (!member) {
+    return member;
+  }
+
+  return {
+    ...member,
+    importantDates: normalizeDatesFromLegacy(member)
   };
 };
 
@@ -731,6 +792,7 @@ const buildMemberWithRelations = async (treeId, memberId, options = {}, session 
     return null;
   }
 
+  const normalizedFocus = withNormalizedImportantDates(focus);
   const focusId = String(focus._id);
   const fatherId = normalizeId(focus.fatherId);
   const motherId = normalizeId(focus.motherId);
@@ -745,8 +807,9 @@ const buildMemberWithRelations = async (treeId, memberId, options = {}, session 
   const relationDocs = relationIds.length
     ? await withSession(Member.find({ treeId, _id: { $in: relationIds } }), session).lean()
     : [];
+  const normalizedRelationDocs = relationDocs.map(withNormalizedImportantDates);
 
-  const relationMap = new Map(relationDocs.map((member) => [String(member._id), member]));
+  const relationMap = new Map(normalizedRelationDocs.map((member) => [String(member._id), member]));
 
   const childrenFilter = {
     treeId,
@@ -759,6 +822,7 @@ const buildMemberWithRelations = async (treeId, memberId, options = {}, session 
     .skip((childrenPage - 1) * childrenLimit)
     .limit(childrenLimit)
     .lean();
+  const normalizedChildren = children.map(withNormalizedImportantDates);
 
   const nodesMap = new Map();
 
@@ -773,17 +837,17 @@ const buildMemberWithRelations = async (treeId, memberId, options = {}, session 
     }
   };
 
-  addNode(focus);
-  relationDocs.forEach(addNode);
-  children.forEach(addNode);
+  addNode(normalizedFocus);
+  normalizedRelationDocs.forEach(addNode);
+  normalizedChildren.forEach(addNode);
 
   return {
-    focus,
+    focus: normalizedFocus,
     relations: {
       father: fatherId ? relationMap.get(fatherId) || null : null,
       mother: motherId ? relationMap.get(motherId) || null : null,
       spouses: pagedSpouseIds.map((id) => relationMap.get(id)).filter(Boolean),
-      children,
+      children: normalizedChildren,
       siblings: pagedSiblingIds.map((id) => relationMap.get(id)).filter(Boolean)
     },
     relationMeta: {
@@ -1918,9 +1982,10 @@ const listMembers = async (req, res, next) => {
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
+    const normalizedMembers = members.map(withNormalizedImportantDates);
 
     res.json({
-      members,
+      members: normalizedMembers,
       page,
       limit,
       total,
@@ -2249,12 +2314,13 @@ const getMemberGraph = async (req, res, next) => {
     }
 
     const dedupedLinks = Array.from(new Map(links.map((link) => [link.key, link])).values());
+    const normalizedNodes = nodes.map(withNormalizedImportantDates);
 
     res.json({
       focusId: String(focusMember._id),
       depth: options.depth,
       limit: options.limit,
-      nodes,
+      nodes: normalizedNodes,
       links: dedupedLinks
     });
   } catch (error) {

@@ -20,6 +20,14 @@ const optionalProfileTextField = Joi.string().allow("").max(200).optional();
 const optionalAddressTextField = Joi.string().allow("").max(600).optional();
 const optionalPhoneTextField = Joi.string().allow("").max(40).optional();
 const optionalImportantNotesField = Joi.string().allow("").max(2000).optional();
+const importantDateEntryField = Joi.object({
+  type: Joi.string().valid("dob", "anniversary", "death", "custom").required(),
+  value: nullableIsoDateField.required(),
+  label: Joi.string().allow("").max(160).optional()
+});
+const importantDatesField = Joi.alternatives()
+  .try(Joi.array().items(importantDateEntryField), Joi.string().trim(), Joi.valid(null))
+  .optional();
 
 const metadataField = Joi.alternatives().try(
   Joi.object().unknown(true),
@@ -198,6 +206,7 @@ const createMemberBodySchema = Joi.object({
   dateOfBirth: nullableIsoDateField.optional(),
   anniversaryDate: nullableIsoDateField.optional(),
   dateOfDeath: nullableIsoDateField.optional(),
+  importantDates: importantDatesField,
   education: optionalProfileTextField,
   qualification: optionalProfileTextField,
   designation: optionalProfileTextField,
@@ -223,6 +232,7 @@ const updateMemberBodySchema = Joi.object({
   dateOfBirth: nullableIsoDateField.optional(),
   anniversaryDate: nullableIsoDateField.optional(),
   dateOfDeath: nullableIsoDateField.optional(),
+  importantDates: importantDatesField,
   education: optionalProfileTextField,
   qualification: optionalProfileTextField,
   designation: optionalProfileTextField,

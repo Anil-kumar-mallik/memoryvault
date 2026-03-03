@@ -182,6 +182,13 @@ export interface NotificationsResponse {
 }
 
 export type Gender = "male" | "female" | "other" | "unspecified";
+export type ImportantDateEntryType = "dob" | "anniversary" | "death" | "custom";
+
+export interface ImportantDateEntry {
+  type: ImportantDateEntryType;
+  value: string;
+  label?: string;
+}
 
 export type RelationType = "none" | "father" | "mother" | "spouse" | "child" | "sibling";
 export type RelationMutationType = "father" | "mother" | "spouse" | "child" | "sibling";
@@ -208,6 +215,7 @@ export interface Member {
   dateOfBirth?: string | null;
   anniversaryDate?: string | null;
   dateOfDeath?: string | null;
+  importantDates?: ImportantDateEntry[] | null;
   education?: string | null;
   qualification?: string | null;
   designation?: string | null;
@@ -226,6 +234,7 @@ export interface AddMemberPayload {
   note?: string;
   relationType?: RelationType;
   relatedMemberId?: string;
+  importantDates?: ImportantDateEntry[];
   dateOfBirth?: string | null;
   anniversaryDate?: string | null;
   dateOfDeath?: string | null;
@@ -271,6 +280,7 @@ export interface UpdateMemberPayload {
   fatherId?: string | null;
   motherId?: string | null;
   spouses?: string[];
+  importantDates?: ImportantDateEntry[];
   dateOfBirth?: string | null;
   anniversaryDate?: string | null;
   dateOfDeath?: string | null;

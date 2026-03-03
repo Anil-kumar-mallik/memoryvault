@@ -7,7 +7,7 @@ import { AnimatePresence } from "framer-motion";
 import TreeCanvas from "@/components/TreeCanvas";
 import MemberModal from "@/components/MemberModal";
 import MemberForm, { MemberFormSubmitData } from "@/components/MemberForm";
-import { ImportantDateItem, ImportantDateType } from "@/components/DateFieldGroup";
+import { toImportantDateEntries } from "@/lib/importantDates";
 import {
   clearTreeAccessPassword,
   clearTreeAccessToken,
@@ -131,39 +131,6 @@ function resolveAddRelation(relation: MemberFormSubmitData["relationType"]): { r
     default:
       return { relationType: "none" };
   }
-}
-
-function mapImportantDatesToLegacyFields(entries: ImportantDateItem[]): {
-  dateOfBirth: string | null;
-  anniversaryDate: string | null;
-  dateOfDeath: string | null;
-  importantDates: Array<{ type: string; value: string; label?: string }>;
-  customDateNotes: string[];
-} {
-  const normalized = entries
-    .filter((entry) => entry.type && entry.value)
-    .map((entry) => ({
-      type: entry.type,
-      value: entry.value,
-      label: (entry.label || entry.customLabel || "").trim()
-    }));
-
-  const getFirstByType = (type: ImportantDateType) => normalized.find((entry) => entry.type === type)?.value || null;
-  const customDateNotes = normalized
-    .filter((entry) => entry.type === "custom")
-    .map((entry) => `${entry.label || "Custom"}: ${entry.value}`);
-
-  return {
-    dateOfBirth: getFirstByType("dob"),
-    anniversaryDate: getFirstByType("anniversary"),
-    dateOfDeath: getFirstByType("death"),
-    importantDates: normalized.map((entry) => ({
-      type: entry.type,
-      value: entry.value,
-      ...(entry.label ? { label: entry.label } : {})
-    })),
-    customDateNotes
-  };
 }
 
 function resolveRelationToCurrentFocus(member: Member | null, focusBundle: MemberWithRelationsResponse | null): string {
@@ -726,9 +693,7 @@ export default function TreePage() {
       const resolvedRelation = resolveAddRelation(data.relationType);
       const relationType = focusId ? resolvedRelation.relationType : undefined;
       const relationTargetId = focusId ?? undefined;
-      const mappedDates = mapImportantDatesToLegacyFields(data.importantDates);
-      const customDateNotes = mappedDates.customDateNotes.length ? `Important dates:\n${mappedDates.customDateNotes.join("\n")}` : "";
-      const mergedImportantNotes = [customDateNotes].filter(Boolean).join("\n\n");
+      const importantDates = toImportantDateEntries(data.importantDates);
 
       const payload: AddMemberPayload = {
         name: data.name.trim(),
@@ -736,15 +701,12 @@ export default function TreePage() {
         gender: data.gender || undefined,
         relationType: relationType === "none" ? undefined : relationType,
         relatedMemberId: relationType === "none" ? undefined : relationTargetId,
-        dateOfBirth: mappedDates.dateOfBirth,
-        anniversaryDate: mappedDates.anniversaryDate,
-        dateOfDeath: mappedDates.dateOfDeath,
+        importantDates,
         education: data.education.trim() || undefined,
         qualification: data.qualification.trim() || undefined,
         designation: data.designation.trim() || undefined,
         addressPermanent: data.addressPermanent.trim() || undefined,
-        addressCurrent: data.addressCurrent.trim() || undefined,
-        importantNotes: mergedImportantNotes || undefined
+        addressCurrent: data.addressCurrent.trim() || undefined
       };
 
       const response = await createMember(treeId, payload, data.imageFile);
@@ -863,9 +825,7 @@ export default function TreePage() {
     }
 
     try {
-      const mappedDates = mapImportantDatesToLegacyFields(data.importantDates);
-      const customDateNotes = mappedDates.customDateNotes.length ? `Important dates:\n${mappedDates.customDateNotes.join("\n")}` : "";
-      const mergedImportantNotes = [customDateNotes].filter(Boolean).join("\n\n");
+      const importantDates = toImportantDateEntries(data.importantDates);
 
       const response = await updateMember(
         treeId,
@@ -875,15 +835,12 @@ export default function TreePage() {
           note: data.note.trim(),
           gender: data.gender || null,
           profileImage: data.removeImage ? null : undefined,
-          dateOfBirth: mappedDates.dateOfBirth,
-          anniversaryDate: mappedDates.anniversaryDate,
-          dateOfDeath: mappedDates.dateOfDeath,
+          importantDates,
           education: data.education.trim() || null,
           qualification: data.qualification.trim() || null,
           designation: data.designation.trim() || null,
           addressPermanent: data.addressPermanent.trim() || null,
-          addressCurrent: data.addressCurrent.trim() || null,
-          importantNotes: mergedImportantNotes || null
+          addressCurrent: data.addressCurrent.trim() || null
         },
         data.imageFile
       );

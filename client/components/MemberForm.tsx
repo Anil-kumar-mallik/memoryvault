@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, memo, useEffect, useMemo, useState } from "react";
-import DateFieldGroup, { ImportantDateItem, createImportantDateRow } from "@/components/DateFieldGroup";
+import DateFieldGroup, { ImportantDateItem } from "@/components/DateFieldGroup";
+import { buildImportantDateRows } from "@/lib/importantDates";
 import { resolveProfileImageUrl } from "@/lib/profileImageUrl";
 import { Gender, Member } from "@/types";
 
@@ -42,84 +43,13 @@ const relationOptions: { value: MemberFormRelationType; label: string }[] = [
   { value: "none", label: "No relation" }
 ];
 
-function toDateInputValue(value?: string | null): string {
-  if (!value) {
-    return "";
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "";
-  }
-
-  return parsed.toISOString().slice(0, 10);
-}
-
-function parseImportantNotesToCustomRows(notes?: string | null): ImportantDateItem[] {
-  if (!notes) {
-    return [];
-  }
-
-  const lines = notes.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  const markerIndex = lines.findIndex((line) => line.toLowerCase().startsWith("important dates"));
-  const customLines = markerIndex >= 0 ? lines.slice(markerIndex + 1) : [];
-
-  const rows: ImportantDateItem[] = [];
-  for (const line of customLines) {
-    const separatorIndex = line.indexOf(":");
-    if (separatorIndex <= 0) {
-      continue;
-    }
-
-    const label = line.slice(0, separatorIndex).trim();
-    const value = toDateInputValue(line.slice(separatorIndex + 1).trim());
-    if (!value) {
-      continue;
-    }
-
-    const row = createImportantDateRow(rows.length + 1);
-    row.type = "custom";
-    row.label = label || "Custom";
-    row.customLabel = row.label;
-    row.value = value;
-    rows.push(row);
-  }
-
-  return rows;
-}
-
-function buildInitialImportantDates(member?: Member): ImportantDateItem[] {
-  if (!member) {
-    return [createImportantDateRow(1)];
-  }
-
-  const rows: ImportantDateItem[] = [];
-  const pushLegacyDate = (type: "dob" | "anniversary" | "death", value?: string | null) => {
-    const normalized = toDateInputValue(value);
-    if (!normalized) {
-      return;
-    }
-    const row = createImportantDateRow(rows.length + 1);
-    row.type = type;
-    row.value = normalized;
-    rows.push(row);
-  };
-
-  pushLegacyDate("dob", member.dateOfBirth || member.birthDate);
-  pushLegacyDate("anniversary", member.anniversaryDate);
-  pushLegacyDate("death", member.dateOfDeath || member.deathDate);
-  rows.push(...parseImportantNotesToCustomRows(member.importantNotes));
-
-  return rows.length ? rows : [createImportantDateRow(1)];
-}
-
 function buildInitialState(mode: "add" | "edit", initialData?: Member): MemberFormSubmitData {
   return {
     name: initialData?.name || "",
     relationType: mode === "edit" ? "none" : "son",
     gender: initialData?.gender || "",
     note: initialData?.note || "",
-    importantDates: buildInitialImportantDates(initialData),
+    importantDates: buildImportantDateRows(initialData),
     education: initialData?.education || "",
     qualification: initialData?.qualification || "",
     designation: initialData?.designation || "",

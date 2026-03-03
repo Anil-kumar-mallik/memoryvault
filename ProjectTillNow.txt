@@ -4149,3 +4149,69 @@ Pending tasks
   - Save -> updates instantly and closes/reset is clean.
   - Close button/backdrop -> resets cleanly.
   - Confirm no layout jitter/double-render/console errors during the flow.
+[2026-03-04 | Backend+Frontend Refactor | Date Normalization Layer]
+[Normalized Date System with backward compatibility layer]
+
+Completed modules
+1) Server date normalization utility (additive)
+- Added `server/src/utils/dateNormalizer.js` with:
+  - `normalizeDatesFromLegacy(member)` -> normalized `importantDates[]` from legacy member date fields + custom date lines in `importantNotes`.
+  - `mapImportantDatesToLegacy(importantDates)` -> legacy-compatible fields (`dateOfBirth`, `anniversaryDate`, `dateOfDeath`, `importantNotes`).
+- Legacy date fields remain fully intact (no removals).
+
+2) Member model virtual date abstraction
+- Added `memberSchema.virtual("importantDates")` in `server/src/models/Member.js`.
+- Virtual derives normalized dates via legacy-backed normalizer, without schema migration.
+
+3) Member create/update compatibility mapping
+- Added additive input handling for `importantDates` in member create/update flow.
+- If `importantDates` is provided, server maps it to legacy persistence fields before save.
+- Existing legacy inputs (`dateOfBirth`, `anniversaryDate`, `dateOfDeath`, `importantNotes`) still supported.
+- No API contract break: old payloads continue to work.
+
+4) Member response normalization layer
+- Added normalized `importantDates` into member responses in:
+  - `memberController` relation/list/graph outputs
+  - `focusController` focus payload outputs
+- Frontend can now consume abstraction-first date data while remaining backward-compatible.
+
+5) Frontend importantDates abstraction
+- Added shared client utility: `client/lib/importantDates.ts`.
+- Refactored member UI date reading/writing to use abstraction:
+  - Read from `member.importantDates ?? fallbackLegacyMapping`.
+  - Submit `importantDates` entries through API layer.
+- Removed scattered member date parsing/mapping logic from tree/member UI code paths.
+
+File changes
+- `server/src/utils/dateNormalizer.js` (new)
+- `server/src/models/Member.js`
+- `server/src/controllers/memberController.js`
+- `server/src/controllers/focusController.js`
+- `server/src/validation/bodySchemas.js`
+- `client/lib/importantDates.ts` (new)
+- `client/types/index.ts`
+- `client/lib/api.ts`
+- `client/components/MemberForm.tsx`
+- `client/components/MemberModal.tsx`
+- `client/app/tree/[id]/page.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema field removals.
+- No collection/index migration required.
+- Legacy date columns retained and still used for persistence compatibility.
+- Existing stored data remains valid and readable.
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+- `cd client && npm run build` -> passed.
+- Client build has existing non-blocking `no-img-element` warnings only.
+
+Pending tasks
+- Manual runtime verification checklist:
+  - Account dates display unchanged.
+  - Member detail dates display correctly from abstraction.
+  - Add member with important dates works.
+  - Edit member important dates works.
+  - Tree focus/detail flows show correct dates.
+  - No console errors during create/edit/view flows.

@@ -4,6 +4,7 @@ import { FormEvent, memo, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n/provider";
 import MemberForm, { MemberFormSubmitData } from "@/components/MemberForm";
+import { resolveMemberImportantDates } from "@/lib/importantDates";
 import { resolveProfileImageUrl } from "@/lib/profileImageUrl";
 import {
   Member,
@@ -31,78 +32,6 @@ function formatDate(value?: string | null): string {
   }
 
   return date.toLocaleDateString();
-}
-
-type NormalizedImportantDate = {
-  type: "dob" | "anniversary" | "death" | "custom";
-  label?: string;
-  value: string;
-  sortTime: number;
-};
-
-function normalizeImportantDates(member: Member): NormalizedImportantDate[] {
-  const rows: NormalizedImportantDate[] = [];
-  const addRow = (type: NormalizedImportantDate["type"], value: string | null | undefined, label?: string) => {
-    if (!value) {
-      return;
-    }
-
-    const parsed = new Date(value).getTime();
-    rows.push({
-      type,
-      value,
-      label,
-      sortTime: Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed
-    });
-  };
-
-  addRow("dob", member.dateOfBirth || member.birthDate || null);
-  addRow("anniversary", member.anniversaryDate || null);
-  addRow("death", member.dateOfDeath || member.deathDate || null);
-
-  const memberWithExtra = member as Member & {
-    importantDates?: Array<{ type?: string; value?: string; label?: string }>;
-  };
-  if (Array.isArray(memberWithExtra.importantDates)) {
-    for (const entry of memberWithExtra.importantDates) {
-      if (!entry?.type || !entry?.value) {
-        continue;
-      }
-
-      if (entry.type === "dob" || entry.type === "anniversary" || entry.type === "death") {
-        addRow(entry.type, entry.value, entry.label);
-      } else if (entry.type === "custom") {
-        addRow("custom", entry.value, entry.label || "Custom");
-      }
-    }
-  }
-
-  if (member.importantNotes) {
-    const lines = member.importantNotes.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-    const markerIndex = lines.findIndex((line) => line.toLowerCase().startsWith("important dates"));
-    const customLines = markerIndex >= 0 ? lines.slice(markerIndex + 1) : [];
-    for (const line of customLines) {
-      const splitIndex = line.indexOf(":");
-      if (splitIndex <= 0) {
-        continue;
-      }
-      const label = line.slice(0, splitIndex).trim() || "Custom";
-      const value = line.slice(splitIndex + 1).trim();
-      addRow("custom", value, label);
-    }
-  }
-
-  const seen = new Set<string>();
-  const deduped = rows.filter((row) => {
-    const key = `${row.type}|${row.label || ""}|${row.value}`;
-    if (seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
-
-  return deduped.sort((left, right) => left.sortTime - right.sortTime);
 }
 
 export interface MemberModalProps {
@@ -195,7 +124,7 @@ function MemberModal(props: MemberModalInternalProps) {
   } = props;
 
   const importantDateSummary = useMemo(() => {
-    const normalizedImportantDates = detailBundle ? normalizeImportantDates(detailBundle.focus) : [];
+    const normalizedImportantDates = detailBundle ? resolveMemberImportantDates(detailBundle.focus) : [];
     return {
       dateOfBirthEntry: normalizedImportantDates.find((item) => item.type === "dob"),
       anniversaryEntry: normalizedImportantDates.find((item) => item.type === "anniversary"),

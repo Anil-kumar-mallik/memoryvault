@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { normalizeDatesFromLegacy } = require("../utils/dateNormalizer");
 
 const dedupeObjectIdArray = (values, selfId) => {
   if (!Array.isArray(values)) {
@@ -190,6 +191,10 @@ memberSchema.pre("validate", function normalizeRelations(next) {
   }
 
   next();
+});
+
+memberSchema.virtual("importantDates").get(function resolveImportantDates() {
+  return normalizeDatesFromLegacy(this);
 });
 
 memberSchema.index({ treeId: 1, createdAt: 1 });

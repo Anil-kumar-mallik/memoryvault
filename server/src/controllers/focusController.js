@@ -1,5 +1,6 @@
 const Member = require("../models/Member");
 const validateRequest = require("../utils/validateRequest");
+const { normalizeDatesFromLegacy } = require("../utils/dateNormalizer");
 
 const DEFAULT_CHILDREN_LIMIT = 40;
 const MAX_CHILDREN_LIMIT = 200;
@@ -16,6 +17,17 @@ const normalizeId = (value) => {
 
 const uniqueIds = (values) =>
   Array.from(new Set((values || []).map((value) => normalizeId(value)).filter(Boolean)));
+
+const withNormalizedImportantDates = (member) => {
+  if (!member) {
+    return member;
+  }
+
+  return {
+    ...member,
+    importantDates: normalizeDatesFromLegacy(member)
+  };
+};
 
 const parsePositiveInt = ({ rawValue, fallback, min, max, fieldName }) => {
   if (rawValue === undefined || rawValue === null || rawValue === "") {
@@ -79,6 +91,7 @@ const getTreeFocus = async (req, res, next) => {
       res.status(404).json({ message: "Member not found in this tree." });
       return;
     }
+    const normalizedCenter = withNormalizedImportantDates(center);
 
     const parentIds = uniqueIds([center.fatherId, center.motherId]);
     const spouseIds = uniqueIds(center.spouses);
@@ -104,18 +117,22 @@ const getTreeFocus = async (req, res, next) => {
       })
     ]);
 
+    const normalizedParentDocs = parentDocs.map(withNormalizedImportantDates);
+    const normalizedSpouseDocs = spouseDocs.map(withNormalizedImportantDates);
+    const normalizedSiblingDocs = siblingDocs.map(withNormalizedImportantDates);
+    const normalizedChildDocs = childDocs.map(withNormalizedImportantDates);
     const byId = (collection) => new Map(collection.map((member) => [String(member._id), member]));
 
-    const parentsById = byId(parentDocs);
-    const spousesById = byId(spouseDocs);
-    const siblingsById = byId(siblingDocs);
+    const parentsById = byId(normalizedParentDocs);
+    const spousesById = byId(normalizedSpouseDocs);
+    const siblingsById = byId(normalizedSiblingDocs);
 
     res.json({
-      center,
+      center: normalizedCenter,
       parents: parentIds.map((id) => parentsById.get(id)).filter(Boolean),
       spouses: pagedSpouseIds.map((id) => spousesById.get(id)).filter(Boolean),
       siblings: pagedSiblingIds.map((id) => siblingsById.get(id)).filter(Boolean),
-      children: childDocs,
+      children: normalizedChildDocs,
       relationMeta: {
         spouses: {
           total: spouseIds.length,
