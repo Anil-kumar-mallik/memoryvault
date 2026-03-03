@@ -240,12 +240,32 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
 
   const graph = useMemo(() => buildVisualGraph(bundle, treeData), [bundle, treeData]);
   const membersForRelation = useMemo(() => {
-    if (treeData && treeData.length > 0) {
-      return treeData;
-    }
+    const membersById = new Map<string, Member>();
+    const addMember = (member?: Member | null) => {
+      if (!member) {
+        return;
+      }
 
-    return graph.nodes.map((node) => node.member);
-  }, [graph.nodes, treeData]);
+      const memberId = String(member._id || "");
+      if (!memberId) {
+        return;
+      }
+
+      const existingMember = membersById.get(memberId);
+      membersById.set(memberId, existingMember ? { ...existingMember, ...member } : member);
+    };
+
+    addMember(bundle?.focus || null);
+    addMember(bundle?.relations.father || null);
+    addMember(bundle?.relations.mother || null);
+    bundle?.relations.spouses.forEach(addMember);
+    bundle?.relations.children.forEach(addMember);
+    bundle?.relations.siblings.forEach(addMember);
+    graph.nodes.forEach((node) => addMember(node.member));
+    (treeData || []).forEach(addMember);
+
+    return Array.from(membersById.values());
+  }, [bundle, graph.nodes, treeData]);
 
   const relationLabelByNodeKey = useMemo(() => {
     const labels = new Map<string, string>();
@@ -254,18 +274,26 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
     }
 
     const focusedMemberId = String(bundle.focus._id || "");
+    if (!focusedMemberId) {
+      return labels;
+    }
+
     const membersById = new Map(membersForRelation.map((member) => [String(member._id || ""), member]));
-    const focusedMember = membersById.get(focusedMemberId) || bundle.focus;
+    const normalizedFocusedMember = membersById.get(focusedMemberId) || bundle.focus;
 
     for (const node of graph.nodes) {
-      const nodeId = String(node.member._id || node.key);
+      const nodeId = String(node.member._id || node.key || "");
+      if (!nodeId) {
+        continue;
+      }
+
       const normalizedTarget = membersById.get(nodeId) || node.member;
-      const isFocused = node.group === "focus" || nodeId === focusedMemberId;
+      const isFocused = nodeId === focusedMemberId;
 
       if (isFocused) {
         labels.set(nodeId, "Self");
       } else {
-        labels.set(nodeId, resolveRelation(normalizedTarget, focusedMember, membersForRelation));
+        labels.set(nodeId, resolveRelation(normalizedTarget, normalizedFocusedMember, membersForRelation));
       }
     }
     return labels;

@@ -2,6 +2,14 @@ import { Member } from "@/types";
 
 const membersByArrayRefCache = new WeakMap<Member[], Map<string, Member>>();
 
+function normalizeId(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value);
+}
+
 function getMembersById(allMembers: Member[]): Map<string, Member> {
   const cached = membersByArrayRefCache.get(allMembers);
   if (cached) {
@@ -10,11 +18,30 @@ function getMembersById(allMembers: Member[]): Map<string, Member> {
 
   const byId = new Map<string, Member>();
   for (const member of allMembers) {
-    byId.set(member._id, member);
+    const memberId = normalizeId(member?._id);
+    if (!memberId) {
+      continue;
+    }
+
+    byId.set(memberId, member);
   }
 
   membersByArrayRefCache.set(allMembers, byId);
   return byId;
+}
+
+function hasMemberId(memberIds: string[] | undefined, memberId: string): boolean {
+  if (!memberId || !memberIds || memberIds.length === 0) {
+    return false;
+  }
+
+  for (const value of memberIds) {
+    if (normalizeId(value) === memberId) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function childLabelByGender(gender?: string): "Son" | "Daughter" | "Child" {
@@ -44,27 +71,53 @@ function parentLabelByGender(gender?: string): "Father" | "Mother" | "Parent" {
 }
 
 export function resolveRelation(target: Member, context: Member, allMembers: Member[]): string {
-  if (target._id?.toString() === context._id?.toString()) {
+  const targetId = normalizeId(target?._id);
+  const contextId = normalizeId(context?._id);
+
+  if (targetId && targetId === contextId) {
     return "Self";
   }
 
   const byId = getMembersById(allMembers);
-  const resolvedTarget = byId.get(target._id) || target;
-  const resolvedContext = byId.get(context._id) || context;
+  const resolvedTarget = (targetId && byId.get(targetId)) || target;
+  const resolvedContext = (contextId && byId.get(contextId)) || context;
 
-  if (resolvedTarget.fatherId === resolvedContext._id || resolvedTarget.motherId === resolvedContext._id) {
+  const normalizedTargetId = normalizeId(resolvedTarget?._id);
+  const normalizedContextId = normalizeId(resolvedContext?._id);
+
+  if (normalizedTargetId && normalizedTargetId === normalizedContextId) {
+    return "Self";
+  }
+
+  if (!normalizedTargetId || !normalizedContextId) {
+    return "Relative";
+  }
+
+  if (
+    normalizeId(resolvedTarget.fatherId) === normalizedContextId ||
+    normalizeId(resolvedTarget.motherId) === normalizedContextId
+  ) {
     return childLabelByGender(resolvedTarget.gender);
   }
 
-  if (resolvedContext.fatherId === resolvedTarget._id || resolvedContext.motherId === resolvedTarget._id) {
+  if (
+    normalizeId(resolvedContext.fatherId) === normalizedTargetId ||
+    normalizeId(resolvedContext.motherId) === normalizedTargetId
+  ) {
     return parentLabelByGender(resolvedTarget.gender);
   }
 
-  if (resolvedTarget.spouses.includes(resolvedContext._id)) {
+  if (
+    hasMemberId(resolvedTarget.spouses, normalizedContextId) ||
+    hasMemberId(resolvedContext.spouses, normalizedTargetId)
+  ) {
     return "Spouse";
   }
 
-  if (resolvedTarget.siblings.includes(resolvedContext._id)) {
+  if (
+    hasMemberId(resolvedTarget.siblings, normalizedContextId) ||
+    hasMemberId(resolvedContext.siblings, normalizedTargetId)
+  ) {
     return "Sibling";
   }
 

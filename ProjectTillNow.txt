@@ -4566,3 +4566,30 @@ Pending tasks
   - previous node loses `Self`,
   - non-self relations remain correct,
   - no UI regression and no console errors.
+
+[2026-03-04 | Frontend Patch | Dynamic Focus Engine Fix]
+[Dynamic Focus Engine Fix]
+- Self label now follows active focused member.
+- Relation calculations normalized against bundle.focus.
+- Removed implicit dependency on logged-in user context.
+- Stability verified (no API changes, no schema changes).
+
+Completed modules
+1) Dynamic focus context normalization for tree relation labels
+- `FocusTreeCanvas` now builds a unified, normalized member pool and resolves both focus and target members from that pool before relation evaluation.
+- `Self` label assignment is now strict and ID-based: only `target._id === bundle.focus._id` (normalized string comparison) gets `Self`.
+
+2) Relation resolver hardening
+- `resolveRelation` now normalizes all IDs (`_id`, `fatherId`, `motherId`, spouse/sibling arrays) before comparison.
+- Relation checks remain unchanged in behavior order (`Self`, child, parent, spouse, sibling, relative) while removing implicit identity-source assumptions.
+
+File changes
+- `client/components/FocusTreeCanvas.tsx`
+- `client/utils/relationResolver.ts`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model changes.
+
+Pending tasks
+- Manual browser verification of click-through focus transitions in the interactive tree (build validation completed).
