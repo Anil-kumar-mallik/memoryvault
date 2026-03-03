@@ -4101,3 +4101,51 @@ Pending tasks
   - Edit member text and verify tree node updates immediately.
   - Upload/update member image and verify instant avatar update.
   - Confirm no jitter/flicker/layout shift in tree interactions.
+[2026-03-04 | Frontend Refactor | Tree Member Modal Architecture]
+[Refactored Tree Modal into reusable MemberModal component]
+
+Completed modules
+1) Reusable member detail modal extraction
+- Created `client/components/MemberModal.tsx` and moved the tree member-detail modal JSX into this component.
+- Preserved all existing UI markup/classes and existing relation/delete/edit sections without design changes.
+
+2) Tree page modal state consolidation
+- Replaced split modal selection/edit state with a single predictable state object:
+  - `modalState: { isOpen, member, mode }`
+- Removed old duplicate modal selection/edit state usage from `client/app/tree/[id]/page.tsx`.
+
+3) Safe modal open/edit/save/close flow wiring
+- Open on node click now uses:
+  - `setModalState({ isOpen: true, member: clickedMember, mode: "view" })`
+- Edit mode switch now uses:
+  - `setModalState(prev => ({ ...prev, mode: "edit" }))`
+- Save path continues to update tree state immediately and now closes/resets modal cleanly through one close handler.
+- Close path resets modal and relation-panel state to avoid stale carry-over.
+
+4) Stability constraints preserved
+- Backend untouched.
+- API calls untouched.
+- Tree engine/focus logic untouched.
+- UI design/behavioral intent preserved (structural refactor only).
+
+File changes
+- `client/components/MemberModal.tsx` (new)
+- `client/components/PersonModal.tsx` (removed)
+- `client/app/tree/[id]/page.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No database schema/index/model changes.
+- No backend route/controller/middleware changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build completed with existing Next.js `no-img-element` warnings only (non-blocking, pre-existing pattern).
+
+Pending tasks
+- Manual UI verification in browser:
+  - Click person -> view modal opens.
+  - Click edit -> switches to edit mode.
+  - Save -> updates instantly and closes/reset is clean.
+  - Close button/backdrop -> resets cleanly.
+  - Confirm no layout jitter/double-render/console errors during the flow.

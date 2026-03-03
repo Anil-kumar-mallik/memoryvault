@@ -5,7 +5,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import TreeCanvas from "@/components/TreeCanvas";
-import PersonModal from "@/components/PersonModal";
+import MemberModal from "@/components/MemberModal";
 import MemberForm, { MemberFormSubmitData } from "@/components/MemberForm";
 import { ImportantDateItem, ImportantDateType } from "@/components/DateFieldGroup";
 import {
@@ -388,12 +388,19 @@ export default function TreePage() {
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  const [selectedPerson, setSelectedPerson] = useState<Member | null>(null);
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    member: Member | null;
+    mode: "view" | "edit";
+  }>({
+    isOpen: false,
+    member: null,
+    mode: "view"
+  });
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailBundle, setDetailBundle] = useState<MemberWithRelationsResponse | null>(null);
   const [deletingDetail, setDeletingDetail] = useState(false);
   const [removingMemberImage, setRemovingMemberImage] = useState(false);
-  const [mode, setMode] = useState<"view" | "edit">("view");
   const [detailModalView, setDetailModalView] = useState<DetailModalView>("edit");
   const [removingRelationKey, setRemovingRelationKey] = useState<string | null>(null);
   const [relationAction, setRelationAction] = useState<RelationMutationAction>("connect");
@@ -633,7 +640,7 @@ export default function TreePage() {
   }, [focusId, loadFocusBundle, tree]);
 
   useEffect(() => {
-    if (!selectedPerson || !tree?.canEdit || !detailBundle) {
+    if (!modalState.isOpen || !tree?.canEdit || !detailBundle) {
       return;
     }
 
@@ -663,7 +670,7 @@ export default function TreePage() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [detailBundle, relationMemberSearch, selectedPerson, tree?.canEdit, treeId]);
+  }, [detailBundle, modalState.isOpen, relationMemberSearch, tree?.canEdit, treeId]);
 
   const handleFocusChange = useCallback((memberId: string) => {
     setFocusId((current) => {
@@ -777,14 +784,36 @@ export default function TreePage() {
     }
   };
 
+  const closeDetailModal = useCallback(() => {
+    setModalState({
+      isOpen: false,
+      member: null,
+      mode: "view"
+    });
+    setDetailBundle(null);
+    setDetailModalView("edit");
+    setDeletingDetail(false);
+    setRemovingMemberImage(false);
+    setRemovingRelationKey(null);
+    setRelationAction("connect");
+    setRelationType("spouse");
+    setRelationParentRole("auto");
+    setRelationTargetMemberId("");
+    setRelationMemberSearch("");
+    setRelationMemberOptions([]);
+  }, []);
+
   const openDetailModal = useCallback(
     async (member: Member) => {
       try {
-        setSelectedPerson(member);
+        setModalState({
+          isOpen: true,
+          member,
+          mode: "view"
+        });
         setLoadingDetail(true);
         setDetailBundle(null);
         setDetailModalView("edit");
-        setMode("view");
         setRemovingRelationKey(null);
         setRelationAction("connect");
         setRelationType("spouse");
@@ -800,7 +829,16 @@ export default function TreePage() {
           siblingLimit: 80
         });
         setDetailBundle(payload);
-        setSelectedPerson(payload.focus);
+        setModalState((current) => {
+          if (!current.isOpen || current.member?._id !== member._id) {
+            return current;
+          }
+
+          return {
+            ...current,
+            member: payload.focus
+          };
+        });
         setError(null);
       } catch (detailError) {
         const message = detailError instanceof Error ? detailError.message : "Failed to load member details.";
@@ -855,7 +893,16 @@ export default function TreePage() {
 
       setDetailBundle(nextDetailBundle);
       setTreeData((prev) => replaceMemberInTreeData(prev, nextFocusMember));
-      setSelectedPerson(nextFocusMember);
+      setModalState((current) => {
+        if (!current.isOpen) {
+          return current;
+        }
+
+        return {
+          ...current,
+          member: nextFocusMember
+        };
+      });
       setFocusBundle((current) => {
         if (!current) {
           return current;
@@ -894,7 +941,16 @@ export default function TreePage() {
 
       setDetailBundle(nextDetailBundle);
       setTreeData((prev) => replaceMemberInTreeData(prev, nextFocusMember));
-      setSelectedPerson(nextFocusMember);
+      setModalState((current) => {
+        if (!current.isOpen) {
+          return current;
+        }
+
+        return {
+          ...current,
+          member: nextFocusMember
+        };
+      });
       setFocusBundle((current) => {
         if (!current) {
           return current;
@@ -1040,8 +1096,7 @@ export default function TreePage() {
         };
       });
 
-      setSelectedPerson(null);
-      setDetailBundle(null);
+      closeDetailModal();
 
       const deletedFocus = focusId && response.deletedIds.includes(focusId);
 
@@ -1290,19 +1345,26 @@ export default function TreePage() {
       )}
 
       <AnimatePresence>
-        {selectedPerson && (
-          <PersonModal
-            key={selectedPerson._id}
-            person={selectedPerson}
-            mode={mode}
-            onClose={() => {
-              setSelectedPerson(null);
-              setMode("view");
-              setDetailModalView("edit");
-              setRemovingMemberImage(false);
-            }}
-            onEdit={() => setMode("edit")}
-            onSave={() => setMode("view")}
+        {modalState.isOpen && modalState.member && (
+          <MemberModal
+            key={modalState.member._id}
+            member={modalState.member}
+            mode={modalState.mode}
+            isOpen={modalState.isOpen}
+            onClose={closeDetailModal}
+            onEdit={() =>
+              setModalState((prev) => ({
+                ...prev,
+                mode: "edit"
+              }))
+            }
+            onSave={(updatedMember) =>
+              setModalState((prev) => ({
+                ...prev,
+                member: updatedMember,
+                mode: "view"
+              }))
+            }
             loadingDetail={loadingDetail}
             detailBundle={detailBundle}
             detailModalView={detailModalView}

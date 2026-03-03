@@ -105,12 +105,16 @@ function normalizeImportantDates(member: Member): NormalizedImportantDate[] {
   return deduped.sort((left, right) => left.sortTime - right.sortTime);
 }
 
-type PersonModalProps = {
-  person: Member;
+export interface MemberModalProps {
+  member: Member | null;
   mode: "view" | "edit";
+  isOpen: boolean;
   onClose: () => void;
   onEdit: () => void;
-  onSave: () => void;
+  onSave: (updatedMember: Member) => void;
+}
+
+type MemberModalInternalProps = MemberModalProps & {
   loadingDetail: boolean;
   detailBundle: MemberWithRelationsResponse | null;
   detailModalView: DetailModalView;
@@ -148,11 +152,12 @@ type PersonModalProps = {
   onSetFocusPerson: (memberId: string) => void;
 };
 
-function PersonModal(props: PersonModalProps) {
+function MemberModal(props: MemberModalInternalProps) {
   const { t } = useI18n();
   const {
-    person,
+    member,
     mode,
+    isOpen,
     onClose,
     onEdit,
     onSave,
@@ -189,13 +194,6 @@ function PersonModal(props: PersonModalProps) {
     onSetFocusPerson
   } = props;
 
-  const submitMemberDetails = async (data: MemberFormSubmitData) => {
-    const isSaved = await onSubmitMemberDetails(data);
-    if (isSaved) {
-      onSave();
-    }
-  };
-
   const importantDateSummary = useMemo(() => {
     const normalizedImportantDates = detailBundle ? normalizeImportantDates(detailBundle.focus) : [];
     return {
@@ -206,6 +204,22 @@ function PersonModal(props: PersonModalProps) {
     };
   }, [detailBundle]);
   const focusProfileImageUrl = detailBundle ? resolveProfileImageUrl(detailBundle.focus.profileImage) : null;
+
+  if (!isOpen || !member) {
+    return null;
+  }
+
+  const switchToViewMode = () => {
+    onSave(detailBundle?.focus || member);
+  };
+
+  const submitMemberDetails = async (data: MemberFormSubmitData) => {
+    const isSaved = await onSubmitMemberDetails(data);
+    if (isSaved) {
+      onSave(detailBundle?.focus || member);
+      onClose();
+    }
+  };
 
   return (
     <motion.div
@@ -232,7 +246,7 @@ function PersonModal(props: PersonModalProps) {
         </div>
 
         {loadingDetail || !detailBundle ? (
-          <p className="text-sm text-slate-600">Loading member details for {person.name}...</p>
+          <p className="text-sm text-slate-600">Loading member details for {member.name}...</p>
         ) : (
           <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
             <aside className="space-y-3">
@@ -275,7 +289,7 @@ function PersonModal(props: PersonModalProps) {
                         : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                     }`}
                     onClick={() => {
-                      onSave();
+                      switchToViewMode();
                       setDetailModalView("relations");
                     }}
                   >
@@ -291,7 +305,7 @@ function PersonModal(props: PersonModalProps) {
                         : "border border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
                     }`}
                     onClick={() => {
-                      onSave();
+                      switchToViewMode();
                       setDetailModalView("delete");
                     }}
                   >
@@ -307,7 +321,7 @@ function PersonModal(props: PersonModalProps) {
                       initialData={detailBundle.focus}
                       mode="edit"
                       onSubmit={submitMemberDetails}
-                      onCancel={onSave}
+                      onCancel={switchToViewMode}
                       onRemoveImage={onRemoveMemberImage}
                       removingImage={removingMemberImage}
                     />
@@ -681,4 +695,4 @@ function PersonModal(props: PersonModalProps) {
   );
 }
 
-export default memo(PersonModal);
+export default memo(MemberModal);
