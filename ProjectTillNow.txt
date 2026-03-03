@@ -3944,3 +3944,40 @@ Pending tasks
 - Verify production image URL with actual id:
   - `https://memoryvault-ktfg.onrender.com/api/v1/image/{fileId}`
 - Optional: add cleanup job/reference tracking for orphaned GridFS files after profile image replacements.
+
+[2026-03-03 | Frontend Patch | Image State Refresh After Upload]
+[Fixed frontend state refresh after image upload]
+
+Completed modules
+1) Account image refresh after profile upload (frontend-only)
+- After successful `updateMyAccount` response, account state is still updated immediately.
+- Added lightweight follow-up profile fetch (`getMyAccount`) and re-sync to guarantee latest image/account state without page reload.
+- If refresh call fails, optimistic updated response state is retained.
+
+2) Tree member image refresh after member update (frontend-only)
+- After successful member update, kept:
+  - `setDetailBundle(response)`
+  - `setSelectedPerson(response.focus)`
+- Added in-memory focus tree patching via `replaceMemberInBundle(...)` and `setFocusBundle(...)` so updated member image/details propagate instantly to visible tree nodes.
+- Removed dependency on a post-save focus re-fetch for this edit path, preventing unnecessary UI delay/flicker.
+
+3) Stability constraints preserved
+- No backend changes.
+- No API contract changes.
+- No `window.location.reload()`, no full-page reload, and no `router.refresh()` introduced.
+- Tree layout/geometry logic unchanged.
+
+File changes
+- `client/app/account/page.tsx`
+- `client/app/tree/[id]/page.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/index/model changes.
+- No backend/API changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+
+Pending tasks
+- Optional: run manual UI check on deployed environment for instant image swap in account + tree modal edit flow.

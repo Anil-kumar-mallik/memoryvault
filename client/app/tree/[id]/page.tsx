@@ -210,6 +210,30 @@ function resolveRelationToCurrentFocus(member: Member | null, focusBundle: Membe
   return "Family Member";
 }
 
+function replaceMemberInBundle(
+  bundle: MemberWithRelationsResponse | null,
+  updatedMember: Member
+): MemberWithRelationsResponse | null {
+  if (!bundle) {
+    return bundle;
+  }
+
+  const replace = (member: Member | null) => (member && member._id === updatedMember._id ? updatedMember : member);
+
+  return {
+    ...bundle,
+    focus: bundle.focus._id === updatedMember._id ? updatedMember : bundle.focus,
+    relations: {
+      father: replace(bundle.relations.father),
+      mother: replace(bundle.relations.mother),
+      spouses: bundle.relations.spouses.map((member) => (member._id === updatedMember._id ? updatedMember : member)),
+      siblings: bundle.relations.siblings.map((member) => (member._id === updatedMember._id ? updatedMember : member)),
+      children: bundle.relations.children.map((member) => (member._id === updatedMember._id ? updatedMember : member))
+    },
+    nodes: bundle.nodes.map((member) => (member._id === updatedMember._id ? updatedMember : member))
+  };
+}
+
 function createDownload(fileName: string, content: Blob): void {
   const link = document.createElement("a");
   const objectUrl = URL.createObjectURL(content);
@@ -783,10 +807,17 @@ export default function TreePage() {
 
       setDetailBundle(response);
       setSelectedPerson(response.focus);
+      setFocusBundle((current) => {
+        if (!current) {
+          return current;
+        }
 
-      if (focusId) {
-        await loadFocusBundle(focusId);
-      }
+        if (focusId === response.focus._id) {
+          return response;
+        }
+
+        return replaceMemberInBundle(current, response.focus);
+      });
 
       setError(null);
       showToast("Member details updated.", "success");

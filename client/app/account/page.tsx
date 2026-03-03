@@ -155,6 +155,12 @@ export default function AccountPage() {
       );
 
       syncAccountState(payload);
+      try {
+        const refreshedPayload = await getMyAccount();
+        syncAccountState(refreshedPayload);
+      } catch (_refreshError) {
+        // Keep optimistic state from update response if refresh fails.
+      }
       setProfileImageFile(null);
       setIsEditProfileModalOpen(false);
       setNotice("Profile updated successfully.");
