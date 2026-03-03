@@ -246,7 +246,7 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
 
     return graph.nodes.map((node) => node.member);
   }, [graph.nodes, treeData]);
-  const focusedMemberForRelation = useMemo(() => {
+  const focusedMember = useMemo(() => {
     if (!bundle) {
       return null;
     }
@@ -255,15 +255,15 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
   }, [bundle, membersForRelation]);
   const relationLabelByNodeKey = useMemo(() => {
     const labels = new Map<string, string>();
-    if (!focusedMemberForRelation) {
+    if (!focusedMember) {
       return labels;
     }
 
     for (const node of graph.nodes) {
-      labels.set(node.key, resolveRelation(node.member, focusedMemberForRelation, membersForRelation));
+      labels.set(node.key, resolveRelation(node.member, focusedMember, membersForRelation));
     }
     return labels;
-  }, [focusedMemberForRelation, graph.nodes, membersForRelation]);
+  }, [focusedMember, graph.nodes, membersForRelation]);
   const avatarConfigByMemberId = useMemo(() => {
     const map = new Map<string, AvatarConfig>();
 

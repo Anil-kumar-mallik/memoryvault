@@ -4324,3 +4324,29 @@ Pending tasks
   - confirm truncation + tooltip visibility,
   - confirm no hover jitter/size shift,
   - confirm tree rendering/focus navigation remains unchanged.
+
+[2026-03-04 | Frontend Patch | Relation Context Focus Binding]
+[Updated relation context to use focused member]
+
+Completed modules
+1) Focus tree relation context argument refinement (frontend-only)
+- Updated relation context in `FocusTreeCanvas` to explicitly use `focusedMember` (current center/focus node) when calling `resolveRelation(...)`.
+- No relation resolver logic changes; only the context argument binding was adjusted.
+- Ensures relation labels (including `Self`) are anchored to the active focused node, not account owner context.
+
+File changes
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build completed with existing non-blocking `no-img-element` warnings only.
+
+Pending tasks
+- Manual runtime verification in browser:
+  - click different nodes and confirm `Self` shifts to active focus,
+  - confirm relation labels update dynamically,
+  - confirm no layout shift/jitter and no console errors.
