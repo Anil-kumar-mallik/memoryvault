@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, memo, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, memo, useEffect, useMemo, useState } from "react";
 import DateFieldGroup, { ImportantDateItem } from "@/components/DateFieldGroup";
 import { buildImportantDateRows } from "@/lib/importantDates";
 import { resolveProfileImageUrl } from "@/lib/profileImageUrl";
@@ -60,11 +60,6 @@ function buildInitialState(mode: "add" | "edit", initialData?: Member): MemberFo
   };
 }
 
-function firstLetter(name: string): string {
-  const normalized = String(name || "").trim();
-  return normalized ? normalized.charAt(0).toUpperCase() : "?";
-}
-
 function MemberForm({ initialData, mode, onSubmit, onCancel, onRemoveImage, removingImage = false }: MemberFormProps) {
   const [form, setForm] = useState<MemberFormSubmitData>(() => buildInitialState(mode, initialData));
   const [submitting, setSubmitting] = useState(false);
@@ -76,8 +71,7 @@ function MemberForm({ initialData, mode, onSubmit, onCancel, onRemoveImage, remo
   );
   const existingImageUrl = useMemo(() => resolveProfileImageUrl(initialData?.profileImage), [initialData?.profileImage]);
   const displayImageUrl = form.removeImage ? localPreviewUrl : localPreviewUrl || existingImageUrl;
-  const displayInitial = firstLetter(form.name || initialData?.name || "");
-  const hasAnyImage = Boolean(localPreviewUrl || existingImageUrl);
+  const imagePreview = displayImageUrl;
 
   useEffect(() => {
     setForm(buildInitialState(mode, initialData));
@@ -100,6 +94,24 @@ function MemberForm({ initialData, mode, onSubmit, onCancel, onRemoveImage, remo
   const submitLabel = mode === "add" ? "Add Member" : "Update Member";
   const submittingLabel = mode === "add" ? "Creating..." : "Saving...";
 
+  const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const nextFile = event.target.files?.[0] ?? null;
+    setForm((current) => ({
+      ...current,
+      imageFile: nextFile,
+      removeImage: nextFile ? false : current.removeImage
+    }));
+  };
+
+  const handleRemoveImage = () => {
+    if (onRemoveImage) {
+      void Promise.resolve(onRemoveImage());
+      return;
+    }
+
+    setForm((current) => ({ ...current, imageFile: null, removeImage: true }));
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -117,144 +129,129 @@ function MemberForm({ initialData, mode, onSubmit, onCancel, onRemoveImage, remo
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <div className="flex flex-col gap-6 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:flex-row">
-        <div className="space-y-2 sm:w-40">
-          <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white text-3xl font-semibold text-slate-600">
-            {displayImageUrl ? (
-              <img src={displayImageUrl} alt={`${form.name || "Member"} profile`} className="h-full w-full object-cover" />
-            ) : (
-              <span>{displayInitial}</span>
-            )}
-          </div>
+      <div className="mb-6 flex flex-col items-center gap-3">
+        <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-slate-300 bg-slate-100">
+          {imagePreview ? (
+            <img src={imagePreview} alt="Profile" className="h-full w-full object-cover" />
+          ) : (
+            <span className="text-2xl text-slate-400">{form.name ? form.name.charAt(0).toUpperCase() : "?"}</span>
+          )}
+        </div>
 
-          <input
-            className="field"
-            type="file"
-            accept="image/*"
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                imageFile: event.target.files?.[0] ?? null,
-                removeImage: event.target.files?.[0] ? false : current.removeImage
-              }))
-            }
-          />
+        <div className="flex gap-2">
+          <label className="button-secondary cursor-pointer text-xs">
+            {imagePreview ? "Change Image" : "Upload Image"}
+            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+          </label>
 
-          {mode === "edit" && hasAnyImage && (
+          {imagePreview && (
             <button
               type="button"
-              className="button-secondary w-full"
-              onClick={() => {
-                if (onRemoveImage) {
-                  void Promise.resolve(onRemoveImage());
-                  return;
-                }
-
-                setForm((current) => ({ ...current, imageFile: null, removeImage: true }));
-              }}
+              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
+              onClick={handleRemoveImage}
               disabled={submitting || removingImage}
             >
               {removingImage ? "Removing..." : "Remove Image"}
             </button>
           )}
         </div>
-
-        <div className="flex-1 space-y-3">
-          <input
-            className="field"
-            placeholder="Name"
-            value={form.name}
-            onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-            required
-          />
-
-          <select
-            className="field"
-            value={form.relationType}
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                relationType: event.target.value as MemberFormRelationType
-              }))
-            }
-            disabled={mode === "edit"}
-          >
-            {relationOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
-          {mode === "edit" && (
-            <p className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
-              Relation fields (father, mother, spouse, siblings) are managed in the Relationships tab.
-            </p>
-          )}
-
-          <select
-            className="field"
-            value={form.gender}
-            onChange={(event) => setForm((current) => ({ ...current, gender: event.target.value as Gender | "" }))}
-          >
-            <option value="">Select gender</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-            <option value="unspecified">Prefer not to say</option>
-          </select>
-
-          <textarea
-            className="field min-h-20"
-            placeholder="Optional note"
-            value={form.note}
-            onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
-          />
-        </div>
       </div>
 
-      <DateFieldGroup
-        importantDates={form.importantDates}
-        onChange={(importantDates) => setForm((current) => ({ ...current, importantDates }))}
-      />
+      <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <input
+          className="field"
+          placeholder="Name"
+          value={form.name}
+          onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+          required
+        />
 
-      <input
-        className="field"
-        type="text"
-        placeholder="Education"
-        value={form.education}
-        onChange={(event) => setForm((current) => ({ ...current, education: event.target.value }))}
-      />
+        <select
+          className="field"
+          value={form.relationType}
+          onChange={(event) =>
+            setForm((current) => ({
+              ...current,
+              relationType: event.target.value as MemberFormRelationType
+            }))
+          }
+          disabled={mode === "edit"}
+        >
+          {relationOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
 
-      <input
-        className="field"
-        type="text"
-        placeholder="Qualification"
-        value={form.qualification}
-        onChange={(event) => setForm((current) => ({ ...current, qualification: event.target.value }))}
-      />
+        {mode === "edit" && (
+          <p className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+            Relation fields (father, mother, spouse, siblings) are managed in the Relationships tab.
+          </p>
+        )}
 
-      <input
-        className="field"
-        type="text"
-        placeholder="Designation"
-        value={form.designation}
-        onChange={(event) => setForm((current) => ({ ...current, designation: event.target.value }))}
-      />
+        <select
+          className="field"
+          value={form.gender}
+          onChange={(event) => setForm((current) => ({ ...current, gender: event.target.value as Gender | "" }))}
+        >
+          <option value="">Select gender</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="other">Other</option>
+          <option value="unspecified">Prefer not to say</option>
+        </select>
 
-      <textarea
-        className="field min-h-20"
-        placeholder="Permanent address"
-        value={form.addressPermanent}
-        onChange={(event) => setForm((current) => ({ ...current, addressPermanent: event.target.value }))}
-      />
+        <input
+          className="field"
+          type="text"
+          placeholder="Education"
+          value={form.education}
+          onChange={(event) => setForm((current) => ({ ...current, education: event.target.value }))}
+        />
 
-      <textarea
-        className="field min-h-20"
-        placeholder="Current address"
-        value={form.addressCurrent}
-        onChange={(event) => setForm((current) => ({ ...current, addressCurrent: event.target.value }))}
-      />
+        <input
+          className="field"
+          type="text"
+          placeholder="Qualification"
+          value={form.qualification}
+          onChange={(event) => setForm((current) => ({ ...current, qualification: event.target.value }))}
+        />
+
+        <input
+          className="field"
+          type="text"
+          placeholder="Designation"
+          value={form.designation}
+          onChange={(event) => setForm((current) => ({ ...current, designation: event.target.value }))}
+        />
+
+        <textarea
+          className="field min-h-20"
+          placeholder="Permanent address"
+          value={form.addressPermanent}
+          onChange={(event) => setForm((current) => ({ ...current, addressPermanent: event.target.value }))}
+        />
+
+        <textarea
+          className="field min-h-20"
+          placeholder="Current address"
+          value={form.addressCurrent}
+          onChange={(event) => setForm((current) => ({ ...current, addressCurrent: event.target.value }))}
+        />
+
+        <DateFieldGroup
+          importantDates={form.importantDates}
+          onChange={(importantDates) => setForm((current) => ({ ...current, importantDates }))}
+        />
+
+        <textarea
+          className="field min-h-20"
+          placeholder="Optional note"
+          value={form.note}
+          onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
+        />
+      </div>
 
       <div className="flex gap-2 pt-2">
         <button type="button" className="button-secondary flex-1" onClick={onCancel} disabled={submitting || removingImage}>

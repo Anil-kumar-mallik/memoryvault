@@ -4748,3 +4748,46 @@ Pending tasks
   - parent relation now displays `Father` / `Mother` (no `Parent`),
   - sibling relation now displays `Brother` / `Sister` based on target gender,
   - unknown sibling gender still displays `Sibling`.
+
+[2026-03-04 | Frontend UX Patch | Member Profile Image Section Rework]
+[Moved profile image controls to top of MemberForm without changing submit/API behavior]
+
+Completed modules
+1) MemberForm profile image UX restructure
+- Moved profile image display block to the top of `MemberForm` (before Name field).
+- Updated preview to show a clear circular avatar (`w-24 h-24`) with fallback initial.
+- Added top action controls:
+  - `Upload Image` / `Change Image` (hidden file input in label)
+  - `Remove Image` button when preview exists.
+
+2) Handler extraction and reuse
+- Added `handleImageUpload` and `handleRemoveImage` functions in `MemberForm`.
+- Reused existing behavior for image state:
+  - keeps `imageFile` updates,
+  - preserves `removeImage` flag behavior,
+  - preserves optional `onRemoveImage` callback path.
+
+3) Legacy upload block removal
+- Removed previous inline file input/remove controls from the old form section so there is only one image upload UX path.
+
+4) Field layout alignment
+- Kept form submit logic/API contract unchanged.
+- Reordered visual layout to keep profile-first flow while preserving existing data fields and tree update compatibility.
+
+File changes
+- `client/components/MemberForm.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model/API changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build completed with existing non-blocking warnings only (`no-img-element`, pre-existing hook dependency warnings in `FocusTreeCanvas.tsx`).
+
+Pending tasks
+- Manual UI verification:
+  - Add/Edit member modal shows top profile image section,
+  - Upload/Change updates preview before submit,
+  - Remove action clears/removes image via existing flow,
+  - Save still updates tree/member views correctly.
