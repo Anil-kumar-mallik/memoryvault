@@ -4662,3 +4662,8 @@ Removed WeakMap caching from relationResolver.
 Caching caused stale relationship calculations when tree focus changed.
 Relations are now recalculated correctly on each render.
 Dynamic focus engine now correctly moves the "Self" label to the active focused member.
+
+[Dynamic Focus Label Fix]
+Corrected tree relation rendering so the focused member always displays "Self".
+Rendering now checks bundle.focus directly instead of relying solely on relationResolver.
+Tree now correctly updates the "Self" label whenever focus changes.

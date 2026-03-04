@@ -324,21 +324,15 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
         .map((member) => [normalizeMemberId(member._id), member] as const)
         .filter(([memberId]) => Boolean(memberId))
     );
-    const normalizedFocusedMember = membersById.get(focusedMemberId) || bundle.focus;
+    const focusedMember = membersById.get(focusedMemberId) || bundle.focus;
 
     for (const node of graph.nodes) {
-      const nodeId = normalizeMemberId(node.member._id || node.key);
-      if (!nodeId) {
-        continue;
-      }
-
-      const normalizedTarget = membersById.get(nodeId) || node.member;
-      const isFocused = nodeId === focusedMemberId;
-
-      if (isFocused) {
-        labels.set(nodeId, "Self");
+      if (node.member._id?.toString() === bundle?.focus?._id?.toString()) {
+        labels.set(node.key, "Self");
       } else {
-        labels.set(nodeId, resolveRelation(normalizedTarget, normalizedFocusedMember, membersForRelation));
+        const nodeId = normalizeMemberId(node.member._id || node.key);
+        const normalizedTarget = membersById.get(nodeId) || node.member;
+        labels.set(node.key, resolveRelation(normalizedTarget, focusedMember, membersForRelation));
       }
     }
     return labels;
