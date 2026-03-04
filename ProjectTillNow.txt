@@ -4676,3 +4676,7 @@ Self label now strictly follows bundle.focus so the active node always displays 
 Relations are now calculated relative to bundle.focus instead of the logged-in user.
 Self label dynamically follows the active focused node.
 Tree relations update correctly when focus changes.
+
+[Focus Relation Memoization Fix]
+Fixed useMemo dependency so relation labels recompute when the focused member changes.
+This resolves the issue where the "Self" label stayed attached to the previous member after focus change.
