@@ -4630,3 +4630,28 @@ Validation/build checks
 
 Pending tasks
 - Manual browser verification of click-to-focus transitions and relation label updates in live UI.
+
+[2026-03-04 | Build Fix | Docker npm ci Peer Conflict]
+[Resolved multer vs multer-gridfs-storage peer dependency failure during server image install]
+
+Completed modules
+1) Server dependency conflict resolution for production install
+- Updated `server/package.json`:
+  - `multer` changed from `^1.4.5-lts.1` to `1.4.4` (peer-compatible with `multer-gridfs-storage@^5.0.2`).
+- Regenerated `server/package-lock.json` to match the updated dependency graph.
+
+2) Install/build validation
+- `cd server && npm ci --omit=dev` -> passed.
+- `cd server && npm run build` -> passed (`check-syntax` passed for all files).
+
+File changes
+- `server/package.json`
+- `server/package-lock.json`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model changes.
+
+Pending tasks
+- Re-run container build in your Docker environment (`server/Dockerfile`) to confirm end-to-end image build success.
+- Optional security follow-up: migrate away from `multer-gridfs-storage` peer constraints so a patched `multer` LTS line can be restored without peer conflicts.
