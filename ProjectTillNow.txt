@@ -4655,3 +4655,10 @@ Database schema state
 Pending tasks
 - Re-run container build in your Docker environment (`server/Dockerfile`) to confirm end-to-end image build success.
 - Optional security follow-up: migrate away from `multer-gridfs-storage` peer constraints so a patched `multer` LTS line can be restored without peer conflicts.
+
+[2026-03-04 | Relation Engine Fix]
+[Relation Engine Fix]
+Removed WeakMap caching from relationResolver.
+Caching caused stale relationship calculations when tree focus changed.
+Relations are now recalculated correctly on each render.
+Dynamic focus engine now correctly moves the "Self" label to the active focused member.
