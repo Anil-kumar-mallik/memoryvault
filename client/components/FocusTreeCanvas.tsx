@@ -329,11 +329,10 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
     for (const node of graph.nodes) {
       if (node.member._id?.toString() === bundle?.focus?._id?.toString()) {
         labels.set(node.key, "Self");
-      } else {
-        const nodeId = normalizeMemberId(node.member._id || node.key);
-        const normalizedTarget = membersById.get(nodeId) || node.member;
-        labels.set(node.key, resolveRelation(normalizedTarget, focusedMember, membersForRelation));
+        continue;
       }
+
+      labels.set(node.key, resolveRelation(node.member, focusedMember, membersForRelation));
     }
     return labels;
   }, [bundle, graph.nodes, membersForRelation]);

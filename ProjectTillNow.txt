@@ -4667,3 +4667,6 @@ Dynamic focus engine now correctly moves the "Self" label to the active focused 
 Corrected tree relation rendering so the focused member always displays "Self".
 Rendering now checks bundle.focus directly instead of relying solely on relationResolver.
 Tree now correctly updates the "Self" label whenever focus changes.
+
+[Dynamic Focus Self Fix]
+Self label now strictly follows bundle.focus so the active node always displays Self and all other relations update relative to it.
