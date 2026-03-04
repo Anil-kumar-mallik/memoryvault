@@ -445,7 +445,7 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
 
   useEffect(() => {
     bundleRef.current = bundle;
-  }, [bundle]);
+  }, [bundle?.focus?._id]);
 
   useEffect(() => {
     if (!svgRef.current) {

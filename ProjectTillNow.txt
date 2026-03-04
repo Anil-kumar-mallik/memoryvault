@@ -4680,3 +4680,34 @@ Tree relations update correctly when focus changes.
 [Focus Relation Memoization Fix]
 Fixed useMemo dependency so relation labels recompute when the focused member changes.
 This resolves the issue where the "Self" label stayed attached to the previous member after focus change.
+
+[2026-03-04 | Frontend Patch | TreeCanvas Focus Remount for Self Label Refresh]
+[Force TreeCanvas remount on focus change to prevent stale Self label]
+
+Completed modules
+1) Focus-driven TreeCanvas remount
+- Updated tree page rendering to pass a dynamic React key tied to focused member id:
+  - `key={focusBundle?.focus?._id || "tree"}`
+- This forces full TreeCanvas remount whenever focus member changes.
+
+2) FocusTreeCanvas focus-sync dependency refinement
+- Updated `bundleRef` sync effect dependency from `[bundle]` to `[bundle?.focus?._id]` so wheel/keyboard navigation reference updates align with focus changes.
+
+3) Relation label memo dependency verification
+- Confirmed `relationLabelByNodeKey` dependency list is:
+  - `[bundle?.focus?._id, graph.nodes, membersForRelation]`
+- No additional logic changes were made.
+
+File changes
+- `client/app/tree/[id]/page.tsx`
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model/API changes.
+
+Pending tasks
+- Manual browser verification:
+  - change focus across multiple nodes and confirm `Self` always moves to current center/focus node,
+  - confirm old focus node no longer keeps stale `Self`,
+  - confirm wheel/arrow navigation still targets expected relatives without regressions.

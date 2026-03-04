@@ -1179,7 +1179,12 @@ export default function TreePage() {
         </aside>
 
         <div className="relative">
-          <TreeCanvas bundle={treeCanvasBundle} onFocusChange={handleFocusChange} onNodeInfo={openDetailModal} />
+          <TreeCanvas
+            key={focusBundle?.focus?._id || "tree"}
+            bundle={treeCanvasBundle}
+            onFocusChange={handleFocusChange}
+            onNodeInfo={openDetailModal}
+          />
           {loadingFocus && (
             <div className="absolute inset-0 rounded-xl border border-slate-200/70 bg-white/60 p-6 backdrop-blur-[1px]">
               <div className="mb-4 flex items-center gap-3">
