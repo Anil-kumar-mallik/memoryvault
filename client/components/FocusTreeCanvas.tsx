@@ -326,7 +326,7 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
       labels.set(node.key, resolveRelation(node.member, bundle.focus, membersForRelation));
     }
     return labels;
-  }, [bundle?.focus, graph.nodes, membersForRelation]);
+  }, [bundle?.focus?._id, graph.nodes, membersForRelation]);
   const avatarConfigByMemberId = useMemo(() => {
     const map = new Map<string, AvatarConfig>();
 
