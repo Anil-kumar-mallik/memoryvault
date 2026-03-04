@@ -61,6 +61,14 @@ const colorByGroup: Record<RelationGroup, string> = {
   sibling: "#475569"
 };
 
+function normalizeMemberId(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value);
+}
+
 function spread(count: number, spacing: number): number[] {
   if (count <= 1) {
     return [0];
@@ -75,15 +83,20 @@ function nextFocusId(direction: Direction, bundle: MemberWithRelationsResponse |
     return null;
   }
 
+  const toFocusId = (value: unknown): string | null => {
+    const normalized = normalizeMemberId(value);
+    return normalized || null;
+  };
+
   switch (direction) {
     case "parent":
-      return bundle.relations.father?._id || bundle.relations.mother?._id || null;
+      return toFocusId(bundle.relations.father?._id) || toFocusId(bundle.relations.mother?._id);
     case "child":
-      return bundle.relations.children[0]?._id || null;
+      return toFocusId(bundle.relations.children[0]?._id);
     case "sibling":
-      return bundle.relations.siblings[0]?._id || null;
+      return toFocusId(bundle.relations.siblings[0]?._id);
     case "spouse":
-      return bundle.relations.spouses[0]?._id || null;
+      return toFocusId(bundle.relations.spouses[0]?._id);
     default:
       return null;
   }
@@ -97,9 +110,13 @@ function buildVisualGraph(
     return { nodes: [], links: [] };
   }
 
-  const memberById = new Map((treeData || []).map((member) => [member._id, member]));
+  const memberById = new Map(
+    (treeData || [])
+      .map((member) => [normalizeMemberId(member._id), member] as const)
+      .filter(([memberId]) => Boolean(memberId))
+  );
   const resolveMember = (member: Member): Member => {
-    const updated = memberById.get(member._id);
+    const updated = memberById.get(normalizeMemberId(member._id));
     return updated ? { ...member, ...updated } : member;
   };
 
@@ -107,9 +124,14 @@ function buildVisualGraph(
   const links: VisualLink[] = [];
 
   const setNode = (member: Member, group: RelationGroup, x: number, y: number) => {
-    if (!nodes.has(member._id)) {
-      nodes.set(member._id, {
-        key: member._id,
+    const memberId = normalizeMemberId(member._id);
+    if (!memberId) {
+      return;
+    }
+
+    if (!nodes.has(memberId)) {
+      nodes.set(memberId, {
+        key: memberId,
         member,
         x,
         y,
@@ -119,8 +141,8 @@ function buildVisualGraph(
     }
 
     if (group === "focus") {
-      nodes.set(member._id, {
-        key: member._id,
+      nodes.set(memberId, {
+        key: memberId,
         member,
         x,
         y,
@@ -134,63 +156,83 @@ function buildVisualGraph(
 
   if (bundle.relations.father) {
     const father = resolveMember(bundle.relations.father);
+    const focusId = normalizeMemberId(focus._id);
+    const fatherId = normalizeMemberId(father._id);
     setNode(father, "father", -150, -220);
-    links.push({
-      key: `father-${father._id}`,
-      sourceId: focus._id,
-      targetId: father._id,
-      group: "father"
-    });
+    if (focusId && fatherId) {
+      links.push({
+        key: `father-${fatherId}`,
+        sourceId: focusId,
+        targetId: fatherId,
+        group: "father"
+      });
+    }
   }
 
   if (bundle.relations.mother) {
     const mother = resolveMember(bundle.relations.mother);
+    const focusId = normalizeMemberId(focus._id);
+    const motherId = normalizeMemberId(mother._id);
     setNode(mother, "mother", 150, -220);
-    links.push({
-      key: `mother-${mother._id}`,
-      sourceId: focus._id,
-      targetId: mother._id,
-      group: "mother"
-    });
+    if (focusId && motherId) {
+      links.push({
+        key: `mother-${motherId}`,
+        sourceId: focusId,
+        targetId: motherId,
+        group: "mother"
+      });
+    }
   }
 
   const visibleSpouses = bundle.relations.spouses.slice(0, MAX_RENDERED_SPOUSES);
   const spouseOffsets = spread(visibleSpouses.length, 120);
   visibleSpouses.forEach((sourceMember, index) => {
     const member = resolveMember(sourceMember);
+    const focusId = normalizeMemberId(focus._id);
+    const memberId = normalizeMemberId(member._id);
     setNode(member, "spouse", 330, spouseOffsets[index] ?? 0);
-    links.push({
-      key: `spouse-${member._id}`,
-      sourceId: focus._id,
-      targetId: member._id,
-      group: "spouse"
-    });
+    if (focusId && memberId) {
+      links.push({
+        key: `spouse-${memberId}`,
+        sourceId: focusId,
+        targetId: memberId,
+        group: "spouse"
+      });
+    }
   });
 
   const visibleSiblings = bundle.relations.siblings.slice(0, MAX_RENDERED_SIBLINGS);
   const siblingOffsets = spread(visibleSiblings.length, 120);
   visibleSiblings.forEach((sourceMember, index) => {
     const member = resolveMember(sourceMember);
+    const focusId = normalizeMemberId(focus._id);
+    const memberId = normalizeMemberId(member._id);
     setNode(member, "sibling", -330, siblingOffsets[index] ?? 0);
-    links.push({
-      key: `sibling-${member._id}`,
-      sourceId: focus._id,
-      targetId: member._id,
-      group: "sibling"
-    });
+    if (focusId && memberId) {
+      links.push({
+        key: `sibling-${memberId}`,
+        sourceId: focusId,
+        targetId: memberId,
+        group: "sibling"
+      });
+    }
   });
 
   const visibleChildren = bundle.relations.children.slice(0, MAX_RENDERED_CHILDREN);
   const childOffsets = spread(visibleChildren.length, 170);
   visibleChildren.forEach((sourceMember, index) => {
     const member = resolveMember(sourceMember);
+    const focusId = normalizeMemberId(focus._id);
+    const memberId = normalizeMemberId(member._id);
     setNode(member, "child", childOffsets[index] ?? 0, 240);
-    links.push({
-      key: `child-${member._id}`,
-      sourceId: focus._id,
-      targetId: member._id,
-      group: "child"
-    });
+    if (focusId && memberId) {
+      links.push({
+        key: `child-${memberId}`,
+        sourceId: focusId,
+        targetId: memberId,
+        group: "child"
+      });
+    }
   });
 
   return {
@@ -246,7 +288,7 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
         return;
       }
 
-      const memberId = String(member._id || "");
+      const memberId = normalizeMemberId(member._id);
       if (!memberId) {
         return;
       }
@@ -262,10 +304,9 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
     bundle?.relations.children.forEach(addMember);
     bundle?.relations.siblings.forEach(addMember);
     graph.nodes.forEach((node) => addMember(node.member));
-    (treeData || []).forEach(addMember);
 
     return Array.from(membersById.values());
-  }, [bundle, graph.nodes, treeData]);
+  }, [bundle, graph.nodes]);
 
   const relationLabelByNodeKey = useMemo(() => {
     const labels = new Map<string, string>();
@@ -273,16 +314,20 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
       return labels;
     }
 
-    const focusedMemberId = String(bundle.focus._id || "");
+    const focusedMemberId = normalizeMemberId(bundle.focus._id);
     if (!focusedMemberId) {
       return labels;
     }
 
-    const membersById = new Map(membersForRelation.map((member) => [String(member._id || ""), member]));
+    const membersById = new Map(
+      membersForRelation
+        .map((member) => [normalizeMemberId(member._id), member] as const)
+        .filter(([memberId]) => Boolean(memberId))
+    );
     const normalizedFocusedMember = membersById.get(focusedMemberId) || bundle.focus;
 
     for (const node of graph.nodes) {
-      const nodeId = String(node.member._id || node.key || "");
+      const nodeId = normalizeMemberId(node.member._id || node.key);
       if (!nodeId) {
         continue;
       }
@@ -304,7 +349,7 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
     for (const node of graph.nodes) {
       const imageUrl = resolveProfileImageUrl(node.member.profileImage);
       const availableImageUrl = imageUrl && !failedImageUrls.has(imageUrl) ? imageUrl : null;
-      map.set(node.member._id, {
+      map.set(normalizeMemberId(node.member._id), {
         imageUrl: availableImageUrl,
         fallbackColor: avatarFallbackColor(node.member),
         initial: firstLetter(node.member.name)
@@ -317,7 +362,7 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
   const renderNodeAvatar = useCallback(
     (selection: d3.Selection<SVGGElement, VisualNode, SVGGElement, unknown>) => {
       selection.each(function (item) {
-        const avatarConfig = avatarConfigByMemberId.get(item.member._id);
+        const avatarConfig = avatarConfigByMemberId.get(normalizeMemberId(item.member._id));
         if (!avatarConfig) {
           return;
         }
@@ -408,7 +453,7 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
           .data([item], (datum) => datum.member._id)
           .join("xhtml:p")
           .attr("class", NODE_RELATION_CLASS)
-          .text((datum) => relationLabelByNodeKey.get(String(datum.member._id || datum.key)) || "Relative");
+          .text((datum) => relationLabelByNodeKey.get(normalizeMemberId(datum.member._id || datum.key)) || "Relative");
       });
     },
     [avatarConfigByMemberId, relationLabelByNodeKey]
@@ -552,7 +597,11 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
     }
 
     const { nodes, links } = graph;
-    const positionMap = new Map(nodes.map((node) => [node.member._id, { x: node.x, y: node.y }]));
+    const positionMap = new Map(
+      nodes
+        .map((node) => [normalizeMemberId(node.member._id), { x: node.x, y: node.y }] as const)
+        .filter(([memberId]) => Boolean(memberId))
+    );
     const transitionDuration = nodes.length > 140 ? 0 : nodes.length > 70 ? 260 : 520;
     const transition = transitionDuration > 0 ? d3.transition().duration(transitionDuration).ease(d3.easeCubicInOut) : null;
 
@@ -615,21 +664,24 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
       .attr("class", "mv-node")
       .attr("cursor", "pointer")
       .attr("transform", (item) => {
-        const previous = previousPositionRef.current.get(item.member._id) || { x: 0, y: 0 };
+        const previous = previousPositionRef.current.get(normalizeMemberId(item.member._id)) || { x: 0, y: 0 };
         return `translate(${previous.x},${previous.y})`;
       })
       .style("opacity", 0)
       .on("click", (_event, item) => {
-        onFocusChange(item.member._id);
+        const memberId = normalizeMemberId(item.member._id);
+        if (memberId) {
+          onFocusChange(memberId);
+        }
       });
 
     nodeEnter
       .append("rect")
       .attr("class", "mv-node-hitbox")
-      .attr("x", -NODE_RADIUS)
-      .attr("y", -NODE_RADIUS)
-      .attr("width", NODE_DIAMETER)
-      .attr("height", NODE_DIAMETER)
+      .attr("x", -(NODE_CONTENT_WIDTH / 2))
+      .attr("y", -40)
+      .attr("width", NODE_CONTENT_WIDTH)
+      .attr("height", NODE_CONTENT_HEIGHT)
       .attr("rx", 20)
       .attr("ry", 20)
       .attr("fill", "transparent")
@@ -709,7 +761,11 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
       nodeSelection.exit().remove();
     }
 
-    previousPositionRef.current = new Map(nodes.map((node) => [node.member._id, { x: node.x, y: node.y }]));
+    previousPositionRef.current = new Map(
+      nodes
+        .map((node) => [normalizeMemberId(node.member._id), { x: node.x, y: node.y }] as const)
+        .filter(([memberId]) => Boolean(memberId))
+    );
 
     const targetTransform = d3.zoomIdentity
       .translate(VIEWBOX_WIDTH / 2, VIEWBOX_HEIGHT / 2)

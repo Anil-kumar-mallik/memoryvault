@@ -4593,3 +4593,40 @@ Database schema state
 
 Pending tasks
 - Manual browser verification of click-through focus transitions in the interactive tree (build validation completed).
+
+[2026-03-04 | Frontend Patch | Dynamic Focus Engine Fix (Follow-up)]
+[Stabilized focus switching and relation context normalization]
+- Self label now follows active focused member.
+- Relation calculations normalized against bundle.focus.
+- Removed implicit dependency on logged-in user context.
+- Stability verified (no API changes, no schema changes).
+
+Completed modules
+1) Focus click and navigation ID normalization in tree canvas
+- Added normalized member-id handling for:
+  - node click focus updates,
+  - wheel/arrow navigation target resolution,
+  - node/link graph keys and lookup maps.
+- Ensures focus updates are always emitted as normalized string IDs.
+
+2) Relation context tightening in `FocusTreeCanvas`
+- `relationLabelByNodeKey` now uses normalized focus/target IDs consistently.
+- `membersForRelation` now prioritizes active bundle context members and rendered graph members only (removed stale overlay dependency from `treeData` for relation computation).
+- `Self` assignment remains strict to normalized `bundle.focus._id`.
+
+3) Interaction reliability
+- Expanded node hitbox to cover the full visible node content block (avatar + labels) so clicking any visible part of a node triggers focus change consistently.
+
+File changes
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build completed with existing non-blocking `no-img-element` warnings only.
+
+Pending tasks
+- Manual browser verification of click-to-focus transitions and relation label updates in live UI.
