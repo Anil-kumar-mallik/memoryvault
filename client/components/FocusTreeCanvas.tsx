@@ -310,32 +310,23 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
 
   const relationLabelByNodeKey = useMemo(() => {
     const labels = new Map<string, string>();
-    if (!bundle) {
+    if (!bundle?.focus) {
       return labels;
     }
 
-    const focusedMemberId = normalizeMemberId(bundle.focus._id);
-    if (!focusedMemberId) {
-      return labels;
-    }
-
-    const membersById = new Map(
-      membersForRelation
-        .map((member) => [normalizeMemberId(member._id), member] as const)
-        .filter(([memberId]) => Boolean(memberId))
-    );
-    const focusedMember = membersById.get(focusedMemberId) || bundle.focus;
+    const focusId = bundle.focus._id?.toString();
 
     for (const node of graph.nodes) {
-      if (node.member._id?.toString() === bundle?.focus?._id?.toString()) {
+      const nodeId = node.member._id?.toString();
+      if (nodeId === focusId) {
         labels.set(node.key, "Self");
         continue;
       }
 
-      labels.set(node.key, resolveRelation(node.member, focusedMember, membersForRelation));
+      labels.set(node.key, resolveRelation(node.member, bundle.focus, membersForRelation));
     }
     return labels;
-  }, [bundle, graph.nodes, membersForRelation]);
+  }, [bundle?.focus, graph.nodes, membersForRelation]);
   const avatarConfigByMemberId = useMemo(() => {
     const map = new Map<string, AvatarConfig>();
 

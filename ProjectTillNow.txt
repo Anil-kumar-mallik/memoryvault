@@ -4670,3 +4670,9 @@ Tree now correctly updates the "Self" label whenever focus changes.
 
 [Dynamic Focus Self Fix]
 Self label now strictly follows bundle.focus so the active node always displays Self and all other relations update relative to it.
+
+[Dynamic Focus Relation Engine Fix]
+
+Relations are now calculated relative to bundle.focus instead of the logged-in user.
+Self label dynamically follows the active focused node.
+Tree relations update correctly when focus changes.
