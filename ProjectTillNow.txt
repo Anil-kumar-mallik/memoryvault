@@ -4711,3 +4711,40 @@ Pending tasks
   - change focus across multiple nodes and confirm `Self` always moves to current center/focus node,
   - confirm old focus node no longer keeps stale `Self`,
   - confirm wheel/arrow navigation still targets expected relatives without regressions.
+
+[2026-03-04 | Frontend Patch | Relationship Label Output Improvement]
+[Updated parent/sibling label wording in relation resolver]
+
+Completed modules
+1) Parent label output refinement
+- Updated `parentLabelByGender` return type and fallback behavior:
+  - Returns `Father` for male.
+  - Returns `Mother` for female.
+  - Fallback now returns `Father` (no `Parent` output).
+
+2) Sibling label output enhancement
+- Added new `siblingLabelByGender` helper:
+  - `Brother` for male.
+  - `Sister` for female.
+  - `Sibling` fallback for unknown gender.
+
+3) Resolver sibling return update
+- Replaced generic sibling return in `resolveRelation(...)` with:
+  - `return siblingLabelByGender(resolvedTarget.gender);`
+
+File changes
+- `client/utils/relationResolver.ts`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model/API changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build completed with existing non-blocking warnings only (`no-img-element`, existing hook dependency warnings in `FocusTreeCanvas.tsx`).
+
+Pending tasks
+- Manual UI verification:
+  - parent relation now displays `Father` / `Mother` (no `Parent`),
+  - sibling relation now displays `Brother` / `Sister` based on target gender,
+  - unknown sibling gender still displays `Sibling`.

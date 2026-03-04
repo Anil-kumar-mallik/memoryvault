@@ -41,7 +41,7 @@ function childLabelByGender(gender?: string): "Son" | "Daughter" | "Child" {
   return "Child";
 }
 
-function parentLabelByGender(gender?: string): "Father" | "Mother" | "Parent" {
+function parentLabelByGender(gender?: string): "Father" | "Mother" {
   const normalized = String(gender || "").toLowerCase();
   if (normalized === "male") {
     return "Father";
@@ -51,7 +51,21 @@ function parentLabelByGender(gender?: string): "Father" | "Mother" | "Parent" {
     return "Mother";
   }
 
-  return "Parent";
+  return "Father";
+}
+
+function siblingLabelByGender(gender?: string): "Brother" | "Sister" | "Sibling" {
+  const normalized = String(gender || "").toLowerCase();
+
+  if (normalized === "male") {
+    return "Brother";
+  }
+
+  if (normalized === "female") {
+    return "Sister";
+  }
+
+  return "Sibling";
 }
 
 export function resolveRelation(target: Member, context: Member, allMembers: Member[]): string {
@@ -102,7 +116,7 @@ export function resolveRelation(target: Member, context: Member, allMembers: Mem
     hasMemberId(resolvedTarget.siblings, normalizedContextId) ||
     hasMemberId(resolvedContext.siblings, normalizedTargetId)
   ) {
-    return "Sibling";
+    return siblingLabelByGender(resolvedTarget.gender);
   }
 
   return "Relative";
