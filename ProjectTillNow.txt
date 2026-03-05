@@ -4860,3 +4860,26 @@ Validation/build checks
 
 Pending tasks
 - Optional production smoke test on Render: boot service and verify profile image upload + image fetch for existing member endpoints.
+
+[2026-03-05 | Production Debug | Render 404 + 500 Resource Errors]
+[Diagnosed live API failures by testing deployed endpoints directly]
+
+Completed modules
+1) Live production endpoint diagnosis
+- Verified `GET /api/v1/trees/69a578b94066967f242acedb/members` responds `200` when called without browser-origin restrictions.
+- Reproduced `500` on the same endpoint when request contains a non-allowed `Origin` header; response message is `CSRF invalid origin: <origin>`.
+- Reproduced `404` on legacy image paths under `/uploads/...` (example profile image URL returns `Route not found`).
+
+File changes
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index changes.
+
+Validation/build checks
+- No local code changes in this step.
+- Production diagnosis performed via direct HTTP calls to deployed Render API.
+
+Pending tasks
+- Set Render env `FRONTEND_URL` and/or `CLIENT_URL` to the exact deployed frontend origin (or adjust CORS policy) to eliminate origin-driven `500` responses.
+- Migrate/replace legacy `/uploads/...` profile image references (or repopulate persistent storage) to eliminate `404` image fetches.
