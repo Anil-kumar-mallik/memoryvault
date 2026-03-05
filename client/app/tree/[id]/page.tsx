@@ -38,6 +38,7 @@ import {
   TreeDetails
 } from "@/types";
 import { useI18n } from "@/lib/i18n/provider";
+import { wouldCreateCircularRelation } from "@/utils/relationGuard";
 
 const relationMutationOptions: { value: RelationMutationType; labelKey: string }[] = [
   { value: "father", labelKey: "tree.father" },
@@ -897,6 +898,19 @@ export default function TreePage() {
     if (!relationTargetMemberId) {
       setError("Select a target member for relation update.");
       return;
+    }
+
+    if (
+      relationAction === "connect" &&
+      (relationType === "father" || relationType === "mother" || relationType === "child")
+    ) {
+      const sourceIdForCheck = relationType === "child" ? relationTargetMemberId : detailBundle.focus._id;
+      const targetIdForCheck = relationType === "child" ? detailBundle.focus._id : relationTargetMemberId;
+
+      if (wouldCreateCircularRelation(sourceIdForCheck, targetIdForCheck, treeData)) {
+        setError("Invalid relation: circular family relation detected.");
+        return;
+      }
     }
 
     try {

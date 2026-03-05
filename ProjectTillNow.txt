@@ -5003,3 +5003,35 @@ Pending tasks
   - node hover scale smoothness,
   - modal open/close feel,
   - save button spinner visibility during submit.
+
+[2026-03-06 | Frontend Safety Patch | Circular Relation Guard]
+[Added frontend-only circular ancestry protection in relation mutation flow]
+
+Completed modules
+1) Tree intelligence circular relation guard
+- Added shared utility `client/utils/relationGuard.ts` with ancestor traversal detection on in-memory member graph.
+- Integrated guard before relation mutation API call in `client/app/tree/[id]/page.tsx`.
+- Blocks invalid connect mutations for `father`, `mother`, and `child` when relation would create ancestry loop.
+- Shows user-facing error: "Invalid relation: circular family relation detected."
+- Backend/API/database/tree rendering unchanged.
+
+2) Documentation update
+- Added `Tree Intelligence Layer` section in `ProjectTillNow.md` describing circular protection and tree integrity benefits.
+
+File changes
+- `client/utils/relationGuard.ts`
+- `client/app/tree/[id]/page.tsx`
+- `ProjectTillNow.md`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build completed successfully; only pre-existing non-blocking warnings remain (`no-img-element`, `react-hooks/exhaustive-deps`).
+
+Pending tasks
+- Optional manual UI verification in tree relation modal:
+  - confirm circular parent/child attempts are blocked with the new error message,
+  - confirm valid non-circular relations still apply normally.
