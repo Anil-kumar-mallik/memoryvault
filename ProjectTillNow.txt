@@ -4837,3 +4837,26 @@ Validation/build checks
 
 Pending tasks
 - Optional runtime verification: start server and test profile image upload/read flow to confirm no startup or upload regressions.
+
+[2026-03-05 | Backend Hardening | GridFS Storage Connection Compatibility]
+[Aligned multer-gridfs-storage with existing mongoose connection and kept single storage declaration]
+
+Completed modules
+1) GridFS config compatibility hardening
+- Confirmed and preserved a single `GridFsStorage` declaration.
+- Updated storage connection option from standalone `url` connection to shared mongoose `db` promise (`mongoose.connection.asPromise()`), preventing split GridFS read/write connection behavior.
+- Preserved existing GridFSBucket initialization, upload file filtering, upload size limits, helper methods, and module exports.
+
+File changes
+- `server/src/config/gridfs.js`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index changes.
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+- Syntax check passed for 63 files.
+
+Pending tasks
+- Optional production smoke test on Render: boot service and verify profile image upload + image fetch for existing member endpoints.

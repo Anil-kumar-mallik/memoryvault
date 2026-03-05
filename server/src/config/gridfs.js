@@ -40,8 +40,10 @@ mongoose.connection.on("disconnected", () => {
   gridFsStream = null;
 });
 
+const dbPromise = mongoose.connection.asPromise().then((connection) => connection.db);
+
 const storage = new GridFsStorage({
-  url: process.env.MONGO_URI,
+  db: dbPromise,
   file: (_req, file) =>
     new Promise((resolve, reject) => {
       const normalizedMime = String(file.mimetype || "").toLowerCase();
