@@ -4883,3 +4883,26 @@ Validation/build checks
 Pending tasks
 - Set Render env `FRONTEND_URL` and/or `CLIENT_URL` to the exact deployed frontend origin (or adjust CORS policy) to eliminate origin-driven `500` responses.
 - Migrate/replace legacy `/uploads/...` profile image references (or repopulate persistent storage) to eliminate `404` image fetches.
+
+[2026-03-05 | Backend Fix | GridFS Open-Connection Gate]
+[Fixed intermittent upload failure: "The database connection must be open to store files"]
+
+Completed modules
+1) GridFS storage connection gating fix
+- Replaced `mongoose.connection.asPromise()` usage in `gridfs.js` because it resolves even when connection `readyState` is 0 and `db` is unavailable.
+- Added `waitForOpenDb()` promise that resolves only when mongoose is actually connected and native `db` exists.
+- Kept GridFS bucket logic, upload limits, file filtering, helper functions, and exports unchanged.
+
+File changes
+- `server/src/config/gridfs.js`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index changes.
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+- Syntax check passed for 63 files.
+
+Pending tasks
+- Production verification on Render: upload a profile image and confirm no `The database connection must be open to store files` error in logs.

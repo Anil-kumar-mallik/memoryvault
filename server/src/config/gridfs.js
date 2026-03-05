@@ -40,7 +40,44 @@ mongoose.connection.on("disconnected", () => {
   gridFsStream = null;
 });
 
-const dbPromise = mongoose.connection.asPromise().then((connection) => connection.db);
+const waitForOpenDb = () => {
+  if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+    return Promise.resolve(mongoose.connection.db);
+  }
+
+  return new Promise((resolve, reject) => {
+    const onConnected = () => {
+      cleanup();
+      if (!mongoose.connection.db) {
+        reject(new Error("MongoDB connected but native db instance is unavailable."));
+        return;
+      }
+      resolve(mongoose.connection.db);
+    };
+
+    const onError = (error) => {
+      cleanup();
+      reject(error);
+    };
+
+    const onDisconnected = () => {
+      cleanup();
+      reject(new Error("MongoDB disconnected before GridFS storage initialization."));
+    };
+
+    const cleanup = () => {
+      mongoose.connection.off("connected", onConnected);
+      mongoose.connection.off("error", onError);
+      mongoose.connection.off("disconnected", onDisconnected);
+    };
+
+    mongoose.connection.once("connected", onConnected);
+    mongoose.connection.once("error", onError);
+    mongoose.connection.once("disconnected", onDisconnected);
+  });
+};
+
+const dbPromise = waitForOpenDb();
 
 const storage = new GridFsStorage({
   db: dbPromise,
