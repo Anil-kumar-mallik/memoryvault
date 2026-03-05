@@ -829,15 +829,17 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
           transition: fill 140ms ease;
         }
         .mv-tree-svg :global(.mv-node .mv-node-shell) {
-          transition: stroke 140ms ease, stroke-width 140ms ease, filter 140ms ease;
+          transition: transform 140ms ease, stroke 140ms ease, stroke-width 140ms ease, filter 140ms ease;
         }
         .mv-tree-svg :global(.mv-node:hover .mv-node-hitbox) {
           fill: rgba(148, 163, 184, 0.14);
         }
         .mv-tree-svg :global(.mv-node:hover .mv-node-shell) {
           stroke: #94a3b8;
-          stroke-width: 4.5px;
+          stroke-width: 5px;
           filter: url(#mv-node-shadow-strong);
+          transform: scale(1.05);
+          transition: transform 140ms ease, stroke 140ms ease;
         }
       `}</style>
     </div>

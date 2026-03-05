@@ -4964,3 +4964,42 @@ Validation/build checks
 Pending tasks
 - Deploy backend to Render and re-test Add Member with image from Vercel UI.
 - Optional cleanup: remove `multer-gridfs-storage` dependency in a follow-up since runtime no longer depends on it.
+
+[2026-03-06 | Frontend UI Patch | Safe Micro-Animations]
+[Added UI-only interaction animations without changing tree/data/API logic]
+
+Completed modules
+1) Tree node hover micro-animation
+- Updated `client/components/FocusTreeCanvas.tsx` hover style for `.mv-node-shell` with smoother scale + stroke transition and stronger hover shadow.
+- No graph layout, relation logic, or rendering data flow changed.
+
+2) Member modal open animation refinement
+- Updated modal content motion transition in `client/components/MemberModal.tsx` to a smoother open timing (`duration: 0.18`).
+- Existing framer-motion modal behavior preserved.
+
+3) Save button loading animation
+- Updated submit button in `client/components/MemberForm.tsx` with spinner + `Saving...` state while submitting.
+- Kept form submit behavior and handlers unchanged.
+
+4) Documentation update
+- Added `ProjectTillNow.md` with requested UI enhancement summary section.
+
+File changes
+- `client/components/FocusTreeCanvas.tsx`
+- `client/components/MemberModal.tsx`
+- `client/components/MemberForm.tsx`
+- `ProjectTillNow.md`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No backend/schema/index/model changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build completed successfully; only existing non-blocking lint warnings remain (`no-img-element` and existing hook dependency warnings).
+
+Pending tasks
+- Deploy frontend build and perform quick manual UI checks for:
+  - node hover scale smoothness,
+  - modal open/close feel,
+  - save button spinner visibility during submit.

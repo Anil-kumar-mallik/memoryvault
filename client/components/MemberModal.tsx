@@ -175,7 +175,7 @@ function MemberModal(props: MemberModalInternalProps) {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.2 }}
+        transition={{ duration: 0.18 }}
       >
         <div className="sticky top-0 z-20 -mx-6 -mt-6 mb-4 flex items-center justify-between border-b border-slate-200 bg-white/95 px-6 py-4 backdrop-blur">
           <h2 className="text-xl font-semibold text-slate-900">Member Details</h2>

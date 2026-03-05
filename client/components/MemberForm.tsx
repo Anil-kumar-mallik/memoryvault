@@ -91,9 +91,6 @@ function MemberForm({ initialData, mode, onSubmit, onCancel, onRemoveImage, remo
     };
   }, [form.imageFile]);
 
-  const submitLabel = mode === "add" ? "Add Member" : "Update Member";
-  const submittingLabel = mode === "add" ? "Creating..." : "Saving...";
-
   const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const nextFile = event.target.files?.[0] ?? null;
     setForm((current) => ({
@@ -257,8 +254,15 @@ function MemberForm({ initialData, mode, onSubmit, onCancel, onRemoveImage, remo
         <button type="button" className="button-secondary flex-1" onClick={onCancel} disabled={submitting || removingImage}>
           Cancel
         </button>
-        <button type="submit" className="button-primary flex-1" disabled={submitting || removingImage}>
-          {submitting ? submittingLabel : submitLabel}
+        <button
+          type="submit"
+          className="button-primary flex-1 flex items-center justify-center gap-2"
+          disabled={submitting || removingImage}
+        >
+          {submitting && (
+            <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          )}
+          {submitting ? "Saving..." : "Save"}
         </button>
       </div>
     </form>
