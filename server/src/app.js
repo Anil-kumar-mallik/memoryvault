@@ -14,6 +14,27 @@ const { errorHandler, notFound } = require("./middleware/errorMiddleware");
 const app = express();
 const serverRootDir = path.resolve();
 
+const normalizeOrigin = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+
+  try {
+    return new URL(raw).origin;
+  } catch (_error) {
+    return raw.replace(/\/+$/, "");
+  }
+};
+
+const isVercelOrigin = (origin) => {
+  try {
+    return new URL(origin).hostname.endsWith(".vercel.app");
+  } catch (_error) {
+    return false;
+  }
+};
+
 /* ===============================
    ENV + ORIGIN CONFIG
 ================================= */
@@ -23,7 +44,12 @@ const isProduction = String(process.env.NODE_ENV || "").toLowerCase() === "produ
 const allowedOrigins = [
   process.env.CLIENT_URL,
   process.env.FRONTEND_URL
-].filter(Boolean);
+]
+  .flatMap((value) => String(value || "").split(","))
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+const normalizedAllowedOrigins = new Set(allowedOrigins.map((origin) => normalizeOrigin(origin)).filter(Boolean));
 
 /* ===============================
    RATE LIMIT CONFIG
@@ -75,13 +101,14 @@ app.use(
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
 
-      const isVercel = origin && origin.endsWith(".vercel.app");
+      const normalizedOrigin = normalizeOrigin(origin);
+      const isVercel = isVercelOrigin(origin);
 
-      if (allowedOrigins.includes(origin) || isVercel) {
+      if (normalizedAllowedOrigins.has(normalizedOrigin) || isVercel) {
         return callback(null, true);
       }
 
-      return callback(new Error(`CSRF invalid origin: ${origin}`));
+      return callback(null, false);
     },
     credentials: true
   })

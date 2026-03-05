@@ -4906,3 +4906,28 @@ Validation/build checks
 
 Pending tasks
 - Production verification on Render: upload a profile image and confirm no `The database connection must be open to store files` error in logs.
+
+[2026-03-05 | Backend Fix | CORS Failed-to-Fetch Hardening]
+[Reduced browser-side opaque fetch failures by normalizing origin matching and removing thrown CORS callback errors]
+
+Completed modules
+1) CORS robustness update in API bootstrap
+- Added origin normalization utility in `server/src/app.js`.
+- Added Vercel hostname-safe origin detection.
+- Updated allowed-origin parsing to support trimmed/comma-separated env values.
+- Updated CORS `origin` callback to compare normalized origins and return `callback(null, false)` for disallowed origins instead of throwing an error.
+
+File changes
+- `server/src/app.js`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index changes.
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+- Syntax check passed for 63 files.
+
+Pending tasks
+- Deploy updated backend on Render and verify browser requests from frontend origin no longer fail with generic `Failed to fetch`.
+- Ensure Render env `FRONTEND_URL`/`CLIENT_URL` exactly matches frontend origin(s) (including custom domains if any).
