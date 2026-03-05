@@ -67,30 +67,6 @@ const storage = new GridFsStorage({
     })
 });
 
-const storage = new GridFsStorage({
-  url: process.env.MONGO_URI, 
-  file: (_req, file) =>
-    new Promise((resolve, reject) => {
-      const normalizedMime = String(file.mimetype || "").toLowerCase();
-      const extension = allowedMimeToExtension[normalizedMime];
-
-      if (!extension) {
-        reject(new Error("Unsupported image format."));
-        return;
-      }
-
-      const uniqueName = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString("hex");
-      const originalName = String(file.originalname || "").trim();
-      const parsedOriginal = originalName ? path.parse(originalName).name : "image";
-
-      resolve({
-        filename: `member-${Date.now()}-${uniqueName}-${parsedOriginal}.${extension}`,
-        bucketName: GRIDFS_BUCKET_NAME,
-        contentType: normalizedMime
-      });
-    })
-});
-
 const fileFilter = (_req, file, callback) => {
   const normalizedMime = String(file.mimetype || "").toLowerCase();
   if (allowedMimeToExtension[normalizedMime]) {

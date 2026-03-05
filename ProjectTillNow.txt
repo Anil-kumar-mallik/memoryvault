@@ -4814,3 +4814,26 @@ Validation/build checks
 
 Pending tasks
 - Optional runtime verification in API environment: upload/update profile image multiple times to confirm no intermittent "The database connection must be open to store files." errors.
+
+[2026-03-05 | Backend Bug Fix | GridFS Storage Duplicate Declaration]
+[Resolved startup SyntaxError by keeping a single multer GridFS storage declaration]
+
+Completed modules
+1) GridFS config startup fix
+- Removed duplicate `const storage` declaration in `server/src/config/gridfs.js`.
+- Kept one `GridFsStorage` declaration using `url: process.env.MONGO_URI`.
+- Preserved existing GridFS bucket init, file filter, upload limits, helper methods, and exports.
+
+File changes
+- `server/src/config/gridfs.js`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index changes.
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+- Syntax check passed for 63 files.
+
+Pending tasks
+- Optional runtime verification: start server and test profile image upload/read flow to confirm no startup or upload regressions.
