@@ -40,7 +40,19 @@ mongoose.connection.on("disconnected", () => {
   gridFsStream = null;
 });
 
-const dbPromise = mongoose.connection.asPromise().then((connection) => connection.db);
+const dbPromise = new Promise((resolve, reject) => {
+  if (mongoose.connection.readyState === 1) {
+    return resolve(mongoose.connection.db);
+  }
+
+  mongoose.connection.once("open", () => {
+    resolve(mongoose.connection.db);
+  });
+
+  mongoose.connection.once("error", (err) => {
+    reject(err);
+  });
+});
 
 const storage = new GridFsStorage({
   db: dbPromise,
