@@ -5035,3 +5035,41 @@ Pending tasks
 - Optional manual UI verification in tree relation modal:
   - confirm circular parent/child attempts are blocked with the new error message,
   - confirm valid non-circular relations still apply normally.
+
+[2026-03-06 | Frontend Intelligence Patch | Generation Level Resolver]
+[Added frontend-only generation level computation relative to active focus member]
+
+Completed modules
+1) Generation intelligence utility
+- Added `client/utils/generationResolver.ts` with `resolveGenerationLevels(focusId, members)`.
+- Computes dynamic generation levels via safe BFS traversal:
+  - focus -> 0
+  - parents -> -1 per ancestor step
+  - children -> +1 per descendant step
+- Operates only on client member data; no API or backend dependency.
+
+2) Focus tree computation integration (non-rendering)
+- Imported generation resolver in `client/components/FocusTreeCanvas.tsx`.
+- Added memoized generation-level computation after `membersForRelation`:
+  - `generationLevels = useMemo(...)`
+- Kept tree rendering and interaction behavior unchanged (computed map is prepared for future features only).
+
+3) Documentation update
+- Added `Generation Intelligence` section in `ProjectTillNow.md`.
+
+File changes
+- `client/utils/generationResolver.ts`
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.md`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index/API changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build succeeded with only existing non-blocking warnings (`no-img-element`, pre-existing hook dependency warnings).
+
+Pending tasks
+- Optional future UI enhancement: surface generation level badges/filters in tree node metadata panel using the precomputed map.
+- Optional analytics follow-up: add generation-based grouping/timeline views using `generationLevels`.

@@ -16,3 +16,13 @@ New safety validation added:
 - Protects tree engine integrity
 
 This improves system robustness for large family trees.
+
+### Generation Intelligence
+
+Tree now computes generation levels dynamically.
+
+Focus member -> generation 0  
+Parents -> generation -1  
+Children -> generation +1  
+
+This prepares the system for advanced tree analytics and timeline features.
