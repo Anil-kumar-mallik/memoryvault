@@ -4791,3 +4791,26 @@ Pending tasks
   - Upload/Change updates preview before submit,
   - Remove action clears/removes image via existing flow,
   - Save still updates tree/member views correctly.
+
+[2026-03-05 | Backend Patch | GridFS Initialization Timing Stabilization]
+[Initialized GridFS immediately after MongoDB connection to avoid intermittent upload timing failures]
+
+Completed modules
+1) GridFS startup timing stabilization (backward-compatible)
+- Added early GridFS config import in server bootstrap to load module at startup.
+- Added explicit GridFS config require immediately after `await connectDB();` so GridFS bucket initialization hooks run after DB connection is established.
+- No route/controller/upload API logic changed.
+
+File changes
+- `server/src/server.js`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index changes.
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+- Syntax check passed for 63 files.
+
+Pending tasks
+- Optional runtime verification in API environment: upload/update profile image multiple times to confirm no intermittent "The database connection must be open to store files." errors.
