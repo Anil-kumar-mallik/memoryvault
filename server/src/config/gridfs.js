@@ -40,18 +40,31 @@ mongoose.connection.on("disconnected", () => {
   gridFsStream = null;
 });
 
-const dbPromise = new Promise((resolve, reject) => {
-  if (mongoose.connection.readyState === 1) {
-    return resolve(mongoose.connection.db);
-  }
+const storage = new GridFsStorage({
+  url: process.env.MONGO_URI,
+  file: (_req, file) =>
+    new Promise((resolve, reject) => {
+      const normalizedMime = String(file.mimetype || "").toLowerCase();
+      const extension = allowedMimeToExtension[normalizedMime];
 
-  mongoose.connection.once("open", () => {
-    resolve(mongoose.connection.db);
-  });
+      if (!extension) {
+        reject(new Error("Unsupported image format."));
+        return;
+      }
 
-  mongoose.connection.once("error", (err) => {
-    reject(err);
-  });
+      const uniqueName = crypto.randomUUID
+        ? crypto.randomUUID()
+        : crypto.randomBytes(16).toString("hex");
+
+      const originalName = String(file.originalname || "").trim();
+      const parsedOriginal = originalName ? path.parse(originalName).name : "image";
+
+      resolve({
+        filename: `member-${Date.now()}-${uniqueName}-${parsedOriginal}.${extension}`,
+        bucketName: GRIDFS_BUCKET_NAME,
+        contentType: normalizedMime
+      });
+    })
 });
 
 const storage = new GridFsStorage({

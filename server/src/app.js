@@ -137,7 +137,7 @@ app.use(
    BODY + SANITIZATION
 ================================= */
 
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({ limit: "10mb" }));
 app.use("/uploads", express.static(path.join(serverRootDir, "server", "uploads")));
 app.use(express.urlencoded({ extended: true }));
 
