@@ -4931,3 +4931,36 @@ Validation/build checks
 Pending tasks
 - Deploy updated backend on Render and verify browser requests from frontend origin no longer fail with generic `Failed to fetch`.
 - Ensure Render env `FRONTEND_URL`/`CLIENT_URL` exactly matches frontend origin(s) (including custom domains if any).
+
+[2026-03-06 | Backend Hotfix | Multipart Upload Crash Causing 502/Failed-to-Fetch]
+[Replaced incompatible multer-gridfs-storage runtime path with stable custom GridFS multer storage]
+
+Completed modules
+1) Root-cause fix for failed fetch on Add Member with image upload
+- Reproduced production-like crash locally on multipart `POST /api/v1/trees/:treeId/members`.
+- Identified crash source: `multer-gridfs-storage` emitted `TypeError` on upload finish with MongoDB driver 6 (`_id` undefined), causing process termination and gateway `502`.
+- Replaced only the storage engine internals in `server/src/config/gridfs.js` with a custom multer storage that streams directly to `GridFSBucket`.
+- Preserved existing API surface and behavior:
+  - same `upload` middleware export,
+  - same file type and size enforcement,
+  - same GridFS bucket helpers (`getImageFile`, `getImageStream`),
+  - same module exports.
+
+File changes
+- `server/src/config/gridfs.js`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index changes.
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+- Syntax check passed for 63 files.
+- Local end-to-end verification passed:
+  - register/login/create tree,
+  - multipart member creation with PNG upload,
+  - response returned `201` with member payload.
+
+Pending tasks
+- Deploy backend to Render and re-test Add Member with image from Vercel UI.
+- Optional cleanup: remove `multer-gridfs-storage` dependency in a follow-up since runtime no longer depends on it.

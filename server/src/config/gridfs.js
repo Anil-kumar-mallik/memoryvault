@@ -2,7 +2,6 @@ const crypto = require("crypto");
 const path = require("path");
 const mongoose = require("mongoose");
 const multer = require("multer");
-const { GridFsStorage } = require("multer-gridfs-storage");
 const Grid = require("gridfs-stream");
 
 const GRIDFS_BUCKET_NAME = "uploads";
@@ -40,71 +39,109 @@ mongoose.connection.on("disconnected", () => {
   gridFsStream = null;
 });
 
-const waitForOpenDb = () => {
-  if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
-    return Promise.resolve(mongoose.connection.db);
+const createUploadFilename = (file) => {
+  const normalizedMime = String(file.mimetype || "").toLowerCase();
+  const extension = allowedMimeToExtension[normalizedMime];
+
+  if (!extension) {
+    throw new Error("Unsupported image format.");
   }
 
-  return new Promise((resolve, reject) => {
-    const onConnected = () => {
-      cleanup();
-      if (!mongoose.connection.db) {
-        reject(new Error("MongoDB connected but native db instance is unavailable."));
+  const uniqueName = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString("hex");
+  const originalName = String(file.originalname || "").trim();
+  const parsedOriginal = originalName ? path.parse(originalName).name : "image";
+
+  return {
+    filename: `member-${Date.now()}-${uniqueName}-${parsedOriginal}.${extension}`,
+    contentType: normalizedMime
+  };
+};
+
+const storage = {
+  _handleFile(_req, file, callback) {
+    let uploadConfig;
+    try {
+      uploadConfig = createUploadFilename(file);
+    } catch (error) {
+      callback(error);
+      return;
+    }
+
+    let bucket;
+    let uploadStream;
+    try {
+      bucket = getGridFsBucket();
+      uploadStream = bucket.openUploadStream(uploadConfig.filename, {
+        contentType: uploadConfig.contentType
+      });
+    } catch (error) {
+      callback(error);
+      return;
+    }
+
+    let settled = false;
+    const done = (error, result) => {
+      if (settled) {
         return;
       }
-      resolve(mongoose.connection.db);
+      settled = true;
+      callback(error, result);
     };
 
     const onError = (error) => {
-      cleanup();
-      reject(error);
+      done(error);
     };
 
-    const onDisconnected = () => {
-      cleanup();
-      reject(new Error("MongoDB disconnected before GridFS storage initialization."));
-    };
+    const onFinish = async () => {
+      try {
+        const files = await bucket.find({ _id: uploadStream.id }).limit(1).toArray();
+        const uploadedFile = files[0];
 
-    const cleanup = () => {
-      mongoose.connection.off("connected", onConnected);
-      mongoose.connection.off("error", onError);
-      mongoose.connection.off("disconnected", onDisconnected);
-    };
+        if (!uploadedFile) {
+          done(new Error("Uploaded GridFS file metadata could not be loaded."));
+          return;
+        }
 
-    mongoose.connection.once("connected", onConnected);
-    mongoose.connection.once("error", onError);
-    mongoose.connection.once("disconnected", onDisconnected);
-  });
-};
-
-const dbPromise = waitForOpenDb();
-
-const storage = new GridFsStorage({
-  db: dbPromise,
-  file: (_req, file) =>
-    new Promise((resolve, reject) => {
-      const normalizedMime = String(file.mimetype || "").toLowerCase();
-      const extension = allowedMimeToExtension[normalizedMime];
-
-      if (!extension) {
-        reject(new Error("Unsupported image format."));
-        return;
+        done(null, {
+          id: uploadedFile._id,
+          _id: uploadedFile._id,
+          filename: uploadedFile.filename,
+          bucketName: GRIDFS_BUCKET_NAME,
+          contentType: uploadedFile.contentType || uploadConfig.contentType,
+          size: uploadedFile.length,
+          uploadDate: uploadedFile.uploadDate
+        });
+      } catch (error) {
+        done(error);
       }
+    };
 
-      const uniqueName = crypto.randomUUID
-        ? crypto.randomUUID()
-        : crypto.randomBytes(16).toString("hex");
+    uploadStream.once("error", onError);
+    uploadStream.once("finish", onFinish);
+    file.stream.pipe(uploadStream);
+  },
 
-      const originalName = String(file.originalname || "").trim();
-      const parsedOriginal = originalName ? path.parse(originalName).name : "image";
+  _removeFile(_req, file, callback) {
+    const targetFileId = file && (file.id || file._id);
+    if (!targetFileId) {
+      callback(null);
+      return;
+    }
 
-      resolve({
-        filename: `member-${Date.now()}-${uniqueName}-${parsedOriginal}.${extension}`,
-        bucketName: GRIDFS_BUCKET_NAME,
-        contentType: normalizedMime
-      });
-    })
-});
+    let bucket;
+    try {
+      bucket = getGridFsBucket();
+    } catch (error) {
+      callback(error);
+      return;
+    }
+
+    bucket
+      .delete(toObjectId(targetFileId))
+      .then(() => callback(null))
+      .catch((error) => callback(error));
+  }
+};
 
 const fileFilter = (_req, file, callback) => {
   const normalizedMime = String(file.mimetype || "").toLowerCase();
