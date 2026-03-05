@@ -75,13 +75,13 @@ app.use(
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
 
-      const isVercel = origin.endsWith(".vercel.app");
+      const isVercel = origin && origin.endsWith(".vercel.app");
 
       if (allowedOrigins.includes(origin) || isVercel) {
-        callback(null, true);
-      } else {
-        callback(new Error(`CSRF invalid origin: ${origin}`));
+        return callback(null, true);
       }
+
+      return callback(new Error(`CSRF invalid origin: ${origin}`));
     },
     credentials: true
   })
