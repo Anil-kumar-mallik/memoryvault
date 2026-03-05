@@ -55,7 +55,7 @@ const dbPromise = new Promise((resolve, reject) => {
 });
 
 const storage = new GridFsStorage({
-  db: dbPromise,
+  url: process.env.MONGODB_URI 
   file: (_req, file) =>
     new Promise((resolve, reject) => {
       const normalizedMime = String(file.mimetype || "").toLowerCase();
