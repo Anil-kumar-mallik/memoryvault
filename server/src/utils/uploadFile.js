@@ -3,13 +3,24 @@ const resolveUploadedFileId = (file) => {
     return null;
   }
 
-  const candidates = [file.id, file._id, file.fileId, file.gridFsId];
-  for (const candidate of candidates) {
-    if (!candidate) {
-      continue;
-    }
+  if (file.id) {
+    return String(file.id);
+  }
 
-    return String(candidate);
+  if (file._id) {
+    return String(file._id);
+  }
+
+  if (file.fileId) {
+    return String(file.fileId);
+  }
+
+  if (file.gridFsId) {
+    return String(file.gridFsId);
+  }
+
+  if (file.filename && file.bucketName) {
+    return String(file._id || file.id);
   }
 
   return null;
