@@ -5073,3 +5073,43 @@ Validation/build checks
 Pending tasks
 - Optional future UI enhancement: surface generation level badges/filters in tree node metadata panel using the precomputed map.
 - Optional analytics follow-up: add generation-based grouping/timeline views using `generationLevels`.
+
+[2026-03-06 | Frontend Feature | Family Timeline Mode]
+[Added chronological timeline view powered by existing member importantDates data]
+
+Completed modules
+1) Timeline data resolver
+- Added `client/utils/timelineResolver.ts`.
+- Added `resolveTimelineEvents(members)` to extract and sort timeline events from `importantDates`.
+- Included safe invalid-date filtering to prevent runtime display errors from malformed date strings.
+
+2) Timeline UI component
+- Added `client/components/TimelineView.tsx`.
+- Implemented timeline panel rendering sorted event rows with `date`, `memberName`, and event label.
+- Added empty-state message when no events are available.
+
+3) Tree page integration
+- Imported timeline component in `client/app/tree/[id]/page.tsx`.
+- Rendered `<TimelineView members={treeData} />` directly below `TreeCanvas` in the tree view layout.
+- No backend calls or mutation logic changed.
+
+4) Documentation update
+- Added `Family Timeline Mode` section in `ProjectTillNow.md`.
+
+File changes
+- `client/utils/timelineResolver.ts`
+- `client/components/TimelineView.tsx`
+- `client/app/tree/[id]/page.tsx`
+- `ProjectTillNow.md`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index/API changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build succeeded with only pre-existing non-blocking warnings (`no-img-element`, existing hook dependency warnings).
+
+Pending tasks
+- Optional UX enhancement: add timeline filtering by event type (birth/marriage/death/custom).
+- Optional UI enhancement: clickable timeline events to focus/select corresponding member in tree view.

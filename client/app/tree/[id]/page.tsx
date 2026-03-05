@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import TreeCanvas from "@/components/TreeCanvas";
+import TimelineView from "@/components/TimelineView";
 import MemberModal from "@/components/MemberModal";
 import MemberForm, { MemberFormSubmitData } from "@/components/MemberForm";
 import { toImportantDateEntries } from "@/lib/importantDates";
@@ -1192,30 +1193,34 @@ export default function TreePage() {
           </article>
         </aside>
 
-        <div className="relative">
-          <TreeCanvas
-            key={focusBundle?.focus?._id || "tree"}
-            bundle={treeCanvasBundle}
-            onFocusChange={handleFocusChange}
-            onNodeInfo={openDetailModal}
-          />
-          {loadingFocus && (
-            <div className="absolute inset-0 rounded-xl border border-slate-200/70 bg-white/60 p-6 backdrop-blur-[1px]">
-              <div className="mb-4 flex items-center gap-3">
-                <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-brand-500" />
-                <p className="text-sm font-medium text-slate-700">{t("tree.loadingFocus")}</p>
-              </div>
-              <div className="space-y-4 animate-pulse">
-                <div className="h-4 w-40 rounded bg-slate-200" />
-                <div className="h-[460px] w-full rounded-lg bg-slate-100" />
-                <div className="flex gap-3">
-                  <div className="h-3 w-28 rounded bg-slate-200" />
-                  <div className="h-3 w-24 rounded bg-slate-200" />
-                  <div className="h-3 w-32 rounded bg-slate-200" />
+        <div className="space-y-6">
+          <div className="relative">
+            <TreeCanvas
+              key={focusBundle?.focus?._id || "tree"}
+              bundle={treeCanvasBundle}
+              onFocusChange={handleFocusChange}
+              onNodeInfo={openDetailModal}
+            />
+            {loadingFocus && (
+              <div className="absolute inset-0 rounded-xl border border-slate-200/70 bg-white/60 p-6 backdrop-blur-[1px]">
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-brand-500" />
+                  <p className="text-sm font-medium text-slate-700">{t("tree.loadingFocus")}</p>
+                </div>
+                <div className="space-y-4 animate-pulse">
+                  <div className="h-4 w-40 rounded bg-slate-200" />
+                  <div className="h-[460px] w-full rounded-lg bg-slate-100" />
+                  <div className="flex gap-3">
+                    <div className="h-3 w-28 rounded bg-slate-200" />
+                    <div className="h-3 w-24 rounded bg-slate-200" />
+                    <div className="h-3 w-32 rounded bg-slate-200" />
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+
+          <TimelineView members={treeData} />
         </div>
       </section>
 

@@ -26,3 +26,16 @@ Parents -> generation -1
 Children -> generation +1  
 
 This prepares the system for advanced tree analytics and timeline features.
+
+### Family Timeline Mode
+
+Tree now supports chronological visualization of family events.
+
+Timeline includes:
+
+- Birth dates
+- Marriage events
+- Death dates
+- Custom important dates
+
+Events are sorted automatically.
