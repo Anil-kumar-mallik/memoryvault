@@ -5154,39 +5154,32 @@ Validation/build checks
 Pending tasks
 - Optional: consume `generationMap` in future generation filters, timeline grouping, and analytics panels.
 
-[2026-03-06 | Frontend Performance Patch | Tree Performance Engine]
-[Added cache and lookup optimizations for large focus-tree renders without changing tree behavior]
+[2026-03-07 | Backend Notification Update | Member Action Notifications Disabled]
+[Disabled notification creation for member add/update/delete events while preserving the notification system for meaningful alerts]
 
 Completed modules
-1) Graph caching for focus-tree visual graph
-- Added a `WeakMap` cache in `client/components/FocusTreeCanvas.tsx`.
-- Reused previously built `{ nodes, links }` graph results for the same relation bundle instance.
-- Kept existing layout positions, node rendering, zoom, and relation resolution logic unchanged.
+1) Central notification filter
+- Updated `server/src/utils/notificationService.js`.
+- Added a disabled-type guard for `member_added`, `member_deleted`, and `member_updated`.
+- Removed the add-member notification write from `server/src/controllers/memberController.js`.
+- Existing notification flows for subscription expiry, payment, and tree sharing remain unchanged.
 
-2) Smart render guard
-- Added a performance warning when child relations exceed the rendered child cap.
-- Existing child render limit behavior remains unchanged.
-
-3) Optimized member lookup
-- Updated `membersForRelation` to memoize members by id without repeated object merges.
-- Ensured each member is inserted once into the lookup map used by relation/generation helpers.
-
-4) Documentation update
-- Added `Tree Performance Engine` section to `ProjectTillNow.md`.
+2) Project documentation update
+- Added `Notification System Update` section to `ProjectTillNow.md`.
 
 File changes
-- `client/components/FocusTreeCanvas.tsx`
+- `server/src/controllers/memberController.js`
+- `server/src/utils/notificationService.js`
 - `ProjectTillNow.md`
 - `ProjectTillNow.txt`
 
 Database schema state
-- No schema/model/index/API changes.
-
-Validation/build checks
-- `cd client && npm run build` -> passed.
-- Build compiled successfully with only pre-existing non-blocking warnings (`no-img-element`, existing `react-hooks/exhaustive-deps` warnings).
+- No schema/model/index changes.
+- Notification collection schema is unchanged; only creation of member action notification documents is suppressed.
+- Current Mongoose models remain: `User`, `FamilyTree`, `Member`, `AuditLog`, `Notification`, `Plan`, `Subscription`.
 
 Pending tasks
+<<<<<<< HEAD
 - Optional manual verification on a large tree dataset to confirm cache reuse and render-limit warning behavior.
 
 [2026-03-06 | Frontend Feature | AI Relationship Finder]
@@ -5266,3 +5259,7 @@ Validation/build checks
 
 Pending tasks
 - Optional manual UI verification: confirm birthdays, anniversaries, death anniversaries, and custom dates appear when they fall within the next 7 days.
+=======
+- Add future event-driven notifications for birthdays, anniversaries, and other important family milestones.
+- If the UI currently labels generic member activity as notifications anywhere, align that copy with the reduced notification scope.
+>>>>>>> 034c722 (Disable member notifications and prepare event reminder notification system)

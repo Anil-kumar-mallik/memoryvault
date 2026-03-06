@@ -5,7 +5,6 @@ const validateRequest = require("../utils/validateRequest");
 const withMongoTransaction = require("../utils/withMongoTransaction");
 const { ensureMemberCreateAllowed } = require("../utils/subscriptionService");
 const { createAuditLog } = require("../utils/auditLogger");
-const { createNotification } = require("../utils/notificationService");
 const { resolveUploadedFileId } = require("../utils/uploadFile");
 const { mapImportantDatesToLegacy, normalizeDatesFromLegacy } = require("../utils/dateNormalizer");
 
@@ -1619,17 +1618,6 @@ const createMember = async (req, res, next) => {
         metadata: {
           treeId: String(tree._id),
           relationType
-        },
-        session
-      });
-
-      await createNotification({
-        userId: tree.owner,
-        message: `Member added to ${tree.name}: ${member.name}`,
-        metadata: {
-          type: "member_added",
-          treeId: String(tree._id),
-          memberId: String(member._id)
         },
         session
       });

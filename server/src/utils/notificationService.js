@@ -4,12 +4,19 @@ const Plan = require("../models/Plan");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PLAN_EXPIRY_LOOKAHEAD_DAYS = 7;
+const DISABLED_NOTIFICATION_TYPES = new Set(["member_added", "member_deleted", "member_updated"]);
 
 const sessionOptions = (session) => (session ? { session } : {});
 const withSession = (query, session) => (session ? query.session(session) : query);
 
 const createNotification = async ({ userId, message, metadata = {}, session = null }) => {
   if (!userId || !message) {
+    return null;
+  }
+
+  const notificationType =
+    metadata && typeof metadata === "object" && metadata.type ? String(metadata.type).trim() : "";
+  if (notificationType && DISABLED_NOTIFICATION_TYPES.has(notificationType)) {
     return null;
   }
 

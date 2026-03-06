@@ -61,12 +61,13 @@ This engine enables future features like:
 - family analytics
 - AI reasoning
 
-### Tree Performance Engine
+### Notification System Update
 
-Added optimizations for large family trees.
+Member action notifications have been disabled to reduce noise.
 
-Enhancements:
+Notifications will now be reserved for meaningful alerts such as:
 
+<<<<<<< HEAD
 - Graph caching
 - Smart node render limits
 - Optimized member lookup
@@ -104,3 +105,8 @@ Marriage anniversaries
 Custom events
 
 The system automatically calculates upcoming events and displays reminders inside the tree view.
+=======
+- Birthdays
+- Anniversaries
+- Important family events
+>>>>>>> 034c722 (Disable member notifications and prepare event reminder notification system)
