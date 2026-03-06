@@ -4,7 +4,13 @@ const Plan = require("../models/Plan");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PLAN_EXPIRY_LOOKAHEAD_DAYS = 7;
-const DISABLED_NOTIFICATION_TYPES = new Set(["member_added", "member_deleted", "member_updated"]);
+// Keep notifications focused on system-level alerts instead of routine member activity.
+const DISABLED_NOTIFICATION_TYPES = new Set([
+  "member_added",
+  "member_deleted",
+  "member_updated",
+  "relation_updated"
+]);
 
 const sessionOptions = (session) => (session ? { session } : {});
 const withSession = (query, session) => (session ? query.session(session) : query);
