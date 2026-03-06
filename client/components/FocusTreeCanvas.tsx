@@ -62,6 +62,8 @@ const colorByGroup: Record<RelationGroup, string> = {
   sibling: "#475569"
 };
 
+const graphCache = new WeakMap<MemberWithRelationsResponse, { nodes: VisualNode[]; links: VisualLink[] }>();
+
 function normalizeMemberId(value: unknown): string {
   if (value === null || value === undefined) {
     return "";
@@ -109,6 +111,12 @@ function buildVisualGraph(
 ): { nodes: VisualNode[]; links: VisualLink[] } {
   if (!bundle) {
     return { nodes: [], links: [] };
+  }
+
+  const cacheKey = bundle;
+
+  if (graphCache.has(cacheKey)) {
+    return graphCache.get(cacheKey)!;
   }
 
   const memberById = new Map(
@@ -220,6 +228,9 @@ function buildVisualGraph(
   });
 
   const visibleChildren = bundle.relations.children.slice(0, MAX_RENDERED_CHILDREN);
+  if (bundle.relations.children.length > MAX_RENDERED_CHILDREN) {
+    console.warn("Tree render limited for performance.");
+  }
   const childOffsets = spread(visibleChildren.length, 170);
   visibleChildren.forEach((sourceMember, index) => {
     const member = resolveMember(sourceMember);
@@ -236,10 +247,14 @@ function buildVisualGraph(
     }
   });
 
-  return {
+  const result = {
     nodes: Array.from(nodes.values()),
     links
   };
+
+  graphCache.set(cacheKey, result);
+
+  return result;
 }
 
 function nodeRadius(group: RelationGroup): number {
@@ -290,12 +305,11 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
       }
 
       const memberId = normalizeMemberId(member._id);
-      if (!memberId) {
+      if (!memberId || membersById.has(memberId)) {
         return;
       }
 
-      const existingMember = membersById.get(memberId);
-      membersById.set(memberId, existingMember ? { ...existingMember, ...member } : member);
+      membersById.set(memberId, member);
     };
 
     addMember(bundle?.focus || null);

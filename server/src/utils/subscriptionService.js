@@ -8,7 +8,7 @@ const CORE_PLAN_DEFINITIONS = Object.freeze([
     name: "Free",
     priceMonthly: 0,
     priceYearly: 0,
-    maxMembers: 10,
+    maxMembers: 1000,
     maxTrees: 1,
     features: ["Basic Tree"],
     isActive: true,

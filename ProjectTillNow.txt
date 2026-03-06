@@ -5153,3 +5153,116 @@ Validation/build checks
 
 Pending tasks
 - Optional: consume `generationMap` in future generation filters, timeline grouping, and analytics panels.
+
+[2026-03-06 | Frontend Performance Patch | Tree Performance Engine]
+[Added cache and lookup optimizations for large focus-tree renders without changing tree behavior]
+
+Completed modules
+1) Graph caching for focus-tree visual graph
+- Added a `WeakMap` cache in `client/components/FocusTreeCanvas.tsx`.
+- Reused previously built `{ nodes, links }` graph results for the same relation bundle instance.
+- Kept existing layout positions, node rendering, zoom, and relation resolution logic unchanged.
+
+2) Smart render guard
+- Added a performance warning when child relations exceed the rendered child cap.
+- Existing child render limit behavior remains unchanged.
+
+3) Optimized member lookup
+- Updated `membersForRelation` to memoize members by id without repeated object merges.
+- Ensured each member is inserted once into the lookup map used by relation/generation helpers.
+
+4) Documentation update
+- Added `Tree Performance Engine` section to `ProjectTillNow.md`.
+
+File changes
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.md`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index/API changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build compiled successfully with only pre-existing non-blocking warnings (`no-img-element`, existing `react-hooks/exhaustive-deps` warnings).
+
+Pending tasks
+- Optional manual verification on a large tree dataset to confirm cache reuse and render-limit warning behavior.
+
+[2026-03-06 | Frontend Feature | AI Relationship Finder]
+[Added a relationship finder utility and UI without changing existing tree logic]
+
+Completed modules
+1) Relationship finder utility
+- Added `client/utils/relationshipFinder.ts`.
+- Exposed `findRelationship(sourceId, targetId, members)` for dynamic relationship lookup between two selected members.
+- Reused existing relation resolution behavior so tree logic remains unchanged.
+
+2) Relationship finder UI
+- Added `client/components/RelationshipFinder.tsx`.
+- Added two member selectors and a `Find Relation` action.
+- Displays computed relationship result inside the tree page.
+
+3) Tree page integration
+- Imported and rendered `RelationshipFinder` below `TimelineView` on `client/app/tree/[id]/page.tsx`.
+- Existing tree rendering, focus navigation, and relation mutation flows were not modified.
+
+4) Documentation update
+- Added `AI Relationship Finder` section to `ProjectTillNow.md`.
+
+File changes
+- `client/utils/relationshipFinder.ts`
+- `client/components/RelationshipFinder.tsx`
+- `client/app/tree/[id]/page.tsx`
+- `ProjectTillNow.md`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index/API changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build compiled successfully with only pre-existing non-blocking warnings (`no-img-element`, existing `react-hooks/exhaustive-deps` warnings).
+
+Pending tasks
+- Optional manual UI verification: select two members and confirm results for self, parent, child, spouse, sibling, and fallback cases.
+
+[2026-03-06 | Frontend Feature | Family Event Reminder System]
+[Added upcoming family event reminders using member important dates without changing tree rendering logic]
+
+Completed modules
+1) Upcoming event resolver
+- Added `client/utils/eventResolver.ts`.
+- Introduced `resolveUpcomingEvents(members, daysAhead)` for birthday, marriage anniversary, death anniversary, and custom event reminders.
+- Reused existing important-date normalization via `resolveMemberImportantDates(...)` to avoid duplicating date parsing logic.
+
+2) Upcoming events UI
+- Added `client/components/UpcomingEvents.tsx`.
+- Displays upcoming family events with `Today`, `Tomorrow`, and `in N days` status labels.
+- Returns `null` when no upcoming events exist, so no tree behavior changes occur.
+
+3) Tree page integration
+- Imported `UpcomingEvents` into `client/app/tree/[id]/page.tsx`.
+- Rendered the reminder panel below the focus panel in the left sidebar.
+- Existing tree canvas, focus navigation, and relationship logic remain untouched.
+
+4) Documentation update
+- Added `Family Event Reminder System` section to `ProjectTillNow.md`.
+
+File changes
+- `client/utils/eventResolver.ts`
+- `client/components/UpcomingEvents.tsx`
+- `client/app/tree/[id]/page.tsx`
+- `ProjectTillNow.md`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index/API changes.
+- Feature uses existing `Member.importantDates` data and legacy important-date normalization helpers.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build compiled successfully with only pre-existing non-blocking warnings (`no-img-element`, existing `react-hooks/exhaustive-deps` warnings).
+
+Pending tasks
+- Optional manual UI verification: confirm birthdays, anniversaries, death anniversaries, and custom dates appear when they fall within the next 7 days.

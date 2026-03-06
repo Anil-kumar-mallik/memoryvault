@@ -60,3 +60,47 @@ This engine enables future features like:
 - timeline grouping
 - family analytics
 - AI reasoning
+
+### Tree Performance Engine
+
+Added optimizations for large family trees.
+
+Enhancements:
+
+- Graph caching
+- Smart node render limits
+- Optimized member lookup
+
+This allows smooth rendering for large trees with thousands of members.
+
+### AI Relationship Finder
+
+The system can now determine relationships between any two family members dynamically.
+
+Example:
+
+"What is Rahul to Anil?"
+
+The system evaluates family structure and returns:
+
+Father
+Mother
+Brother
+Sister
+Spouse
+Relative
+
+This feature enhances the intelligence of the family tree system.
+
+### Family Event Reminder System
+
+MemoryVault now includes a reminder engine that scans family members' important dates and notifies users of upcoming events.
+
+Supported events:
+
+Birthdays
+Death anniversaries
+Marriage anniversaries
+Custom events
+
+The system automatically calculates upcoming events and displays reminders inside the tree view.

@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import TreeCanvas from "@/components/TreeCanvas";
 import TimelineView from "@/components/TimelineView";
+import UpcomingEvents from "@/components/UpcomingEvents";
 import MemberModal from "@/components/MemberModal";
 import MemberForm, { MemberFormSubmitData } from "@/components/MemberForm";
 import { toImportantDateEntries } from "@/lib/importantDates";
@@ -1177,6 +1178,8 @@ export default function TreePage() {
               </div>
             )}
           </article>
+
+          <UpcomingEvents members={treeData} />
 
           <article className="panel">
             <h2 className="mb-3 text-lg font-semibold text-slate-900">{t("tree.navigationControls")}</h2>
