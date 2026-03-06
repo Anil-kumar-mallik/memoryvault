@@ -4,7 +4,7 @@ import { KeyboardEvent, memo, useCallback, useEffect, useMemo, useRef, useState 
 import * as d3 from "d3";
 import { resolveProfileImageUrl } from "@/lib/profileImageUrl";
 import { Member, MemberWithRelationsResponse } from "@/types";
-import { resolveGenerationLevels } from "@/utils/generationResolver";
+import { resolveGenerations } from "@/utils/generationResolver";
 import { resolveRelation } from "@/utils/relationResolver";
 
 type Direction = "parent" | "child" | "sibling" | "spouse";
@@ -308,14 +308,14 @@ function FocusTreeCanvas({ bundle, onFocusChange, onNodeInfo }: FocusTreeCanvasP
 
     return Array.from(membersById.values());
   }, [bundle, graph.nodes]);
-  const generationLevels = useMemo(() => {
+  const generationMap = useMemo(() => {
     if (!bundle?.focus) {
       return new Map();
     }
 
-    return resolveGenerationLevels(bundle.focus._id, membersForRelation);
-  }, [bundle?.focus?._id, membersForRelation]);
-  void generationLevels;
+    return resolveGenerations(bundle.focus, membersForRelation);
+  }, [bundle?.focus, membersForRelation]);
+  void generationMap;
 
   const relationLabelByNodeKey = useMemo(() => {
     const labels = new Map<string, string>();

@@ -39,3 +39,24 @@ Timeline includes:
 - Custom important dates
 
 Events are sorted automatically.
+
+### Generation Engine
+
+The system now calculates generation levels dynamically.
+
+Generation levels are determined relative to the focused member.
+
+Examples:
+
+0 -> Self
+-1 -> Parents
+-2 -> Grandparents
++1 -> Children
++2 -> Grandchildren
+
+This engine enables future features like:
+
+- generation filtering
+- timeline grouping
+- family analytics
+- AI reasoning

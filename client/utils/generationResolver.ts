@@ -1,46 +1,51 @@
 import { Member } from "@/types";
 
-export function resolveGenerationLevels(focusId: string, members: Member[]): Map<string, number> {
-  const levels = new Map<string, number>();
-  const map = new Map<string, Member>();
+export type GenerationMap = Map<string, number>;
 
-  members.forEach((member) => {
-    map.set(String(member._id), member);
-  });
+export function resolveGenerations(focus: Member, members: Member[]): GenerationMap {
+  const generations: GenerationMap = new Map();
 
-  const queue: { id: string; level: number }[] = [{ id: focusId, level: 0 }];
+  const byId = new Map<string, Member>();
+  members.forEach((m) => byId.set(String(m._id), m));
 
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) {
-      continue;
+  const queue: { id: string; level: number }[] = [];
+
+  const focusId = String(focus._id);
+
+  generations.set(focusId, 0);
+  queue.push({ id: focusId, level: 0 });
+
+  while (queue.length) {
+    const current = queue.shift()!;
+    const member = byId.get(current.id);
+    if (!member) continue;
+
+    const level = current.level;
+
+    const father = member.fatherId?.toString();
+    const mother = member.motherId?.toString();
+
+    if (father && !generations.has(father)) {
+      generations.set(father, level - 1);
+      queue.push({ id: father, level: level - 1 });
     }
 
-    const member = map.get(current.id);
-    if (!member) {
-      continue;
+    if (mother && !generations.has(mother)) {
+      generations.set(mother, level - 1);
+      queue.push({ id: mother, level: level - 1 });
     }
 
-    if (!levels.has(current.id)) {
-      levels.set(current.id, current.level);
-    }
+    members.forEach((child) => {
+      const childId = String(child._id);
 
-    if (member.fatherId && !levels.has(member.fatherId)) {
-      queue.push({ id: member.fatherId, level: current.level - 1 });
-    }
-
-    if (member.motherId && !levels.has(member.motherId)) {
-      queue.push({ id: member.motherId, level: current.level - 1 });
-    }
-
-    if (member.children) {
-      member.children.forEach((childId) => {
-        if (!levels.has(childId)) {
-          queue.push({ id: childId, level: current.level + 1 });
+      if (child.fatherId?.toString() === current.id || child.motherId?.toString() === current.id) {
+        if (!generations.has(childId)) {
+          generations.set(childId, level + 1);
+          queue.push({ id: childId, level: level + 1 });
         }
-      });
-    }
+      }
+    });
   }
 
-  return levels;
+  return generations;
 }

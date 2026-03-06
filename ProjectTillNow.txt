@@ -5113,3 +5113,43 @@ Validation/build checks
 Pending tasks
 - Optional UX enhancement: add timeline filtering by event type (birth/marriage/death/custom).
 - Optional UI enhancement: clickable timeline events to focus/select corresponding member in tree view.
+
+[2026-03-06 | Frontend Utility Update | Generation Engine (Passive)]
+[Updated generation resolver API to compute relative levels from focused member without changing tree behavior]
+
+Completed modules
+1) Generation engine utility refresh
+- Updated `client/utils/generationResolver.ts` to expose:
+  - `GenerationMap = Map<string, number>`
+  - `resolveGenerations(focus, members)`
+- Generation levels now resolve relative to focused member:
+  - 0 -> self
+  - -1 -> parents
+  - -2 -> grandparents
+  - +1 -> children
+  - +2 -> grandchildren
+- Logic is utility-only and does not alter existing tree rendering/navigation logic.
+
+2) Passive FocusTree integration
+- Updated `client/components/FocusTreeCanvas.tsx` import to `resolveGenerations`.
+- Added memoized `generationMap` calculation directly after `membersForRelation`.
+- Kept behavior passive (`void generationMap`) so no visual/layout/tree behavior changes occur.
+
+3) Progress documentation update
+- Added `Generation Engine` section in `ProjectTillNow.md`.
+
+File changes
+- `client/utils/generationResolver.ts`
+- `client/components/FocusTreeCanvas.tsx`
+- `ProjectTillNow.md`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index/API changes.
+
+Validation/build checks
+- `cd client && npm run build` -> passed.
+- Build compiled successfully with only existing non-blocking lint warnings (`no-img-element`, pre-existing hook dependency warnings).
+
+Pending tasks
+- Optional: consume `generationMap` in future generation filters, timeline grouping, and analytics panels.
