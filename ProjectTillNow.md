@@ -147,3 +147,9 @@ Events displayed include:
 - Custom family events
 
 Users can immediately see upcoming reminders after login.
+
+### Dashboard Event Reminder Fix
+
+Fixed validation issue when loading upcoming events on the dashboard.
+
+The dashboard now correctly retrieves members using the user's primary tree ID before computing event reminders.

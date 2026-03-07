@@ -108,7 +108,14 @@ export default function HomePage() {
     let isCancelled = false;
 
     const loadDashboardEvents = async () => {
-      if (!isAuthenticated || !primaryTree?._id) {
+      if (!isAuthenticated) {
+        setDashboardEvents([]);
+        setDashboardEventsError(null);
+        setLoadingDashboardEvents(false);
+        return;
+      }
+
+      if (trees.length === 0) {
         setDashboardEvents([]);
         setDashboardEventsError(null);
         setLoadingDashboardEvents(false);
@@ -119,30 +126,20 @@ export default function HomePage() {
         setLoadingDashboardEvents(true);
         setDashboardEventsError(null);
 
-        const pageSize = 200;
-        const firstPage = await getMembers(primaryTree._id, 1, pageSize);
+        const treeId = trees[0]?._id;
+        if (!treeId) {
+          setDashboardEvents([]);
+          setDashboardEventsError(null);
+          return;
+        }
 
+        const payload = await getMembers(treeId, 1, 200);
         if (isCancelled) {
           return;
         }
 
-        const responses = [firstPage];
-        const totalPages = Math.max(1, Math.ceil(firstPage.total / pageSize));
-
-        if (totalPages > 1) {
-          const remainingPages = await Promise.all(
-            Array.from({ length: totalPages - 1 }, (_, index) => getMembers(primaryTree._id, index + 2, pageSize))
-          );
-
-          if (isCancelled) {
-            return;
-          }
-
-          responses.push(...remainingPages);
-        }
-
-        const members = responses.flatMap((response) => response.members);
-        setDashboardEvents(resolveUpcomingEvents(members, 7));
+        const events = resolveUpcomingEvents(payload.members, 7);
+        setDashboardEvents(events);
       } catch (loadError) {
         if (isCancelled) {
           return;
@@ -164,7 +161,7 @@ export default function HomePage() {
     return () => {
       isCancelled = true;
     };
-  }, [isAuthenticated, primaryTree?._id, primaryTree?.memberCount]);
+  }, [isAuthenticated, trees]);
 
   const createFormPayload = useMemo(() => {
     const payload = {
