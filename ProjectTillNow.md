@@ -153,3 +153,9 @@ Users can immediately see upcoming reminders after login.
 Fixed validation issue when loading upcoming events on the dashboard.
 
 The dashboard now correctly retrieves members using the user's primary tree ID before computing event reminders.
+
+### Dashboard Event Limit Fix
+
+Resolved validation error in dashboard event loader.
+
+Member query limit adjusted from 200 to 100 to comply with backend validation rules.

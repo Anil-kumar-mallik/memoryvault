@@ -133,7 +133,7 @@ export default function HomePage() {
           return;
         }
 
-        const payload = await getMembers(treeId, 1, 200);
+        const payload = await getMembers(treeId, 1, 100);
         if (isCancelled) {
           return;
         }
