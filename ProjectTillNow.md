@@ -172,3 +172,13 @@ Users can view all family events organized by month including:
 - Custom family events
 
 The calendar works with the Important Date system and displays events from all family members.
+
+### Notification System Cleanup
+
+Old member activity notifications were removed from the database.
+
+The system now only shows event reminder notifications.
+
+Database cleanup performed using:
+
+db.notifications.deleteMany({})

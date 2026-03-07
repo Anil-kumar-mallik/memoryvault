@@ -5303,3 +5303,14 @@ Validation/build checks
 Pending tasks
 - Optional manual verification: create a member, delete a member, and update a relation, then confirm no new member-activity notification document is created.
 - If the UI labels generic member activity as notifications anywhere, align that copy with the reduced notification scope.
+
+
+### Notification System Cleanup
+
+Old member activity notifications were removed from the database.
+
+The system now only shows event reminder notifications.
+
+Database cleanup performed using:
+
+db.notifications.deleteMany({})
