@@ -5154,34 +5154,6 @@ Validation/build checks
 Pending tasks
 - Optional: consume `generationMap` in future generation filters, timeline grouping, and analytics panels.
 
-[2026-03-07 | Backend Notification Update | Member Action Notifications Disabled]
-[Disabled notification creation for member add/update/delete events while preserving the notification system for meaningful alerts]
-
-Completed modules
-1) Central notification filter
-- Updated `server/src/utils/notificationService.js`.
-- Added a disabled-type guard for `member_added`, `member_deleted`, and `member_updated`.
-- Removed the add-member notification write from `server/src/controllers/memberController.js`.
-- Existing notification flows for subscription expiry, payment, and tree sharing remain unchanged.
-
-2) Project documentation update
-- Added `Notification System Update` section to `ProjectTillNow.md`.
-
-File changes
-- `server/src/controllers/memberController.js`
-- `server/src/utils/notificationService.js`
-- `ProjectTillNow.md`
-- `ProjectTillNow.txt`
-
-Database schema state
-- No schema/model/index changes.
-- Notification collection schema is unchanged; only creation of member action notification documents is suppressed.
-- Current Mongoose models remain: `User`, `FamilyTree`, `Member`, `AuditLog`, `Notification`, `Plan`, `Subscription`.
-
-Pending tasks
-<<<<<<< HEAD
-- Optional manual verification on a large tree dataset to confirm cache reuse and render-limit warning behavior.
-
 [2026-03-06 | Frontend Feature | AI Relationship Finder]
 [Added a relationship finder utility and UI without changing existing tree logic]
 
@@ -5259,7 +5231,35 @@ Validation/build checks
 
 Pending tasks
 - Optional manual UI verification: confirm birthdays, anniversaries, death anniversaries, and custom dates appear when they fall within the next 7 days.
-=======
-- Add future event-driven notifications for birthdays, anniversaries, and other important family milestones.
-- If the UI currently labels generic member activity as notifications anywhere, align that copy with the reduced notification scope.
->>>>>>> 034c722 (Disable member notifications and prepare event reminder notification system)
+- Add future event-driven notifications for birthdays, anniversaries, and other important family milestones if the product later needs proactive alerts.
+
+[2026-03-07 | Backend Notification Cleanup | Notification System Cleanup]
+[Disabled member activity notification types for create, delete, and relation-change flows while keeping system notifications intact]
+
+Completed modules
+1) Central notification suppression
+- Updated `server/src/utils/notificationService.js`.
+- Extended the disabled notification-type guard to include `relation_updated` alongside the existing member activity types.
+- Confirmed `createMember`, `deleteMember`, and `updateMemberRelation` keep their existing API responses because notification creation is filtered centrally before any document write.
+
+2) Documentation cleanup
+- Updated `ProjectTillNow.md` with a `Notification System Cleanup` section.
+- Resolved merge conflict markers in `ProjectTillNow.md` and `ProjectTillNow.txt`.
+
+File changes
+- `server/src/utils/notificationService.js`
+- `ProjectTillNow.md`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index/API changes.
+- Notification collection schema and notification endpoints remain unchanged.
+- Important system alerts such as subscription expiry, payment, and tree-sharing notifications remain active.
+
+Validation/build checks
+- `cd server && npm run check:syntax` -> passed.
+- `rg -n '^(<<<<<<< |>>>>>>> |=======)$' .` -> no unresolved merge conflict markers found.
+
+Pending tasks
+- Optional manual verification: create a member, delete a member, and update a relation, then confirm no new member-activity notification document is created.
+- If the UI labels generic member activity as notifications anywhere, align that copy with the reduced notification scope.

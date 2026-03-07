@@ -61,18 +61,17 @@ This engine enables future features like:
 - family analytics
 - AI reasoning
 
-### Notification System Update
+### Notification System Cleanup
 
-Member action notifications have been disabled to reduce noise.
+Member activity notifications such as:
 
-Notifications will now be reserved for meaningful alerts such as:
+- Member added
+- Member deleted
+- Relation updated
 
-<<<<<<< HEAD
-- Graph caching
-- Smart node render limits
-- Optimized member lookup
+have been disabled to prevent notification spam.
 
-This allows smooth rendering for large trees with thousands of members.
+The notification system now focuses only on important system alerts.
 
 ### AI Relationship Finder
 
@@ -95,7 +94,7 @@ This feature enhances the intelligence of the family tree system.
 
 ### Family Event Reminder System
 
-MemoryVault now includes a reminder engine that scans family members' important dates and notifies users of upcoming events.
+MemoryVault now includes a reminder engine that scans family members' important dates and surfaces upcoming events inside the tree view.
 
 Supported events:
 
@@ -105,8 +104,3 @@ Marriage anniversaries
 Custom events
 
 The system automatically calculates upcoming events and displays reminders inside the tree view.
-=======
-- Birthdays
-- Anniversaries
-- Important family events
->>>>>>> 034c722 (Disable member notifications and prepare event reminder notification system)
