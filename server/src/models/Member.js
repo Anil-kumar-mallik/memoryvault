@@ -121,6 +121,31 @@ const memberSchema = new mongoose.Schema(
       type: Date,
       default: null
     },
+    importantDateEntries: {
+      type: [
+        {
+          _id: false,
+          type: {
+            type: String,
+            enum: ["dob", "anniversary", "death", "custom"],
+            required: true
+          },
+          value: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: 10
+          },
+          label: {
+            type: String,
+            trim: true,
+            maxlength: 160,
+            default: undefined
+          }
+        }
+      ],
+      default: undefined
+    },
     education: {
       type: String,
       default: null,

@@ -1,4 +1,5 @@
 const Joi = require("joi");
+const { normalizeImportantDateValue } = require("../utils/dateNormalizer");
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 const objectIdField = Joi.string().trim().pattern(objectIdRegex).messages({
@@ -13,6 +14,26 @@ const nullableIsoDateField = Joi.alternatives().try(
   Joi.string().valid("null"),
   Joi.valid(null)
 );
+const nullableFlexibleImportantDateField = Joi.alternatives().try(
+  Joi.string()
+    .trim()
+    .custom((value, helpers) => {
+      const trimmed = String(value || "").trim();
+      if (!trimmed) {
+        return trimmed;
+      }
+
+      const normalized = normalizeImportantDateValue(trimmed);
+      if (!normalized || normalized !== trimmed) {
+        return helpers.message("Must be a valid MM-DD or YYYY-MM-DD date.");
+      }
+
+      return trimmed;
+    }, "flexible important date validation"),
+  Joi.string().valid(""),
+  Joi.string().valid("null"),
+  Joi.valid(null)
+);
 
 const relationTypeField = Joi.string().valid("none", "father", "mother", "child", "spouse", "sibling");
 const genderField = Joi.string().valid("male", "female", "other", "unspecified");
@@ -22,7 +43,7 @@ const optionalPhoneTextField = Joi.string().allow("").max(40).optional();
 const optionalImportantNotesField = Joi.string().allow("").max(2000).optional();
 const importantDateEntryField = Joi.object({
   type: Joi.string().valid("dob", "anniversary", "death", "custom").required(),
-  value: nullableIsoDateField.required(),
+  value: nullableFlexibleImportantDateField.required(),
   label: Joi.string().allow("").max(160).optional()
 });
 const importantDatesField = Joi.alternatives()

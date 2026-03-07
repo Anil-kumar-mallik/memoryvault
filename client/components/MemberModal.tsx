@@ -4,7 +4,7 @@ import { FormEvent, memo, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n/provider";
 import MemberForm, { MemberFormSubmitData } from "@/components/MemberForm";
-import { resolveMemberImportantDates } from "@/lib/importantDates";
+import { formatImportantDate, resolveMemberImportantDates } from "@/lib/importantDates";
 import { resolveProfileImageUrl } from "@/lib/profileImageUrl";
 import { resolveRelation } from "@/utils/relationResolver";
 import {
@@ -21,19 +21,6 @@ type RelationMutationOption = {
   value: RelationMutationType;
   labelKey: string;
 };
-
-function formatDate(value?: string | null): string {
-  if (!value) {
-    return "N/A";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "N/A";
-  }
-
-  return date.toLocaleDateString();
-}
 
 export interface MemberModalProps {
   member: Member | null;
@@ -303,15 +290,15 @@ function MemberModal(props: MemberModalInternalProps) {
                             <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Important Dates</h4>
                             <p>
                               <span className="font-semibold">Date of Birth:</span>{" "}
-                              {importantDateSummary.dateOfBirthEntry ? formatDate(importantDateSummary.dateOfBirthEntry.value) : "-"}
+                              {importantDateSummary.dateOfBirthEntry ? formatImportantDate(importantDateSummary.dateOfBirthEntry.value) : "-"}
                             </p>
                             <p>
                               <span className="font-semibold">Anniversary:</span>{" "}
-                              {importantDateSummary.anniversaryEntry ? formatDate(importantDateSummary.anniversaryEntry.value) : "-"}
+                              {importantDateSummary.anniversaryEntry ? formatImportantDate(importantDateSummary.anniversaryEntry.value) : "-"}
                             </p>
                             <p>
                               <span className="font-semibold">Date of Death:</span>{" "}
-                              {importantDateSummary.deathEntry ? formatDate(importantDateSummary.deathEntry.value) : "-"}
+                              {importantDateSummary.deathEntry ? formatImportantDate(importantDateSummary.deathEntry.value) : "-"}
                             </p>
                             <div>
                               <span className="font-semibold">Custom Dates:</span>
@@ -319,7 +306,7 @@ function MemberModal(props: MemberModalInternalProps) {
                                 <div className="mt-1 space-y-1">
                                   {importantDateSummary.customDateEntries.map((entry, index) => (
                                     <p key={`${entry.label || "custom"}-${entry.value}-${index}`}>
-                                      {(entry.label || "Custom").trim()}: {formatDate(entry.value)}
+                                      {(entry.label || "Custom").trim()}: {formatImportantDate(entry.value)}
                                     </p>
                                   ))}
                                 </div>

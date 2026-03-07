@@ -6,7 +6,7 @@ const withMongoTransaction = require("../utils/withMongoTransaction");
 const { ensureMemberCreateAllowed } = require("../utils/subscriptionService");
 const { createAuditLog } = require("../utils/auditLogger");
 const { resolveUploadedFileId } = require("../utils/uploadFile");
-const { mapImportantDatesToLegacy, normalizeDatesFromLegacy } = require("../utils/dateNormalizer");
+const { mapImportantDatesToLegacy, normalizeDatesFromLegacy, normalizeImportantDateEntry } = require("../utils/dateNormalizer");
 
 const RELATION_TYPES = new Set(["none", "father", "mother", "child", "spouse", "sibling"]);
 const MUTATION_RELATIONS = new Set(["father", "mother", "child", "spouse", "sibling"]);
@@ -245,6 +245,34 @@ const parseImportantDatesInput = (rawValue) => {
   throw badRequest("importantDates must be an array.");
 };
 
+const normalizeImportantDatesInputEntries = (entries) => {
+  if (!Array.isArray(entries)) {
+    throw badRequest("importantDates must be an array.");
+  }
+
+  const normalizedEntries = [];
+
+  entries.forEach((entry, index) => {
+    if (!entry || typeof entry !== "object") {
+      throw badRequest(`importantDates[${index}] must be an object.`);
+    }
+
+    const hasContent = [entry.type, entry.value, entry.label].some((value) => String(value || "").trim());
+    if (!hasContent) {
+      return;
+    }
+
+    const normalizedEntry = normalizeImportantDateEntry(entry);
+    if (!normalizedEntry) {
+      throw badRequest(`importantDates[${index}] must use a valid type and a date in MM-DD or YYYY-MM-DD format.`);
+    }
+
+    normalizedEntries.push(normalizedEntry);
+  });
+
+  return normalizeDatesFromLegacy({ importantDateEntries: normalizedEntries });
+};
+
 const parseExtendedMemberInputs = (input = {}) => {
   const textInputs = {};
 
@@ -253,7 +281,8 @@ const parseExtendedMemberInputs = (input = {}) => {
   }
 
   const importantDatesInput = parseImportantDatesInput(input.importantDates);
-  const mappedLegacyDates = importantDatesInput.provided ? mapImportantDatesToLegacy(importantDatesInput.value) : null;
+  const normalizedImportantDates = importantDatesInput.provided ? normalizeImportantDatesInputEntries(importantDatesInput.value) : [];
+  const mappedLegacyDates = importantDatesInput.provided ? mapImportantDatesToLegacy(normalizedImportantDates) : null;
   if (importantDatesInput.provided) {
     textInputs.importantNotes = {
       provided: true,
@@ -262,6 +291,9 @@ const parseExtendedMemberInputs = (input = {}) => {
   }
 
   return {
+    importantDateEntriesInput: importantDatesInput.provided
+      ? { provided: true, value: normalizedImportantDates }
+      : { provided: false, value: [] },
     dateOfBirthInput: importantDatesInput.provided
       ? { provided: true, value: mappedLegacyDates.dateOfBirth }
       : parseNullableDateInput(input.dateOfBirth, "dateOfBirth"),
@@ -1565,6 +1597,9 @@ const createMember = async (req, res, next) => {
         linkedUserId: !treeRootMemberId ? tree.owner : null,
         birthDate: birthDateInput.provided ? birthDateInput.value : null,
         deathDate: deathDateInput.provided ? deathDateInput.value : null,
+        importantDateEntries: extendedMemberInputs.importantDateEntriesInput.provided
+          ? extendedMemberInputs.importantDateEntriesInput.value
+          : undefined,
         dateOfBirth: extendedMemberInputs.dateOfBirthInput.provided ? extendedMemberInputs.dateOfBirthInput.value : null,
         anniversaryDate: extendedMemberInputs.anniversaryDateInput.provided
           ? extendedMemberInputs.anniversaryDateInput.value
@@ -1704,6 +1739,10 @@ const updateMember = async (req, res, next) => {
       }
 
       const extendedMemberInputs = parseExtendedMemberInputs(req.body);
+      if (extendedMemberInputs.importantDateEntriesInput.provided) {
+        member.importantDateEntries = extendedMemberInputs.importantDateEntriesInput.value;
+      }
+
       if (extendedMemberInputs.dateOfBirthInput.provided) {
         member.dateOfBirth = extendedMemberInputs.dateOfBirthInput.value;
       }

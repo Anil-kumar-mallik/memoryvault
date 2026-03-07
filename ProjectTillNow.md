@@ -104,3 +104,14 @@ Marriage anniversaries
 Custom events
 
 The system automatically calculates upcoming events and displays reminders inside the tree view.
+
+### Flexible Important Date System
+
+Important dates now support optional year values.
+
+Supported formats:
+
+- YYYY-MM-DD
+- MM-DD
+
+This allows users to record events like birthdays even when the exact year is unknown.

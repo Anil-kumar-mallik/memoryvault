@@ -2,6 +2,41 @@ MemoryVault - ProjectTillNow
 Date: 2026-02-28
 
 ==============================
+2026-03-07 Update
+==============================
+Completed Modules
+- Flexible important date input for member forms now accepts `YYYY-MM-DD` and `MM-DD`.
+- Client important date parsing, validation, formatting, timeline sorting, and upcoming-event resolution now support year-optional dates.
+- Backend member important date normalization now stores raw important-date strings while preserving fallback support for legacy stored dates.
+- Verification completed with `client/npm run build` and `server/npm run build`.
+
+File Changes
+- `client/components/DateFieldGroup.tsx`
+- `client/components/MemberForm.tsx`
+- `client/components/MemberModal.tsx`
+- `client/components/TimelineView.tsx`
+- `client/lib/importantDateValue.ts`
+- `client/lib/importantDates.ts`
+- `client/utils/eventResolver.ts`
+- `client/utils/timelineResolver.ts`
+- `server/src/controllers/memberController.js`
+- `server/src/models/Member.js`
+- `server/src/utils/dateNormalizer.js`
+- `server/src/validation/bodySchemas.js`
+- `ProjectTillNow.md`
+- `ProjectTillNow.txt`
+
+Database Schema State
+- `Member` documents now support an optional `importantDateEntries` array with `{ type, value, label }`.
+- `importantDateEntries.value` stores normalized `YYYY-MM-DD` or `MM-DD`.
+- Legacy member fields `dateOfBirth`, `anniversaryDate`, `dateOfDeath`, and `importantNotes` remain active for backward compatibility and fallback reads.
+
+Pending Tasks
+- Backfill older member records into `importantDateEntries` if a one-time migration is needed; current reads already support legacy data without migration.
+- Extend tree import/export flows to preserve year-optional important dates if those workflows need the new format.
+- Existing client build warnings for `<img>` usage and hook dependency lint hints remain unrelated to this date-system change.
+
+==============================
 What Is Completed
 ==============================
 1. Monorepo scaffold created at `memoryvault/` with `client`, `server`, `docs`, and root progress log.

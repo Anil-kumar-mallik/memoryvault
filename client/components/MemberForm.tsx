@@ -240,6 +240,10 @@ function MemberForm({ initialData, mode, onSubmit, onCancel, onRemoveImage, remo
         <DateFieldGroup
           importantDates={form.importantDates}
           onChange={(importantDates) => setForm((current) => ({ ...current, importantDates }))}
+          dateInputType="text"
+          datePlaceholder="MM-DD or YYYY-MM-DD"
+          datePattern="^(?:\\d{2}-\\d{2}|\\d{4}-\\d{2}-\\d{2})$"
+          dateTitle="Use MM-DD or YYYY-MM-DD"
         />
 
         <textarea

@@ -1,4 +1,4 @@
-import { resolveMemberImportantDates } from "@/lib/importantDates";
+import { formatCalendarDate, resolveMemberImportantDates, resolveNextImportantDateOccurrence } from "@/lib/importantDates";
 import { Member } from "@/types";
 
 export type FamilyEvent = {
@@ -42,14 +42,9 @@ export function resolveUpcomingEvents(members: Member[], daysAhead: number = 7):
     }
 
     for (const entry of importantDates) {
-      const eventDate = new Date(entry.value);
-      if (Number.isNaN(eventDate.getTime())) {
+      const nextOccurrence = resolveNextImportantDateOccurrence(entry.value, today);
+      if (!nextOccurrence) {
         continue;
-      }
-
-      const nextOccurrence = new Date(today.getFullYear(), eventDate.getMonth(), eventDate.getDate());
-      if (nextOccurrence < today) {
-        nextOccurrence.setFullYear(today.getFullYear() + 1);
       }
 
       const diff = Math.round((nextOccurrence.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -61,7 +56,7 @@ export function resolveUpcomingEvents(members: Member[], daysAhead: number = 7):
         memberId: String(member._id),
         memberName: member.name,
         label: labelForEvent(entry.type, entry.label),
-        date: entry.value,
+        date: formatCalendarDate(nextOccurrence),
         daysLeft: diff
       });
     }

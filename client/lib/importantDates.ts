@@ -1,20 +1,22 @@
 import { ImportantDateItem, createImportantDateRow } from "@/components/DateFieldGroup";
+import {
+  compareImportantDateValues,
+  normalizeImportantDateValue,
+  parseStrictImportantDateValue
+} from "@/lib/importantDateValue";
 import { ImportantDateEntry, Member } from "@/types";
 
 const IMPORTANT_DATE_TYPES = new Set<ImportantDateEntry["type"]>(["dob", "anniversary", "death", "custom"]);
-
-const toDateInputValue = (value?: string | null): string => {
-  if (!value) {
-    return "";
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "";
-  }
-
-  return parsed.toISOString().slice(0, 10);
-};
+export {
+  compareImportantDateValues,
+  formatCalendarDate,
+  formatImportantDate,
+  normalizeImportantDateValue,
+  parseImportantDateValue,
+  resolveImportantDateOccurrenceForYear,
+  resolveNextImportantDateOccurrence,
+  type ParsedImportantDateValue
+} from "@/lib/importantDateValue";
 
 const normalizeEntry = (entry: Partial<ImportantDateEntry>): ImportantDateEntry | null => {
   const type = String(entry.type || "")
@@ -24,7 +26,7 @@ const normalizeEntry = (entry: Partial<ImportantDateEntry>): ImportantDateEntry 
     return null;
   }
 
-  const value = toDateInputValue(entry.value || "");
+  const value = normalizeImportantDateValue(entry.value || "");
   if (!value) {
     return null;
   }
@@ -57,7 +59,7 @@ const parseCustomDatesFromImportantNotes = (notes?: string | null): ImportantDat
     }
 
     const label = line.slice(0, separatorIndex).trim() || "Custom";
-    const value = toDateInputValue(line.slice(separatorIndex + 1).trim());
+    const value = normalizeImportantDateValue(line.slice(separatorIndex + 1).trim());
     if (!value) {
       continue;
     }
@@ -88,13 +90,9 @@ const dedupeAndSortEntries = (entries: ImportantDateEntry[]): ImportantDateEntry
   }
 
   return Array.from(unique.values()).sort((left, right) => {
-    const leftTime = new Date(left.value).getTime();
-    const rightTime = new Date(right.value).getTime();
-    const safeLeftTime = Number.isNaN(leftTime) ? Number.POSITIVE_INFINITY : leftTime;
-    const safeRightTime = Number.isNaN(rightTime) ? Number.POSITIVE_INFINITY : rightTime;
-
-    if (safeLeftTime !== safeRightTime) {
-      return safeLeftTime - safeRightTime;
+    const dateComparison = compareImportantDateValues(left.value, right.value);
+    if (dateComparison !== 0) {
+      return dateComparison;
     }
 
     return left.type.localeCompare(right.type);
@@ -104,7 +102,7 @@ const dedupeAndSortEntries = (entries: ImportantDateEntry[]): ImportantDateEntry
 const fallbackLegacyDates = (member: Member): ImportantDateEntry[] => {
   const rows: ImportantDateEntry[] = [];
   const pushLegacy = (type: "dob" | "anniversary" | "death", value?: string | null) => {
-    const normalized = toDateInputValue(value);
+    const normalized = normalizeImportantDateValue(value);
     if (!normalized) {
       return;
     }
@@ -143,7 +141,7 @@ export function buildImportantDateRows(member?: Member | null): ImportantDateIte
   return entries.map((entry, index) => {
     const row = createImportantDateRow(index + 1);
     row.type = entry.type;
-    row.value = toDateInputValue(entry.value);
+    row.value = normalizeImportantDateValue(entry.value);
     row.label = entry.label || "";
     row.customLabel = row.label;
     return row;
@@ -151,17 +149,31 @@ export function buildImportantDateRows(member?: Member | null): ImportantDateIte
 }
 
 export function toImportantDateEntries(rows: ImportantDateItem[]): ImportantDateEntry[] {
-  const normalized = rows.map((row) => {
+  const normalized = rows.map((row, index) => {
     const type = row.type as ImportantDateEntry["type"];
-    const value = toDateInputValue(row.value);
-    if (!IMPORTANT_DATE_TYPES.has(type) || !value) {
+    const rawValue = String(row.value || "").trim();
+    const label = String(row.label || row.customLabel || "").trim();
+
+    if (!type && !rawValue && !label) {
       return null;
     }
 
-    const label = String(row.label || row.customLabel || "").trim();
+    if (!IMPORTANT_DATE_TYPES.has(type)) {
+      throw new Error(`Important date row ${index + 1}: select a date type.`);
+    }
+
+    if (!rawValue) {
+      return null;
+    }
+
+    const parsedValue = parseStrictImportantDateValue(rawValue);
+    if (!parsedValue) {
+      throw new Error(`Important date row ${index + 1}: use MM-DD or YYYY-MM-DD.`);
+    }
+
     return {
       type,
-      value,
+      value: parsedValue.normalizedValue,
       ...(label ? { label } : {})
     } as ImportantDateEntry;
   });

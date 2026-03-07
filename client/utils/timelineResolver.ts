@@ -1,9 +1,11 @@
+import { formatImportantDate, parseImportantDateValue } from "@/lib/importantDates";
 import { Member } from "@/types";
 
 export type TimelineEvent = {
-  date: Date;
+  dateLabel: string;
   label: string;
   memberName: string;
+  sortKey: number;
 };
 
 export function resolveTimelineEvents(members: Member[]): TimelineEvent[] {
@@ -19,18 +21,29 @@ export function resolveTimelineEvents(members: Member[]): TimelineEvent[] {
         return;
       }
 
-      const parsedDate = new Date(dateEntry.value);
-      if (Number.isNaN(parsedDate.getTime())) {
+      const parsedDate = parseImportantDateValue(dateEntry.value);
+      if (!parsedDate) {
         return;
       }
 
       events.push({
-        date: parsedDate,
+        dateLabel: formatImportantDate(dateEntry.value),
         label: dateEntry.label || dateEntry.type,
-        memberName: member.name
+        memberName: member.name,
+        sortKey: Date.UTC(parsedDate.hasYear ? parsedDate.year || 0 : 2400, parsedDate.month - 1, parsedDate.day)
       });
     });
   });
 
-  return events.sort((a, b) => a.date.getTime() - b.date.getTime());
+  return events.sort((left, right) => {
+    if (left.sortKey !== right.sortKey) {
+      return left.sortKey - right.sortKey;
+    }
+
+    if (left.memberName !== right.memberName) {
+      return left.memberName.localeCompare(right.memberName);
+    }
+
+    return left.label.localeCompare(right.label);
+  });
 }

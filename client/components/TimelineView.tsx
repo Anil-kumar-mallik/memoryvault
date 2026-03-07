@@ -18,7 +18,7 @@ export default function TimelineView({ members }: Props) {
       <div className="space-y-3">
         {events.map((event, index) => (
           <div key={index} className="flex gap-4 text-sm">
-            <span className="w-28 font-semibold text-slate-700">{event.date.toISOString().split("T")[0]}</span>
+            <span className="w-28 font-semibold text-slate-700">{event.dateLabel}</span>
 
             <span className="text-slate-900">
               {event.memberName} - {event.label}

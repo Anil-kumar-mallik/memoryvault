@@ -1,21 +1,134 @@
 const IMPORTANT_DATE_TYPES = new Set(["dob", "anniversary", "death", "custom"]);
+const FULL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const PARTIAL_DATE_PATTERN = /^(\d{2})-(\d{2})$/;
 
-const normalizeDateToIso = (rawValue) => {
-  if (!rawValue) {
-    return null;
+const normalizeLabel = (value) => String(value || "").trim();
+
+const padNumber = (value) => String(value).padStart(2, "0");
+
+const daysInMonth = (year, month) => new Date(Date.UTC(year, month, 0)).getUTCDate();
+
+const isValidCalendarDate = (year, month, day) => {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return false;
   }
 
-  const parsed = new Date(rawValue);
+  if (month < 1 || month > 12) {
+    return false;
+  }
+
+  if (day < 1 || day > daysInMonth(year, month)) {
+    return false;
+  }
+
+  return true;
+};
+
+const buildParsedImportantDateValue = ({ year, month, day }) => ({
+  normalizedValue: year == null ? `${padNumber(month)}-${padNumber(day)}` : `${year}-${padNumber(month)}-${padNumber(day)}`,
+  year,
+  month,
+  day,
+  hasYear: year != null
+});
+
+const parseStrictImportantDateValue = (value) => {
+  const fullMatch = String(value).match(FULL_DATE_PATTERN);
+  if (fullMatch) {
+    const year = Number.parseInt(fullMatch[1], 10);
+    const month = Number.parseInt(fullMatch[2], 10);
+    const day = Number.parseInt(fullMatch[3], 10);
+
+    if (!isValidCalendarDate(year, month, day)) {
+      return null;
+    }
+
+    return buildParsedImportantDateValue({ year, month, day });
+  }
+
+  const partialMatch = String(value).match(PARTIAL_DATE_PATTERN);
+  if (partialMatch) {
+    const month = Number.parseInt(partialMatch[1], 10);
+    const day = Number.parseInt(partialMatch[2], 10);
+
+    if (!isValidCalendarDate(2000, month, day)) {
+      return null;
+    }
+
+    return buildParsedImportantDateValue({ year: null, month, day });
+  }
+
+  return null;
+};
+
+const parseLegacyImportantDateValue = (value) => {
+  const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
     return null;
   }
 
-  return parsed.toISOString();
+  return buildParsedImportantDateValue({
+    year: parsed.getUTCFullYear(),
+    month: parsed.getUTCMonth() + 1,
+    day: parsed.getUTCDate()
+  });
 };
 
-const normalizeLabel = (value) => String(value || "").trim();
+const parseImportantDateValue = (rawValue) => {
+  const trimmed = String(rawValue || "").trim();
+  if (!trimmed) {
+    return null;
+  }
 
-const normalizeEntry = (entry) => {
+  return parseStrictImportantDateValue(trimmed) || parseLegacyImportantDateValue(trimmed);
+};
+
+const normalizeImportantDateValue = (rawValue) => parseImportantDateValue(rawValue)?.normalizedValue || null;
+
+const compareImportantDateValues = (left, right) => {
+  const leftParsed = parseImportantDateValue(left);
+  const rightParsed = parseImportantDateValue(right);
+
+  if (!leftParsed && !rightParsed) {
+    return 0;
+  }
+
+  if (!leftParsed) {
+    return 1;
+  }
+
+  if (!rightParsed) {
+    return -1;
+  }
+
+  if (leftParsed.hasYear && rightParsed.hasYear) {
+    if (leftParsed.year !== rightParsed.year) {
+      return (leftParsed.year || 0) - (rightParsed.year || 0);
+    }
+
+    if (leftParsed.month !== rightParsed.month) {
+      return leftParsed.month - rightParsed.month;
+    }
+
+    return leftParsed.day - rightParsed.day;
+  }
+
+  if (leftParsed.month !== rightParsed.month) {
+    return leftParsed.month - rightParsed.month;
+  }
+
+  if (leftParsed.day !== rightParsed.day) {
+    return leftParsed.day - rightParsed.day;
+  }
+
+  if (leftParsed.hasYear !== rightParsed.hasYear) {
+    return leftParsed.hasYear ? -1 : 1;
+  }
+
+  return 0;
+};
+
+const normalizeImportantDateEntry = (entry) => {
   if (!entry || typeof entry !== "object") {
     return null;
   }
@@ -27,7 +140,7 @@ const normalizeEntry = (entry) => {
     return null;
   }
 
-  const value = normalizeDateToIso(entry.value);
+  const value = normalizeImportantDateValue(entry.value);
   if (!value) {
     return null;
   }
@@ -61,7 +174,7 @@ const parseCustomImportantNotesEntries = (importantNotes) => {
     }
 
     const label = normalizeLabel(line.slice(0, separatorIndex)) || "Custom";
-    const value = normalizeDateToIso(line.slice(separatorIndex + 1).trim());
+    const value = normalizeImportantDateValue(line.slice(separatorIndex + 1).trim());
     if (!value) {
       continue;
     }
@@ -77,7 +190,7 @@ const dedupeAndSortEntries = (entries) => {
   const unique = [];
 
   for (const entry of entries) {
-    const normalized = normalizeEntry(entry);
+    const normalized = normalizeImportantDateEntry(entry);
     if (!normalized) {
       continue;
     }
@@ -92,27 +205,23 @@ const dedupeAndSortEntries = (entries) => {
   }
 
   return unique.sort((left, right) => {
-    const leftTime = new Date(left.value).getTime();
-    const rightTime = new Date(right.value).getTime();
-    const safeLeftTime = Number.isNaN(leftTime) ? Number.POSITIVE_INFINITY : leftTime;
-    const safeRightTime = Number.isNaN(rightTime) ? Number.POSITIVE_INFINITY : rightTime;
-
-    if (safeLeftTime !== safeRightTime) {
-      return safeLeftTime - safeRightTime;
+    const dateComparison = compareImportantDateValues(left.value, right.value);
+    if (dateComparison !== 0) {
+      return dateComparison;
     }
 
     return left.type.localeCompare(right.type);
   });
 };
 
-function normalizeDatesFromLegacy(member) {
+const buildLegacyEntries = (member) => {
   if (!member || typeof member !== "object") {
     return [];
   }
 
   const entries = [];
   const pushLegacy = (type, value, label) => {
-    const normalizedValue = normalizeDateToIso(value);
+    const normalizedValue = normalizeImportantDateValue(value);
     if (!normalizedValue) {
       return;
     }
@@ -130,16 +239,38 @@ function normalizeDatesFromLegacy(member) {
 
   entries.push(...parseCustomImportantNotesEntries(member.importantNotes));
 
-  return dedupeAndSortEntries(entries);
+  return entries;
+};
+
+function normalizeDatesFromLegacy(member) {
+  if (!member || typeof member !== "object") {
+    return [];
+  }
+
+  if (Array.isArray(member.importantDateEntries)) {
+    return dedupeAndSortEntries(member.importantDateEntries);
+  }
+
+  return dedupeAndSortEntries(buildLegacyEntries(member));
 }
 
 function mapImportantDatesToLegacy(importantDates) {
   const normalizedEntries = Array.isArray(importantDates) ? dedupeAndSortEntries(importantDates) : [];
-  const getFirstDateByType = (type) => normalizedEntries.find((entry) => entry.type === type)?.value || null;
+  const getFirstDateByType = (type) => {
+    const entry = normalizedEntries.find((item) => {
+      if (item.type !== type) {
+        return false;
+      }
+
+      return Boolean(parseImportantDateValue(item.value)?.hasYear);
+    });
+
+    return entry ? entry.value : null;
+  };
 
   const customLines = normalizedEntries
     .filter((entry) => entry.type === "custom")
-    .map((entry) => `${entry.label || "Custom"}: ${entry.value.slice(0, 10)}`);
+    .map((entry) => `${entry.label || "Custom"}: ${entry.value}`);
 
   return {
     dateOfBirth: getFirstDateByType("dob") ? new Date(getFirstDateByType("dob")) : null,
@@ -150,6 +281,8 @@ function mapImportantDatesToLegacy(importantDates) {
 }
 
 module.exports = {
+  normalizeImportantDateEntry,
+  normalizeImportantDateValue,
   normalizeDatesFromLegacy,
   mapImportantDatesToLegacy
 };

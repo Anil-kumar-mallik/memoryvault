@@ -1,5 +1,7 @@
 "use client";
 
+import { compareImportantDateValues } from "@/lib/importantDateValue";
+
 export type ImportantDateType = "" | "dob" | "anniversary" | "death" | "custom";
 export type SelectableImportantDateType = Exclude<ImportantDateType, "">;
 
@@ -16,6 +18,10 @@ type DateFieldGroupProps = {
   onChange: (rows: ImportantDateItem[]) => void;
   title?: string;
   allowedTypes?: SelectableImportantDateType[];
+  dateInputType?: "date" | "text";
+  datePlaceholder?: string;
+  datePattern?: string;
+  dateTitle?: string;
 };
 
 const DEFAULT_ALLOWED_TYPES: SelectableImportantDateType[] = ["dob", "anniversary", "death", "custom"];
@@ -41,13 +47,9 @@ function sortImportantDates(rows: ImportantDateItem[]): ImportantDateItem[] {
   return rows
     .map((row, index) => ({ row, index }))
     .sort((left, right) => {
-      const leftTime = left.row.value ? new Date(left.row.value).getTime() : Number.POSITIVE_INFINITY;
-      const rightTime = right.row.value ? new Date(right.row.value).getTime() : Number.POSITIVE_INFINITY;
-      const safeLeftTime = Number.isNaN(leftTime) ? Number.POSITIVE_INFINITY : leftTime;
-      const safeRightTime = Number.isNaN(rightTime) ? Number.POSITIVE_INFINITY : rightTime;
-
-      if (safeLeftTime !== safeRightTime) {
-        return safeLeftTime - safeRightTime;
+      const dateComparison = compareImportantDateValues(left.row.value, right.row.value);
+      if (dateComparison !== 0) {
+        return dateComparison;
       }
 
       return left.index - right.index;
@@ -74,7 +76,11 @@ export default function DateFieldGroup({
   importantDates,
   onChange,
   title = "Important Dates",
-  allowedTypes
+  allowedTypes,
+  dateInputType = "date",
+  datePlaceholder,
+  datePattern,
+  dateTitle
 }: DateFieldGroupProps) {
   const resolvedAllowedTypes = normalizeAllowedTypes(allowedTypes);
   const rows = importantDates.length ? sortImportantDates(importantDates) : [createImportantDateRow(1)];
@@ -137,9 +143,14 @@ export default function DateFieldGroup({
               <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date</label>
               <input
                 className="field"
-                type="date"
+                type={dateInputType}
                 value={row.value}
                 onChange={(event) => updateDateRow(row.id, { value: event.target.value })}
+                placeholder={dateInputType === "text" ? datePlaceholder : undefined}
+                pattern={dateInputType === "text" ? datePattern : undefined}
+                title={dateInputType === "text" ? dateTitle : undefined}
+                inputMode={dateInputType === "text" ? "numeric" : undefined}
+                autoComplete={dateInputType === "text" ? "off" : undefined}
                 disabled={!row.type || !resolvedAllowedTypes.includes(row.type as SelectableImportantDateType)}
               />
             </div>
