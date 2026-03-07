@@ -9,9 +9,12 @@ Completed Modules
 - Client important date state now stores structured day/month/year values and serializes `DD-MM` / `DD-MM-YYYY` before normalizing them for backend compatibility.
 - Existing stored important dates still load correctly, and the upcoming-event resolver continues to calculate reminders for yearless dates using the current year.
 - Account profile date-of-birth editing was adapted to the new dropdown-based date row component while still requiring a full year.
-- Verification completed with `client/npm run build` and `server/npm run build`.
+- Dashboard now surfaces upcoming family events directly on login by fetching the primary tree members and reusing the shared important-date resolver for a 7-day window.
+- Dashboard event loading stays isolated from the tree engine and uses paginated member fetching so reminder logic remains aligned without changing tree rendering behavior.
+- Verification completed with fresh `client/npm run build` and `server/npm run build` after the dashboard reminder panel was added.
 
 File Changes
+- `client/app/page.tsx`
 - `client/app/account/page.tsx`
 - `client/components/DateFieldGroup.tsx`
 - `client/components/MemberForm.tsx`
@@ -29,7 +32,7 @@ Database Schema State
 Pending Tasks
 - Backfill older member records into `importantDateEntries` if a one-time migration is needed; current reads already support legacy data without migration.
 - Extend tree import/export flows to preserve structured day-first important date input if those workflows need the new format.
-- Existing client build warnings for `<img>` usage and hook dependency lint hints remain unrelated to this date-system change.
+- Existing client build warnings for `<img>` usage and hook dependency lint hints remain unrelated to this date-system and dashboard reminder change.
 
 ==============================
 What Is Completed

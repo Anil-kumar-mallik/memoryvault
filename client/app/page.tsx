@@ -4,9 +4,10 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { clearToken, getCurrentUser, getToken } from "@/lib/auth";
-import { createTree, deleteTree, getMySubscription, getMyTrees, updateTreeSettings } from "@/lib/api";
+import { createTree, deleteTree, getMembers, getMySubscription, getMyTrees, updateTreeSettings } from "@/lib/api";
 import { FamilyTree, SubscriptionSummaryResponse, TreePrivacy, TreeSettingsPayload, User } from "@/types";
 import { useI18n } from "@/lib/i18n/provider";
+import { resolveUpcomingEvents, type FamilyEvent } from "@/utils/eventResolver";
 
 type TreeFormState = {
   name: string;
@@ -36,6 +37,9 @@ export default function HomePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionSummaryResponse | null>(null);
+  const [dashboardEvents, setDashboardEvents] = useState<FamilyEvent[]>([]);
+  const [loadingDashboardEvents, setLoadingDashboardEvents] = useState(false);
+  const [dashboardEventsError, setDashboardEventsError] = useState<string | null>(null);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editTreeId, setEditTreeId] = useState<string | null>(null);
@@ -99,6 +103,68 @@ export default function HomePage() {
   const treeLimitReached = Boolean(subscription?.usage.treeLimitReached);
   const hasExistingTree = trees.length > 0;
   const primaryTree = trees[0] || null;
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadDashboardEvents = async () => {
+      if (!isAuthenticated || !primaryTree?._id) {
+        setDashboardEvents([]);
+        setDashboardEventsError(null);
+        setLoadingDashboardEvents(false);
+        return;
+      }
+
+      try {
+        setLoadingDashboardEvents(true);
+        setDashboardEventsError(null);
+
+        const pageSize = 200;
+        const firstPage = await getMembers(primaryTree._id, 1, pageSize);
+
+        if (isCancelled) {
+          return;
+        }
+
+        const responses = [firstPage];
+        const totalPages = Math.max(1, Math.ceil(firstPage.total / pageSize));
+
+        if (totalPages > 1) {
+          const remainingPages = await Promise.all(
+            Array.from({ length: totalPages - 1 }, (_, index) => getMembers(primaryTree._id, index + 2, pageSize))
+          );
+
+          if (isCancelled) {
+            return;
+          }
+
+          responses.push(...remainingPages);
+        }
+
+        const members = responses.flatMap((response) => response.members);
+        setDashboardEvents(resolveUpcomingEvents(members, 7));
+      } catch (loadError) {
+        if (isCancelled) {
+          return;
+        }
+
+        setDashboardEvents([]);
+        setDashboardEventsError(
+          loadError instanceof Error ? loadError.message : "Failed to load upcoming family events."
+        );
+      } finally {
+        if (!isCancelled) {
+          setLoadingDashboardEvents(false);
+        }
+      }
+    };
+
+    void loadDashboardEvents();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isAuthenticated, primaryTree?._id, primaryTree?.memberCount]);
 
   const createFormPayload = useMemo(() => {
     const payload = {
@@ -273,6 +339,8 @@ export default function HomePage() {
     setIsAuthenticated(false);
     setTrees([]);
     setCurrentUser(null);
+    setDashboardEvents([]);
+    setDashboardEventsError(null);
     router.push("/login");
   };
 
@@ -350,6 +418,30 @@ export default function HomePage() {
             </div>
           )}
         </article>
+      </section>
+
+      <section className="mb-6">
+        <div className="panel">
+          <h2 className="mb-3 text-lg font-semibold text-slate-900">Upcoming Family Events</h2>
+          {loadingDashboardEvents ? (
+            <p className="text-sm text-slate-500">{t("common.loading")}</p>
+          ) : dashboardEventsError ? (
+            <p className="text-sm text-red-600">{dashboardEventsError}</p>
+          ) : dashboardEvents.length === 0 ? (
+            <p className="text-sm text-slate-500">No upcoming events.</p>
+          ) : (
+            <ul className="space-y-2 text-sm text-slate-700">
+              {dashboardEvents.map((event) => (
+                <li key={`${event.memberId}-${event.label}-${event.date}`}>
+                  <strong className="text-slate-900">{event.memberName}</strong> - {event.label}
+                  {event.daysLeft === 0 && <span className="ml-2 font-semibold text-red-600">Today</span>}
+                  {event.daysLeft === 1 && <span className="ml-2 text-orange-600">Tomorrow</span>}
+                  {event.daysLeft > 1 && <span className="ml-2 text-slate-500">in {event.daysLeft} days</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[380px_1fr]">

@@ -134,3 +134,16 @@ Dates are assembled in:
 The serializer keeps backend compatibility so existing stored members continue working.
 
 This improves usability and allows storing events even when the year is unknown.
+
+### Dashboard Event Reminders
+
+The dashboard now displays upcoming family events using the Important Date system.
+
+Events displayed include:
+
+- Birthdays
+- Marriage anniversaries
+- Death anniversaries
+- Custom family events
+
+Users can immediately see upcoming reminders after login.
