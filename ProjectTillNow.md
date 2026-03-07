@@ -159,3 +159,16 @@ The dashboard now correctly retrieves members using the user's primary tree ID b
 Resolved validation error in dashboard event loader.
 
 Member query limit adjusted from 200 to 100 to comply with backend validation rules.
+
+### Family Event Calendar
+
+MemoryVault now includes a full event calendar.
+
+Users can view all family events organized by month including:
+
+- Birthdays
+- Marriage anniversaries
+- Death anniversaries
+- Custom family events
+
+The calendar works with the Important Date system and displays events from all family members.

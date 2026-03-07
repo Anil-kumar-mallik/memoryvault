@@ -13,9 +13,13 @@ Completed Modules
 - Dashboard event loading stays isolated from the tree engine and uses paginated member fetching so reminder logic remains aligned without changing tree rendering behavior.
 - Dashboard event loading now explicitly resolves members from `trees[0]._id` before calling `getMembers`, preventing validation failures when no tree context is available.
 - Dashboard event member fetching now uses a backend-safe limit of `100`, resolving the dashboard validation error caused by requesting `200` members in one call.
-- Verification completed with fresh `client/npm run build` and `server/npm run build` after the dashboard event limit fix.
+- Added a dedicated `/events` calendar page that loads the primary tree members, resolves family events with the existing reminder utility, and groups them into month-based panels.
+- Added an `Events` navigation link in the active top navigation component so the new calendar page is reachable without changing dashboard or tree flows.
+- Verification completed with fresh `client/npm run build` and `server/npm run build` after the family event calendar page was added.
 
 File Changes
+- `client/app/events/page.tsx`
+- `client/components/TopNav.tsx`
 - `client/app/page.tsx`
 - `client/app/account/page.tsx`
 - `client/components/DateFieldGroup.tsx`
@@ -34,6 +38,7 @@ Database Schema State
 Pending Tasks
 - Backfill older member records into `importantDateEntries` if a one-time migration is needed; current reads already support legacy data without migration.
 - Extend tree import/export flows to preserve structured day-first important date input if those workflows need the new format.
+- Extend the event calendar page to paginate beyond the first 100 members if trees larger than the current backend-safe query limit must be shown in one view.
 - Existing client build warnings for `<img>` usage and hook dependency lint hints remain unrelated to this date-system and dashboard reminder change.
 
 ==============================

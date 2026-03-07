@@ -163,6 +163,14 @@ export default function TopNav() {
             {t("nav.pricing")}
           </Link>
           <Link
+            href="/events"
+            className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+              pathname === "/events" ? "bg-brand-500 text-white" : "text-slate-700 hover:bg-slate-100"
+            }`}
+          >
+            Events
+          </Link>
+          <Link
             href="/account"
             className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
               pathname === "/account" ? "bg-brand-500 text-white" : "text-slate-700 hover:bg-slate-100"
