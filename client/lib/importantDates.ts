@@ -1,8 +1,11 @@
 import { ImportantDateItem, createImportantDateRow } from "@/components/DateFieldGroup";
 import {
   compareImportantDateValues,
+  buildImportantDateInputValue,
+  normalizeImportantDateInputValue,
   normalizeImportantDateValue,
-  parseStrictImportantDateValue
+  parseImportantDateParts,
+  toImportantDateParts
 } from "@/lib/importantDateValue";
 import { ImportantDateEntry, Member } from "@/types";
 
@@ -140,8 +143,11 @@ export function buildImportantDateRows(member?: Member | null): ImportantDateIte
 
   return entries.map((entry, index) => {
     const row = createImportantDateRow(index + 1);
+    const parsedDate = toImportantDateParts(entry.value, "backend");
     row.type = entry.type;
-    row.value = normalizeImportantDateValue(entry.value);
+    row.day = parsedDate.day;
+    row.month = parsedDate.month;
+    row.year = parsedDate.year;
     row.label = entry.label || "";
     row.customLabel = row.label;
     return row;
@@ -151,10 +157,10 @@ export function buildImportantDateRows(member?: Member | null): ImportantDateIte
 export function toImportantDateEntries(rows: ImportantDateItem[]): ImportantDateEntry[] {
   const normalized = rows.map((row, index) => {
     const type = row.type as ImportantDateEntry["type"];
-    const rawValue = String(row.value || "").trim();
     const label = String(row.label || row.customLabel || "").trim();
+    const hasDateSelection = row.day != null || row.month != null || row.year != null;
 
-    if (!type && !rawValue && !label) {
+    if (!type && !hasDateSelection && !label) {
       return null;
     }
 
@@ -162,18 +168,36 @@ export function toImportantDateEntries(rows: ImportantDateItem[]): ImportantDate
       throw new Error(`Important date row ${index + 1}: select a date type.`);
     }
 
-    if (!rawValue) {
-      return null;
+    if (!hasDateSelection) {
+      throw new Error(`Important date row ${index + 1}: select day and month.`);
     }
 
-    const parsedValue = parseStrictImportantDateValue(rawValue);
-    if (!parsedValue) {
-      throw new Error(`Important date row ${index + 1}: use MM-DD or YYYY-MM-DD.`);
+    if (row.day == null || row.month == null) {
+      throw new Error(`Important date row ${index + 1}: select both day and month.`);
+    }
+
+    const parsedParts = parseImportantDateParts({
+      day: row.day,
+      month: row.month,
+      year: row.year
+    });
+    if (!parsedParts) {
+      throw new Error(`Important date row ${index + 1}: select a valid date.`);
+    }
+
+    const inputValue = buildImportantDateInputValue({
+      day: parsedParts.day,
+      month: parsedParts.month,
+      year: parsedParts.year
+    });
+    const value = normalizeImportantDateInputValue(inputValue);
+    if (!value) {
+      throw new Error(`Important date row ${index + 1}: select a valid date.`);
     }
 
     return {
       type,
-      value: parsedValue.normalizedValue,
+      value,
       ...(label ? { label } : {})
     } as ImportantDateEntry;
   });

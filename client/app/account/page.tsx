@@ -5,34 +5,17 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearToken, getToken, setCurrentUser } from "@/lib/auth";
 import { deleteMyAccount, getMyAccount, updateMyAccount, updateMyPassword } from "@/lib/api";
+import { buildImportantDateBackendValue, formatImportantDate, toImportantDateParts } from "@/lib/importantDateValue";
 import { resolveProfileImageUrl } from "@/lib/profileImageUrl";
 import { User } from "@/types";
 import DateFieldGroup, { ImportantDateItem, createImportantDateRow } from "@/components/DateFieldGroup";
-
-const toDateInputValue = (value?: string | null) => {
-  if (!value) {
-    return "";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  return date.toISOString().slice(0, 10);
-};
 
 const toDisplayDate = (value?: string | null) => {
   if (!value) {
     return "-";
   }
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-
-  return date.toLocaleDateString();
+  return formatImportantDate(value, "backend");
 };
 
 const firstLetter = (value?: string | null) => {
@@ -42,18 +25,37 @@ const firstLetter = (value?: string | null) => {
 
 const mapDateOfBirthToImportantDates = (value?: string | null): ImportantDateItem[] => {
   const row = createImportantDateRow(1);
-  const dateOfBirth = toDateInputValue(value);
+  const dateOfBirth = toImportantDateParts(value, "backend");
 
-  if (dateOfBirth) {
+  if (dateOfBirth.day != null && dateOfBirth.month != null) {
     row.type = "dob";
-    row.value = dateOfBirth;
+    row.day = dateOfBirth.day;
+    row.month = dateOfBirth.month;
+    row.year = dateOfBirth.year;
   }
 
   return [row];
 };
 
-const mapImportantDatesToDateOfBirth = (rows: ImportantDateItem[]): string | null =>
-  rows.find((row) => row.type === "dob" && row.value)?.value || null;
+const mapImportantDatesToDateOfBirth = (rows: ImportantDateItem[]): string | null => {
+  const row = rows.find(
+    (entry) => entry.type === "dob" && (entry.day != null || entry.month != null || entry.year != null)
+  );
+
+  if (!row) {
+    return null;
+  }
+
+  if (row.day == null || row.month == null || row.year == null) {
+    throw new Error("Date of birth requires day, month, and year.");
+  }
+
+  return buildImportantDateBackendValue({
+    day: row.day,
+    month: row.month,
+    year: row.year
+  });
+};
 
 export default function AccountPage() {
   const router = useRouter();
@@ -142,7 +144,13 @@ export default function AccountPage() {
       return;
     }
 
-    const mappedDateOfBirth = mapImportantDatesToDateOfBirth(importantDates);
+    let mappedDateOfBirth: string | null;
+    try {
+      mappedDateOfBirth = mapImportantDatesToDateOfBirth(importantDates);
+    } catch (dateError) {
+      setError(dateError instanceof Error ? dateError.message : "Date of birth is invalid.");
+      return;
+    }
 
     try {
       setSavingProfile(true);
@@ -177,7 +185,13 @@ export default function AccountPage() {
       return;
     }
 
-    const mappedDateOfBirth = mapImportantDatesToDateOfBirth(importantDates);
+    let mappedDateOfBirth: string | null;
+    try {
+      mappedDateOfBirth = mapImportantDatesToDateOfBirth(importantDates);
+    } catch (dateError) {
+      setError(dateError instanceof Error ? dateError.message : "Date of birth is invalid.");
+      return;
+    }
 
     try {
       setRemovingProfileImage(true);
@@ -466,7 +480,12 @@ export default function AccountPage() {
                     onChange={(event) => setName(event.target.value)}
                     required
                   />
-                  <DateFieldGroup importantDates={importantDates} onChange={setImportantDates} allowedTypes={["dob", "anniversary", "custom"]} />
+                  <DateFieldGroup
+                    importantDates={importantDates}
+                    onChange={setImportantDates}
+                    allowedTypes={["dob"]}
+                    allowYearlessDates={false}
+                  />
                   <input
                     className="field"
                     type="text"

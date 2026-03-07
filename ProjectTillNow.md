@@ -115,3 +115,22 @@ Supported formats:
 - MM-DD
 
 This allows users to record events like birthdays even when the exact year is unknown.
+
+### Structured Important Date Input
+
+Important dates now use dropdown selectors instead of manual text input.
+
+Users select:
+
+- Day
+- Month
+- Year (optional)
+
+Dates are assembled in:
+
+- DD-MM
+- DD-MM-YYYY
+
+The serializer keeps backend compatibility so existing stored members continue working.
+
+This improves usability and allows storing events even when the year is unknown.

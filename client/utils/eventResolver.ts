@@ -42,7 +42,7 @@ export function resolveUpcomingEvents(members: Member[], daysAhead: number = 7):
     }
 
     for (const entry of importantDates) {
-      const nextOccurrence = resolveNextImportantDateOccurrence(entry.value, today);
+      const nextOccurrence = resolveNextImportantDateOccurrence(entry.value, today, "auto");
       if (!nextOccurrence) {
         continue;
       }
