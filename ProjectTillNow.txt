@@ -5441,3 +5441,40 @@ Validation/build checks
 
 Pending tasks
 - Optional: add an automated API test covering `GET /api/tree/bin` success shape and deleted-first ordering.
+
+[2026-03-28 | Dashboard Tree Delete UX Alignment | Frontend Dashboard]
+[Aligned the existing dashboard delete action with the safe `/api/tree/:id` endpoint and requested UI copy]
+
+Completed modules
+1) Safe dashboard tree delete flow
+- Updated `client/app/page.tsx`.
+- Reused the existing tree list delete button on the dashboard instead of introducing a new UI path.
+- Kept the existing confirmation flow, but changed the prompt text to:
+  `Are you sure you want to delete this tree?`
+- Kept the existing refetch behavior after delete so the removed tree disappears from the list safely.
+- Success notice now uses the API message and resolves to `Tree moved to bin`.
+
+2) API helper alignment
+- Updated `client/lib/api.ts`.
+- Changed the existing `deleteTree(treeId)` client helper to call `DELETE /api/tree/:id` via `/tree/${treeId}`.
+- Existing auth token and CSRF handling continue through the shared request helper.
+
+3) Response typing hardening
+- Updated `client/types/index.ts`.
+- Relaxed `DeleteTreeResponse` so it supports the new safe-delete response shape while remaining compatible with permanent delete responses.
+
+File changes
+- `client/app/page.tsx`
+- `client/lib/api.ts`
+- `client/types/index.ts`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index changes.
+- No backend tree-engine or routing changes in this update.
+
+Validation/build checks
+- `cd client && npm run build` -> passed with pre-existing Next.js/ESLint warnings (`no-img-element`, `react-hooks/exhaustive-deps`).
+
+Pending tasks
+- Optional: add a focused frontend test for dashboard tree delete confirmation, success notice, and list refresh behavior.

@@ -269,15 +269,15 @@ export default function HomePage() {
   };
 
   const handleDeleteTree = async (treeId: string) => {
-    const shouldDelete = window.confirm("Move this tree to Bin? You can restore it from Account within 30 days.");
+    const shouldDelete = window.confirm("Are you sure you want to delete this tree?");
     if (!shouldDelete) {
       return;
     }
 
     try {
       setDeletingTreeId(treeId);
-      await deleteTree(treeId);
-      setNotice("Tree moved to Bin. You can restore it from Account.");
+      const response = await deleteTree(treeId);
+      setNotice(response.message || "Tree moved to bin");
       setError(null);
       await Promise.all([loadTrees(), loadSubscription()]);
     } catch (deleteError) {

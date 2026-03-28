@@ -97,9 +97,10 @@ export interface TreeSettingsPayload {
 }
 
 export interface DeleteTreeResponse {
+  success?: boolean;
   message: string;
-  treeId: string;
-  deletedMembers: number;
+  treeId?: string;
+  deletedMembers?: number;
   softDeleted?: boolean;
   deletedAt?: string | null;
   permanent?: boolean;

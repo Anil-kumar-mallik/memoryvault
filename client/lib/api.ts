@@ -337,7 +337,7 @@ export function updateTreeSettings(treeId: string, payload: TreeSettingsPayload)
 
 export function deleteTree(treeId: string): Promise<DeleteTreeResponse> {
   return request<DeleteTreeResponse>(
-    `/trees/${treeId}`,
+    `/tree/${treeId}`,
     {
       method: "DELETE"
     },
