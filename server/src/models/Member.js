@@ -69,6 +69,15 @@ const memberSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    deletedAt: {
+      type: Date,
+      default: null
+    },
     linkedUserId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -217,6 +226,34 @@ memberSchema.pre("validate", function normalizeRelations(next) {
 
   next();
 });
+
+memberSchema.query.withDeleted = function withDeleted() {
+  return this.setOptions({ withDeleted: true });
+};
+
+memberSchema.query.onlyDeleted = function onlyDeleted() {
+  return this.setOptions({ withDeleted: true, onlyDeleted: true });
+};
+
+const applySoftDeleteFilter = function applySoftDeleteFilter(next) {
+  const options = typeof this.getOptions === "function" ? this.getOptions() : {};
+
+  if (options.withDeleted) {
+    if (options.onlyDeleted) {
+      this.where({ isDeleted: true });
+    }
+    next();
+    return;
+  }
+
+  this.where({ isDeleted: false });
+  next();
+};
+
+memberSchema.pre("find", applySoftDeleteFilter);
+memberSchema.pre("findOne", applySoftDeleteFilter);
+memberSchema.pre("findOneAndUpdate", applySoftDeleteFilter);
+memberSchema.pre("countDocuments", applySoftDeleteFilter);
 
 memberSchema.virtual("importantDates").get(function resolveImportantDates() {
   return normalizeDatesFromLegacy(this);

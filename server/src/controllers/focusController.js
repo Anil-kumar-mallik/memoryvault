@@ -96,13 +96,10 @@ const getTreeFocus = async (req, res, next) => {
     const parentIds = uniqueIds([center.fatherId, center.motherId]);
     const spouseIds = uniqueIds(center.spouses);
     const siblingIds = uniqueIds(center.siblings);
-    const pagedSpouseIds = spouseIds.slice(0, spouseLimit);
-    const pagedSiblingIds = siblingIds.slice(0, siblingLimit);
+    const relationIds = uniqueIds([...parentIds, ...spouseIds, ...siblingIds]);
 
-    const [parentDocs, spouseDocs, siblingDocs, childDocs, totalChildren] = await Promise.all([
-      parentIds.length ? Member.find({ _id: { $in: parentIds }, treeId }).lean() : [],
-      pagedSpouseIds.length ? Member.find({ _id: { $in: pagedSpouseIds }, treeId }).lean() : [],
-      pagedSiblingIds.length ? Member.find({ _id: { $in: pagedSiblingIds }, treeId }).lean() : [],
+    const [relationDocs, childDocs, totalChildren] = await Promise.all([
+      relationIds.length ? Member.find({ _id: { $in: relationIds }, treeId }).lean() : [],
       Member.find({
         treeId,
         $or: [{ fatherId: center._id }, { motherId: center._id }]
@@ -117,34 +114,33 @@ const getTreeFocus = async (req, res, next) => {
       })
     ]);
 
-    const normalizedParentDocs = parentDocs.map(withNormalizedImportantDates);
-    const normalizedSpouseDocs = spouseDocs.map(withNormalizedImportantDates);
-    const normalizedSiblingDocs = siblingDocs.map(withNormalizedImportantDates);
+    const normalizedRelationDocs = relationDocs.map(withNormalizedImportantDates);
     const normalizedChildDocs = childDocs.map(withNormalizedImportantDates);
-    const byId = (collection) => new Map(collection.map((member) => [String(member._id), member]));
-
-    const parentsById = byId(normalizedParentDocs);
-    const spousesById = byId(normalizedSpouseDocs);
-    const siblingsById = byId(normalizedSiblingDocs);
+    const relationMap = new Map(normalizedRelationDocs.map((member) => [String(member._id), member]));
+    const visibleParentIds = parentIds.filter((id) => relationMap.has(id));
+    const visibleSpouseIds = spouseIds.filter((id) => relationMap.has(id));
+    const visibleSiblingIds = siblingIds.filter((id) => relationMap.has(id));
+    const pagedSpouseIds = visibleSpouseIds.slice(0, spouseLimit);
+    const pagedSiblingIds = visibleSiblingIds.slice(0, siblingLimit);
 
     res.json({
       center: normalizedCenter,
-      parents: parentIds.map((id) => parentsById.get(id)).filter(Boolean),
-      spouses: pagedSpouseIds.map((id) => spousesById.get(id)).filter(Boolean),
-      siblings: pagedSiblingIds.map((id) => siblingsById.get(id)).filter(Boolean),
+      parents: visibleParentIds.map((id) => relationMap.get(id)).filter(Boolean),
+      spouses: pagedSpouseIds.map((id) => relationMap.get(id)).filter(Boolean),
+      siblings: pagedSiblingIds.map((id) => relationMap.get(id)).filter(Boolean),
       children: normalizedChildDocs,
       relationMeta: {
         spouses: {
-          total: spouseIds.length,
+          total: visibleSpouseIds.length,
           loaded: pagedSpouseIds.length,
           limit: spouseLimit,
-          hasMore: spouseIds.length > pagedSpouseIds.length
+          hasMore: visibleSpouseIds.length > pagedSpouseIds.length
         },
         siblings: {
-          total: siblingIds.length,
+          total: visibleSiblingIds.length,
           loaded: pagedSiblingIds.length,
           limit: siblingLimit,
-          hasMore: siblingIds.length > pagedSiblingIds.length
+          hasMore: visibleSiblingIds.length > pagedSiblingIds.length
         },
         children: {
           total: totalChildren,

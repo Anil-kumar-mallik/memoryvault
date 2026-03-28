@@ -487,7 +487,7 @@ const collectParentAgeWarnings = async ({
     return warnings;
   }
 
-  const parentRows = await withSession(Member.find({ treeId, _id: { $in: parentIds } }), session)
+  const parentRows = await withSession(Member.find({ treeId, _id: { $in: parentIds } }).withDeleted(), session)
     .select("_id name birthDate")
     .lean();
 
@@ -558,10 +558,24 @@ const ensureMembersInTree = async (treeId, memberIds, fieldLabel = "Member ids",
     return;
   }
 
-  const count = await withSession(Member.countDocuments({ treeId, _id: { $in: ids } }), session);
+  const count = await withSession(Member.countDocuments({ treeId, _id: { $in: ids } }).withDeleted(), session);
 
   if (count !== ids.length) {
     throw badRequest(`${fieldLabel} must belong to the same tree.`);
+  }
+};
+
+const ensureActiveMembersInTree = async (treeId, memberIds, fieldLabel = "Member ids", session = null) => {
+  const ids = uniqueIds(memberIds);
+
+  if (!ids.length) {
+    return;
+  }
+
+  const count = await withSession(Member.countDocuments({ treeId, _id: { $in: ids } }), session);
+
+  if (count !== ids.length) {
+    throw badRequest(`${fieldLabel} must reference active members in the same tree.`);
   }
 };
 
@@ -590,7 +604,7 @@ const wouldCreateParentCycle = async ({ treeId, memberId, candidateParentId, ses
 
     batch.forEach((id) => visited.add(id));
 
-    const rows = await withSession(Member.find({ treeId, _id: { $in: batch } }), session)
+    const rows = await withSession(Member.find({ treeId, _id: { $in: batch } }).withDeleted(), session)
       .select("_id fatherId motherId")
       .lean();
 
@@ -639,7 +653,9 @@ const validateParentAssignment = async ({
 
   const parentIds = uniqueIds([normalizedFatherId, normalizedMotherId]);
   const parentRows = parentIds.length
-    ? await withSession(Member.find({ treeId, _id: { $in: parentIds } }), session).select("_id gender").lean()
+    ? await withSession(Member.find({ treeId, _id: { $in: parentIds } }).withDeleted(), session)
+        .select("_id gender")
+        .lean()
     : [];
   const parentMap = new Map(parentRows.map((row) => [String(row._id), row]));
 
@@ -695,7 +711,9 @@ const validateParentAssignment = async ({
 };
 
 const rebuildDerivedRelations = async (treeId, session = null) => {
-  const members = await withSession(Member.find({ treeId }), session).select("_id fatherId motherId spouses siblings").lean();
+  const members = await withSession(Member.find({ treeId }).withDeleted(), session)
+    .select("_id fatherId motherId spouses siblings")
+    .lean();
 
   if (!members.length) {
     return;
@@ -831,16 +849,17 @@ const buildMemberWithRelations = async (treeId, memberId, options = {}, session 
   const spouseIds = uniqueIds(focus.spouses).filter((id) => id !== focusId);
   const siblingIds = uniqueIds(focus.siblings).filter((id) => id !== focusId);
 
-  const pagedSpouseIds = spouseIds.slice(0, spouseLimit);
-  const pagedSiblingIds = siblingIds.slice(0, siblingLimit);
-
-  const relationIds = uniqueIds([fatherId, motherId, ...pagedSpouseIds, ...pagedSiblingIds]);
+  const relationIds = uniqueIds([fatherId, motherId, ...spouseIds, ...siblingIds]);
   const relationDocs = relationIds.length
     ? await withSession(Member.find({ treeId, _id: { $in: relationIds } }), session).lean()
     : [];
   const normalizedRelationDocs = relationDocs.map(withNormalizedImportantDates);
 
   const relationMap = new Map(normalizedRelationDocs.map((member) => [String(member._id), member]));
+  const visibleSpouseIds = spouseIds.filter((id) => relationMap.has(id));
+  const visibleSiblingIds = siblingIds.filter((id) => relationMap.has(id));
+  const pagedSpouseIds = visibleSpouseIds.slice(0, spouseLimit);
+  const pagedSiblingIds = visibleSiblingIds.slice(0, siblingLimit);
 
   const childrenFilter = {
     treeId,
@@ -883,16 +902,16 @@ const buildMemberWithRelations = async (treeId, memberId, options = {}, session 
     },
     relationMeta: {
       spouses: {
-        total: spouseIds.length,
-        loaded: Math.min(pagedSpouseIds.length, spouseIds.length),
+        total: visibleSpouseIds.length,
+        loaded: pagedSpouseIds.length,
         limit: spouseLimit,
-        hasMore: spouseIds.length > pagedSpouseIds.length
+        hasMore: visibleSpouseIds.length > pagedSpouseIds.length
       },
       siblings: {
-        total: siblingIds.length,
-        loaded: Math.min(pagedSiblingIds.length, siblingIds.length),
+        total: visibleSiblingIds.length,
+        loaded: pagedSiblingIds.length,
         limit: siblingLimit,
-        hasMore: siblingIds.length > pagedSiblingIds.length
+        hasMore: visibleSiblingIds.length > pagedSiblingIds.length
       },
       children: {
         total: totalChildren,
@@ -1513,7 +1532,7 @@ const collectSubtreeMemberIds = async ({ treeId, rootMemberId, session = null })
       Member.find({
         treeId,
         $or: [{ fatherId: { $in: batch } }, { motherId: { $in: batch } }]
-      }),
+      }).withDeleted(),
       session
     )
       .select("_id")
@@ -1777,6 +1796,10 @@ const updateMember = async (req, res, next) => {
       const nextFatherId = fatherInput.provided ? fatherInput.value : member.fatherId;
       const nextMotherId = motherInput.provided ? motherInput.value : member.motherId;
 
+      if (fatherInput.provided || motherInput.provided) {
+        await ensureActiveMembersInTree(treeId, [fatherInput.value, motherInput.value], "Parent ids", session);
+      }
+
       await validateParentAssignment({
         treeId,
         memberId: member._id,
@@ -1811,6 +1834,7 @@ const updateMember = async (req, res, next) => {
 
       const spouseInput = parseSpouseIds(req.body.spouses);
       if (spouseInput.provided) {
+        await ensureActiveMembersInTree(treeId, spouseInput.values, "Spouse ids", session);
         await syncSpouseLinks(treeId, member, spouseInput.values, session);
       }
 
@@ -1847,7 +1871,7 @@ const deleteMember = async (req, res, next) => {
       }
 
       const targetMember = await withSession(Member.findOne({ _id: memberId, treeId }), session)
-        .select("_id isRoot linkedUserId fatherId motherId")
+        .select("_id isRoot linkedUserId")
         .lean();
       if (!targetMember) {
         throw notFound("Member not found.");
@@ -1861,97 +1885,27 @@ const deleteMember = async (req, res, next) => {
       const deleteIds = subtree
         ? await collectSubtreeMemberIds({ treeId, rootMemberId: targetMember._id, session })
         : [String(targetMember._id)];
-      const deleteIdSet = new Set(deleteIds);
+      const deletableMembers = await withSession(
+        Member.find({ treeId, _id: { $in: deleteIds } }).withDeleted(),
+        session
+      )
+        .select("_id isDeleted")
+        .lean();
+      const activeDeleteIds = deletableMembers.filter((member) => !member.isDeleted).map((member) => String(member._id));
+      const deletedAt = new Date();
 
-      if (!subtree) {
-        const replacementParentId = normalizeId(targetMember.fatherId) || normalizeId(targetMember.motherId) || null;
-
-        if (replacementParentId) {
-          const parentChildren = await withSession(
-            Member.find({
-              treeId,
-              $or: [{ fatherId: targetMember._id }, { motherId: targetMember._id }]
-            }),
-            session
-          )
-            .select("_id fatherId motherId")
-            .lean();
-
-          const relinkOps = parentChildren.map((child) => {
-            const currentFather = normalizeId(child.fatherId);
-            const currentMother = normalizeId(child.motherId);
-            const nextFather =
-              currentFather && currentFather === String(targetMember._id)
-                ? currentMother === replacementParentId
-                  ? null
-                  : replacementParentId
-                : currentFather;
-            const nextMother =
-              currentMother && currentMother === String(targetMember._id)
-                ? currentFather === replacementParentId
-                  ? null
-                  : replacementParentId
-                : currentMother;
-
-            return {
-              updateOne: {
-                filter: { _id: child._id, treeId },
-                update: {
-                  $set: {
-                    fatherId: nextFather || null,
-                    motherId: nextMother || null
-                  }
-                }
-              }
-            };
-          });
-
-          if (relinkOps.length) {
-            await Member.bulkWrite(relinkOps, { ordered: false, ...sessionOptions(session) });
-          }
-        }
+      if (activeDeleteIds.length) {
+        await Member.updateMany(
+          { treeId, _id: { $in: activeDeleteIds } },
+          {
+            $set: {
+              isDeleted: true,
+              deletedAt
+            }
+          },
+          sessionOptions(session)
+        );
       }
-
-      await Promise.all([
-        Member.updateMany({ treeId, fatherId: { $in: deleteIds } }, { $set: { fatherId: null } }, sessionOptions(session)),
-        Member.updateMany({ treeId, motherId: { $in: deleteIds } }, { $set: { motherId: null } }, sessionOptions(session)),
-        Member.updateMany(
-          { treeId, spouses: { $in: deleteIds } },
-          { $pull: { spouses: { $in: deleteIds } } },
-          sessionOptions(session)
-        ),
-        Member.updateMany(
-          { treeId, children: { $in: deleteIds } },
-          { $pull: { children: { $in: deleteIds } } },
-          sessionOptions(session)
-        ),
-        Member.updateMany(
-          { treeId, siblings: { $in: deleteIds } },
-          { $pull: { siblings: { $in: deleteIds } } },
-          sessionOptions(session)
-        )
-      ]);
-
-      await Member.deleteMany({ treeId, _id: { $in: deleteIds } }, sessionOptions(session));
-
-      const currentRootMember = tree.rootMember || tree.rootMemberId || null;
-      if (currentRootMember && deleteIdSet.has(String(currentRootMember))) {
-        const fallbackRoot = await withSession(Member.findOne({ treeId }), session).sort({ createdAt: 1 }).select("_id").lean();
-        tree.rootMember = fallbackRoot ? fallbackRoot._id : null;
-        tree.rootMemberId = fallbackRoot ? fallbackRoot._id : null;
-        await tree.save(sessionOptions(session));
-
-        await Member.updateMany({ treeId, isRoot: true }, { $set: { isRoot: false } }, sessionOptions(session));
-        if (fallbackRoot) {
-          await Member.updateOne(
-            { treeId, _id: fallbackRoot._id },
-            { $set: { isRoot: true, linkedUserId: tree.owner } },
-            sessionOptions(session)
-          );
-        }
-      }
-
-      await rebuildDerivedRelations(treeId, session);
 
       await createAuditLog({
         userId: req.user._id,
@@ -1961,15 +1915,16 @@ const deleteMember = async (req, res, next) => {
         metadata: {
           treeId: String(tree._id),
           subtree,
-          deletedCount: deleteIds.length
+          deletedCount: activeDeleteIds.length,
+          softDeleted: true
         },
         session
       });
 
       return {
         message: "Member deleted successfully.",
-        deletedCount: deleteIds.length,
-        deletedIds: deleteIds,
+        deletedCount: activeDeleteIds.length,
+        deletedIds: activeDeleteIds,
         rootMember: tree.rootMember || tree.rootMemberId || null
       };
     });

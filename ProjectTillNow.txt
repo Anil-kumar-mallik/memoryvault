@@ -2,6 +2,81 @@ MemoryVault - ProjectTillNow
 Date: 2026-02-28
 
 ==============================
+2026-03-29 Update
+==============================
+Completed Modules
+- Implemented safe deletion for `Member` records using `isDeleted` and `deletedAt`.
+- Added Member query-layer soft-delete filtering with `withDeleted()` and `onlyDeleted()` support, following the same pattern used by `FamilyTree`.
+- Updated the existing member delete API to soft delete members instead of permanently removing them.
+- Preserved relationship data in the database by removing relation-pruning logic from member deletion.
+- Updated member relation/focus loading so deleted members stay hidden from tree rendering while active relations still page correctly.
+- Preserved subtree soft delete behavior without breaking the tree engine or relation engine.
+
+File Changes
+- `server/src/models/Member.js`
+- `server/src/controllers/memberController.js`
+- `server/src/controllers/focusController.js`
+- `ProjectTillNow.txt`
+
+Database Schema State
+- `Member` now includes:
+  - `isDeleted: Boolean` with default `false`
+  - `deletedAt: Date` with default `null`
+- Existing relation fields (`fatherId`, `motherId`, `spouses`, `children`, `siblings`) are unchanged and no relation data is deleted during member soft delete.
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+- `cd client && npm run build` -> passed with pre-existing Next.js/ESLint warnings (`no-img-element`, `react-hooks/exhaustive-deps`).
+
+Pending Tasks
+- Add a member restore/bin workflow if soft-deleted member recovery is required in the product.
+- Manually verify single delete and subtree delete flows in the browser to confirm deleted members disappear from the tree while active relatives continue rendering correctly.
+
+### Member Safe Deletion System (Phase 1)
+
+Implemented safe deletion mechanism for family members.
+
+- Members are no longer permanently deleted
+- Soft delete applied using:
+  isDeleted and deletedAt
+
+- Deleted members:
+  - Are hidden from tree visualization
+  - Remain in database to preserve relationship integrity
+
+- No relation data is removed or modified
+
+This ensures:
+
+- Tree structure remains stable
+- No accidental graph corruption
+- Foundation for future member restore system
+
+==============================
+2026-03-29 Update
+==============================
+Completed Modules
+- Documented where subscription plan limits can be changed in the current system.
+- Confirmed core plan values such as `maxMembers` and `maxTrees` are defined in `server/src/utils/subscriptionService.js`.
+- Confirmed `server/src/models/Plan.js` only defines schema validation and does not update existing plan values by itself.
+- Confirmed plan CRUD/update handling exists in `server/src/controllers/planController.js` and `server/src/routes/adminRoutes.js`.
+- Identified one client-side free-plan message in `client/app/tree/[id]/page.tsx` that is hardcoded against a 10-member free-plan limit.
+
+File Changes
+- `ProjectTillNow.txt`
+
+Database Schema State
+- No schema/model/index changes.
+- Existing `Plan` fields remain unchanged: `name`, `priceMonthly`, `priceYearly`, `maxMembers`, `maxTrees`, `features`, `isActive`, `isDefault`.
+
+Validation/build checks
+- Documentation-only update; no build was run in this step.
+
+Pending Tasks
+- If plan limits are changed in `server/src/utils/subscriptionService.js`, verify existing database plan records are updated to match.
+- If the free plan member limit changes, update the related UI copy in `client/app/tree/[id]/page.tsx`.
+
+==============================
 2026-03-28 Update
 ==============================
 Completed Modules
