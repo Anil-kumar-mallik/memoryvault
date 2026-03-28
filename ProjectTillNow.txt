@@ -5409,3 +5409,35 @@ Validation/build checks
 
 Pending tasks
 - Optional: add an automated API test covering `DELETE /api/tree/:id` success and 404 cases.
+
+[2026-03-28 | Deleted Trees Bin Fetch Contract | Backend Tree API]
+[Aligned `/api/tree/bin` with the bin response contract while preserving `.onlyDeleted()` lookup semantics]
+
+Completed modules
+1) Deleted trees bin API contract
+- Updated `server/src/controllers/treeController.js`.
+- Kept the existing authenticated `/api/tree/bin` route mount unchanged.
+- Ensured deleted trees are fetched with owner scoping, `.onlyDeleted()`, and `deletedAt` descending sort.
+- Updated the response contract to:
+  `{ success: true, trees: [...] }`
+
+2) Frontend API compatibility
+- Updated `client/lib/api.ts`.
+- Preserved the existing frontend call shape by unwrapping `response.trees` inside `getDeletedTreesBin()`.
+
+File changes
+- `server/src/controllers/treeController.js`
+- `client/lib/api.ts`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index changes.
+- Existing `FamilyTree` soft-delete fields remain unchanged: `isDeleted`, `deletedAt`.
+- Existing deleted-tree query middleware behavior remains unchanged and `.onlyDeleted()` is still used for bin reads.
+
+Validation/build checks
+- `cd server && npm run check:syntax` -> passed.
+- `cd client && npm run build` -> passed with pre-existing Next.js/ESLint warnings (`no-img-element`, `react-hooks/exhaustive-deps`).
+
+Pending tasks
+- Optional: add an automated API test covering `GET /api/tree/bin` success shape and deleted-first ordering.

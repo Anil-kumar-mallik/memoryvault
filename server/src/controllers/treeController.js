@@ -443,10 +443,12 @@ const deleteTree = async (req, res, next) => {
 
 const getDeletedTreesBin = async (req, res, next) => {
   try {
-    const trees = await FamilyTree.find({ owner: req.user._id })
+    const ownerId = req.user?.id || req.user?._id;
+
+    const trees = await FamilyTree.find({ owner: ownerId })
       .onlyDeleted()
       .populate("owner", "_id name email role")
-      .sort({ deletedAt: -1, createdAt: -1 })
+      .sort({ deletedAt: -1 })
       .lean();
 
     const payload = await Promise.all(
@@ -460,7 +462,10 @@ const getDeletedTreesBin = async (req, res, next) => {
       })
     );
 
-    res.json(payload);
+    res.json({
+      success: true,
+      trees: payload
+    });
   } catch (error) {
     next(error);
   }

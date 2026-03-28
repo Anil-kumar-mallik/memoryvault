@@ -346,7 +346,7 @@ export function deleteTree(treeId: string): Promise<DeleteTreeResponse> {
 }
 
 export function getDeletedTreesBin(): Promise<FamilyTree[]> {
-  return request<FamilyTree[]>("/tree/bin");
+  return request<{ success: true; trees: FamilyTree[] }>("/tree/bin").then((response) => response.trees);
 }
 
 export function restoreDeletedTree(treeId: string): Promise<FamilyTree> {
