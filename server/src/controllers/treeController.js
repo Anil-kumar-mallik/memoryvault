@@ -16,6 +16,15 @@ const sessionOptions = (session) => (session ? { session } : {});
 const normalizeLegacyId = (value) => (value === undefined || value === null ? null : String(value).trim() || null);
 const dedupeStrings = (values = []) => Array.from(new Set(values.map((item) => String(item)).filter(Boolean)));
 const getTreeRootMemberId = (tree) => (tree ? tree.rootMember || tree.rootMemberId || null : null);
+const findOwnedDeletedTree = (treeId, ownerId, session = null) => {
+  let query = FamilyTree.findOne({ _id: treeId, owner: ownerId }).onlyDeleted();
+
+  if (session) {
+    query = query.session(session);
+  }
+
+  return query.exec();
+};
 
 const ensureTreeRootMember = async (tree, session = null) => {
   let rootMemberId = getTreeRootMemberId(tree);
@@ -407,29 +416,117 @@ const deleteTree = async (req, res, next) => {
     }
 
     const tree = req.tree;
-    const treeId = String(tree._id);
-    const payload = await withMongoTransaction(async (session) => {
-      const txTree = await FamilyTree.findById(tree._id).session(session);
-      if (!txTree) {
-        const error = new Error("Family tree not found.");
-        error.statusCode = 404;
-        throw error;
-      }
+    tree.isDeleted = true;
+    tree.deletedAt = new Date();
+    await tree.save();
 
-      const deletedMembersResult = await Member.deleteMany({ treeId }, sessionOptions(session));
-      await FamilyTree.deleteOne({ _id: txTree._id }, sessionOptions(session));
-
-      return {
-        message: "Tree deleted successfully.",
-        treeId,
-        deletedMembers: deletedMembersResult.deletedCount || 0
-      };
-    });
+    const payload = {
+      message: "Tree deleted successfully.",
+      treeId: String(tree._id),
+      deletedMembers: 0,
+      softDeleted: true,
+      deletedAt: tree.deletedAt
+    };
 
     logger.info("Tree deleted", {
       userId: req.user ? String(req.user._id) : null,
       treeId: payload.treeId,
-      deletedMembers: payload.deletedMembers
+      deletedMembers: payload.deletedMembers,
+      softDeleted: true
+    });
+
+    res.json(payload);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getDeletedTreesBin = async (req, res, next) => {
+  try {
+    const trees = await FamilyTree.find({ owner: req.user._id })
+      .onlyDeleted()
+      .populate("owner", "_id name email role")
+      .sort({ deletedAt: -1, createdAt: -1 })
+      .lean();
+
+    const payload = await Promise.all(
+      trees.map(async (tree) => {
+        const memberCount = await Member.countDocuments({ treeId: tree._id });
+        return {
+          ...toSafeTree(tree),
+          memberCount,
+          canEdit: true
+        };
+      })
+    );
+
+    res.json(payload);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const restoreTree = async (req, res, next) => {
+  try {
+    if (!validateRequest(req, res)) {
+      return;
+    }
+
+    const tree = await findOwnedDeletedTree(req.params.id, req.user._id);
+    if (!tree) {
+      res.status(404).json({ message: "Deleted family tree not found." });
+      return;
+    }
+
+    await ensureTreeHasSlug(tree);
+    tree.isDeleted = false;
+    tree.deletedAt = null;
+    await tree.save();
+
+    const memberCount = await Member.countDocuments({ treeId: tree._id });
+
+    res.json({
+      message: "Tree restored successfully.",
+      ...toSafeTree(tree),
+      memberCount,
+      canEdit: true
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const permanentlyDeleteTree = async (req, res, next) => {
+  try {
+    if (!validateRequest(req, res)) {
+      return;
+    }
+
+    const payload = await withMongoTransaction(async (session) => {
+      const tree = await findOwnedDeletedTree(req.params.id, req.user._id, session);
+      if (!tree) {
+        const error = new Error("Deleted family tree not found.");
+        error.statusCode = 404;
+        throw error;
+      }
+
+      const treeId = String(tree._id);
+      const deletedMembersResult = await Member.deleteMany({ treeId }, sessionOptions(session));
+      await FamilyTree.deleteOne({ _id: tree._id }, sessionOptions(session));
+
+      return {
+        message: "Tree permanently deleted successfully.",
+        treeId,
+        deletedMembers: deletedMembersResult.deletedCount || 0,
+        permanent: true
+      };
+    });
+
+    logger.info("Tree permanently deleted", {
+      userId: req.user ? String(req.user._id) : null,
+      treeId: payload.treeId,
+      deletedMembers: payload.deletedMembers,
+      permanent: true
     });
 
     res.json(payload);
@@ -675,6 +772,9 @@ module.exports = {
   getTreeBySlug,
   updateTreeSettings,
   deleteTree,
+  getDeletedTreesBin,
+  restoreTree,
+  permanentlyDeleteTree,
   exportFullTree,
   importTree
 };

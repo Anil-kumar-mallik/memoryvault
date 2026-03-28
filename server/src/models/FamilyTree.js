@@ -56,12 +56,49 @@ const familyTreeSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Member",
       default: null
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    deletedAt: {
+      type: Date,
+      default: null
     }
   },
   {
     timestamps: true
   }
 );
+
+familyTreeSchema.query.withDeleted = function withDeleted() {
+  return this.setOptions({ withDeleted: true });
+};
+
+familyTreeSchema.query.onlyDeleted = function onlyDeleted() {
+  return this.setOptions({ withDeleted: true, onlyDeleted: true });
+};
+
+const applySoftDeleteFilter = function applySoftDeleteFilter(next) {
+  const options = typeof this.getOptions === "function" ? this.getOptions() : {};
+
+  if (options.withDeleted) {
+    if (options.onlyDeleted) {
+      this.where({ isDeleted: true });
+    }
+    next();
+    return;
+  }
+
+  this.where({ isDeleted: false });
+  next();
+};
+
+familyTreeSchema.pre("find", applySoftDeleteFilter);
+familyTreeSchema.pre("findOne", applySoftDeleteFilter);
+familyTreeSchema.pre("findOneAndUpdate", applySoftDeleteFilter);
+familyTreeSchema.pre("countDocuments", applySoftDeleteFilter);
 
 familyTreeSchema.pre("validate", function syncLegacyAndCompatibilityFields(next) {
   const hasPrivacy = typeof this.privacy === "string";

@@ -269,7 +269,7 @@ export default function HomePage() {
   };
 
   const handleDeleteTree = async (treeId: string) => {
-    const shouldDelete = window.confirm("Delete this tree? This action also removes all members.");
+    const shouldDelete = window.confirm("Move this tree to Bin? You can restore it from Account within 30 days.");
     if (!shouldDelete) {
       return;
     }
@@ -277,6 +277,8 @@ export default function HomePage() {
     try {
       setDeletingTreeId(treeId);
       await deleteTree(treeId);
+      setNotice("Tree moved to Bin. You can restore it from Account.");
+      setError(null);
       await Promise.all([loadTrees(), loadSubscription()]);
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "Failed to delete tree.");

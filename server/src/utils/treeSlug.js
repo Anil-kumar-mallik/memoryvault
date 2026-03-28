@@ -37,8 +37,8 @@ const generateUniqueTreeSlug = async ({ name, excludeTreeId = null, session = nu
     }
 
     const exists = session
-      ? await FamilyTree.exists(query).session(session)
-      : await FamilyTree.exists(query);
+      ? await FamilyTree.exists(query).withDeleted().session(session)
+      : await FamilyTree.exists(query).withDeleted();
 
     if (!exists) {
       return candidate;

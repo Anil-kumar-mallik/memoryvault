@@ -345,6 +345,23 @@ export function deleteTree(treeId: string): Promise<DeleteTreeResponse> {
   );
 }
 
+export function getDeletedTreesBin(): Promise<FamilyTree[]> {
+  return request<FamilyTree[]>("/tree/bin");
+}
+
+export function restoreDeletedTree(treeId: string): Promise<FamilyTree> {
+  return request<FamilyTree>(`/tree/restore/${treeId}`, {
+    method: "POST",
+    body: JSON.stringify({})
+  });
+}
+
+export function permanentlyDeleteTree(treeId: string): Promise<DeleteTreeResponse> {
+  return request<DeleteTreeResponse>(`/tree/permanent/${treeId}`, {
+    method: "DELETE"
+  });
+}
+
 export function getMembers(treeId: string, page: number, limit: number = 20): Promise<PaginatedMembersResponse> {
   return request<PaginatedMembersResponse>(`/trees/${treeId}/members?page=${page}&limit=${limit}`, {}, { treeIdForAccess: treeId });
 }

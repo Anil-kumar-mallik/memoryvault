@@ -5,6 +5,56 @@ Date: 2026-02-28
 2026-03-28 Update
 ==============================
 Completed Modules
+- Added production-safe soft delete support to the `FamilyTree` model with `isDeleted` and `deletedAt`.
+- Preserved existing tree fetch logic by applying default non-deleted filtering at the model query layer and explicit opt-in for deleted-tree flows.
+- Kept existing tree delete routes working while changing deletion behavior to move trees into Bin instead of removing them immediately.
+- Added owner-scoped Bin APIs:
+  - `GET /api/tree/bin`
+  - `POST /api/tree/restore/:id`
+  - `DELETE /api/tree/permanent/:id`
+- Added background tree cleanup service that permanently removes soft-deleted trees and their members after 30 days.
+- Added client API/type support for deleted-tree operations.
+- Updated dashboard delete confirmation to reflect Bin behavior.
+- Added Account -> Bin UI showing deleted trees, deleted date, remaining days, restore action, and permanent delete action.
+
+File Changes
+- `server/src/models/FamilyTree.js`
+- `server/src/controllers/treeController.js`
+- `server/src/routes/coreTreeRoutes.js`
+- `server/src/utils/treeSlug.js`
+- `server/src/controllers/accountController.js`
+- `server/src/server.js`
+- `server/src/utils/treeCleanupService.js`
+- `client/lib/api.ts`
+- `client/types/index.ts`
+- `client/app/page.tsx`
+- `client/app/account/page.tsx`
+- `ProjectTillNow.txt`
+
+Database Schema State
+- `FamilyTree` now includes:
+  - `isDeleted: Boolean` with default `false`
+  - `deletedAt: Date` with default `null`
+- No member schema or relation schema changes were made.
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+- Runtime sanity check confirmed the new `FamilyTree` query helpers `withDeleted()` and `onlyDeleted()` are registered and callable.
+- `cd client && npm run build` -> passed.
+- `npm start` smoke checks were attempted for both server and client; both processes stayed attached without an immediate startup failure, but the harness did not surface their banners.
+
+Pending Tasks
+- Manual API/browser verification recommended for:
+  - `DELETE /api/tree/:id`
+  - `GET /api/tree/bin`
+  - `POST /api/tree/restore/:id`
+  - `DELETE /api/tree/permanent/:id`
+- Optional admin follow-up: expose deleted-tree moderation actions in admin UI only if that workflow is required later.
+
+==============================
+2026-03-28 Update
+==============================
+Completed Modules
 - Added member search + focus feature in tree page.
 - Users can now search members by name using existing search API.
 - Search results appear dynamically with debounce.
@@ -5334,3 +5384,28 @@ The system now only shows event reminder notifications.
 Database cleanup performed using:
 
 db.notifications.deleteMany({})
+
+[2026-03-28 | Tree Soft Delete Route Contract | Backend Tree API]
+[Aligned `/api/tree/:id` delete response to the requested bin-move contract without touching model or controller delete logic]
+
+Completed modules
+1) Tree soft delete route contract
+- Updated `server/src/routes/coreTreeRoutes.js`.
+- Added an owner-scoped route lookup for `DELETE /api/tree/:id` so the tree is resolved by `_id + owner` and returns `404` when not found.
+- Reused the existing controller soft-delete write path and added a route-layer response adapter so `DELETE /api/tree/:id` now returns:
+  `{ success: true, message: "Tree moved to bin" }`
+
+File changes
+- `server/src/routes/coreTreeRoutes.js`
+- `ProjectTillNow.txt`
+
+Database schema state
+- No schema/model/index changes.
+- `FamilyTree` soft-delete fields remain unchanged: `isDeleted`, `deletedAt`.
+- Existing pre-query middleware behavior for deleted trees remains unchanged.
+
+Validation/build checks
+- `cd server && npm run check:syntax` -> passed.
+
+Pending tasks
+- Optional: add an automated API test covering `DELETE /api/tree/:id` success and 404 cases.

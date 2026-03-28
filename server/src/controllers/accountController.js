@@ -201,7 +201,7 @@ const deleteAccount = async (req, res, next) => {
         throw error;
       }
 
-      const ownedTrees = await withSession(FamilyTree.find({ owner: user._id }).select("_id").lean(), session);
+      const ownedTrees = await withSession(FamilyTree.find({ owner: user._id }).withDeleted().select("_id").lean(), session);
       const ownedTreeIds = ownedTrees.map((tree) => tree._id);
 
       let deletedMembers = 0;

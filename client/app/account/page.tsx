@@ -4,11 +4,22 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearToken, getToken, setCurrentUser } from "@/lib/auth";
-import { deleteMyAccount, getMyAccount, updateMyAccount, updateMyPassword } from "@/lib/api";
+import {
+  deleteMyAccount,
+  getDeletedTreesBin,
+  getMyAccount,
+  permanentlyDeleteTree,
+  restoreDeletedTree,
+  updateMyAccount,
+  updateMyPassword
+} from "@/lib/api";
 import { buildImportantDateBackendValue, formatImportantDate, toImportantDateParts } from "@/lib/importantDateValue";
 import { resolveProfileImageUrl } from "@/lib/profileImageUrl";
-import { User } from "@/types";
+import { FamilyTree, User } from "@/types";
 import DateFieldGroup, { ImportantDateItem, createImportantDateRow } from "@/components/DateFieldGroup";
+
+const TREE_BIN_RETENTION_DAYS = 30;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const toDisplayDate = (value?: string | null) => {
   if (!value) {
@@ -21,6 +32,23 @@ const toDisplayDate = (value?: string | null) => {
 const firstLetter = (value?: string | null) => {
   const normalized = String(value || "").trim();
   return normalized ? normalized.charAt(0).toUpperCase() : "?";
+};
+
+const formatDeletedDate = (value?: string | null) => {
+  if (!value) {
+    return "-";
+  }
+
+  return new Date(value).toLocaleString();
+};
+
+const getRemainingBinDays = (value?: string | null) => {
+  if (!value) {
+    return TREE_BIN_RETENTION_DAYS;
+  }
+
+  const expiresAt = new Date(value).getTime() + TREE_BIN_RETENTION_DAYS * MS_PER_DAY;
+  return Math.max(Math.ceil((expiresAt - Date.now()) / MS_PER_DAY), 0);
 };
 
 const mapDateOfBirthToImportantDates = (value?: string | null): ImportantDateItem[] => {
@@ -86,6 +114,10 @@ export default function AccountPage() {
 
   const [deletePassword, setDeletePassword] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deletedTrees, setDeletedTrees] = useState<FamilyTree[]>([]);
+  const [loadingDeletedTrees, setLoadingDeletedTrees] = useState(true);
+  const [restoringTreeId, setRestoringTreeId] = useState<string | null>(null);
+  const [permanentlyDeletingTreeId, setPermanentlyDeletingTreeId] = useState<string | null>(null);
 
   const syncAccountState = (payload: User) => {
     setAccount(payload);
@@ -98,6 +130,18 @@ export default function AccountPage() {
     setAddressCurrent(payload.addressCurrent || "");
     setPhoneNumber(payload.phoneNumber || "");
     setCurrentUser(payload);
+  };
+
+  const loadDeletedTrees = async () => {
+    try {
+      setLoadingDeletedTrees(true);
+      const payload = await getDeletedTreesBin();
+      setDeletedTrees(payload);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Failed to load deleted trees.");
+    } finally {
+      setLoadingDeletedTrees(false);
+    }
   };
 
   useEffect(() => {
@@ -129,6 +173,7 @@ export default function AccountPage() {
     };
 
     void loadAccount();
+    void loadDeletedTrees();
 
     return () => {
       active = false;
@@ -280,6 +325,39 @@ export default function AccountPage() {
     }
   };
 
+  const handleRestoreTree = async (treeId: string) => {
+    try {
+      setRestoringTreeId(treeId);
+      await restoreDeletedTree(treeId);
+      setNotice("Tree restored successfully.");
+      setError(null);
+      await loadDeletedTrees();
+    } catch (restoreError) {
+      setError(restoreError instanceof Error ? restoreError.message : "Failed to restore tree.");
+    } finally {
+      setRestoringTreeId(null);
+    }
+  };
+
+  const handlePermanentDeleteTree = async (treeId: string) => {
+    const shouldDelete = window.confirm("Permanently delete this tree from the bin? This cannot be undone.");
+    if (!shouldDelete) {
+      return;
+    }
+
+    try {
+      setPermanentlyDeletingTreeId(treeId);
+      const response = await permanentlyDeleteTree(treeId);
+      setNotice(response.message);
+      setError(null);
+      await loadDeletedTrees();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Failed to permanently delete tree.");
+    } finally {
+      setPermanentlyDeletingTreeId(null);
+    }
+  };
+
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
       <header className="mb-6 flex items-center justify-between gap-3">
@@ -397,6 +475,60 @@ export default function AccountPage() {
                 {savingPassword ? "Updating..." : "Update Password"}
               </button>
             </form>
+          </article>
+
+          <article className="panel">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Bin</h2>
+                <p className="text-sm text-slate-600">Deleted trees stay here for up to 30 days before automatic cleanup.</p>
+              </div>
+            </div>
+
+            {loadingDeletedTrees ? (
+              <p className="text-sm text-slate-500">Loading deleted trees...</p>
+            ) : deletedTrees.length === 0 ? (
+              <p className="text-sm text-slate-500">Bin is empty.</p>
+            ) : (
+              <ul className="space-y-3">
+                {deletedTrees.map((tree) => {
+                  const remainingDays = getRemainingBinDays(tree.deletedAt);
+
+                  return (
+                    <li key={tree._id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <h3 className="font-semibold text-slate-900">{tree.name}</h3>
+                          <p className="mt-1 text-sm text-slate-600">{tree.description || "No description"}</p>
+                          <p className="mt-2 text-xs text-slate-500">Deleted on: {formatDeletedDate(tree.deletedAt)}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Remaining days: <span className="font-semibold text-slate-700">{remainingDays}</span>
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            className="button-secondary text-xs"
+                            onClick={() => void handleRestoreTree(tree._id)}
+                            disabled={restoringTreeId === tree._id || permanentlyDeletingTreeId === tree._id}
+                          >
+                            {restoringTreeId === tree._id ? "Restoring..." : "Restore"}
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-70"
+                            onClick={() => void handlePermanentDeleteTree(tree._id)}
+                            disabled={permanentlyDeletingTreeId === tree._id || restoringTreeId === tree._id}
+                          >
+                            {permanentlyDeletingTreeId === tree._id ? "Deleting..." : "Permanent Delete"}
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </article>
 
           <article className="panel border border-red-200 bg-red-50">

@@ -66,6 +66,8 @@ export interface FamilyTree {
   description?: string;
   owner: string | TreeOwnerSummary;
   privacy: TreePrivacy;
+  isDeleted?: boolean;
+  deletedAt?: string | null;
   rootMember?: string | null;
   rootMemberId?: string | null;
   memberCount?: number;
@@ -98,6 +100,9 @@ export interface DeleteTreeResponse {
   message: string;
   treeId: string;
   deletedMembers: number;
+  softDeleted?: boolean;
+  deletedAt?: string | null;
+  permanent?: boolean;
 }
 
 export interface Plan {
