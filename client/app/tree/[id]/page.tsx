@@ -300,6 +300,9 @@ export default function TreePage() {
   const [focusId, setFocusId] = useState<string | null>(null);
   const [focusBundle, setFocusBundle] = useState<MemberWithRelationsResponse | null>(null);
   const [treeData, setTreeData] = useState<Member[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Member[]>([]);
+  const [loadingSearch, setLoadingSearch] = useState(false);
 
   const [loadingTree, setLoadingTree] = useState(true);
   const [loadingFocus, setLoadingFocus] = useState(false);
@@ -566,6 +569,45 @@ export default function TreePage() {
   }, [focusId, loadFocusBundle, tree]);
 
   useEffect(() => {
+    const normalizedQuery = searchQuery.trim();
+
+    if (!treeId || !tree || requiresPassword || normalizedQuery.length < 2) {
+      setSearchResults([]);
+      setLoadingSearch(false);
+      return;
+    }
+
+    let active = true;
+    setLoadingSearch(true);
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const result = await searchMembers(treeId, normalizedQuery, 1, 20);
+
+        if (!active) {
+          return;
+        }
+
+        setSearchResults(result.members);
+      } catch (searchError) {
+        if (active) {
+          setSearchResults([]);
+          setError(searchError instanceof Error ? searchError.message : "Failed to search members.");
+        }
+      } finally {
+        if (active) {
+          setLoadingSearch(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [requiresPassword, searchQuery, tree, treeId]);
+
+  useEffect(() => {
     if (!modalState.isOpen || !tree?.canEdit || !detailBundle) {
       return;
     }
@@ -606,6 +648,19 @@ export default function TreePage() {
 
       return memberId;
     });
+  }, []);
+
+  const handleSearchResultSelect = useCallback((memberId: string) => {
+    setFocusId((current) => {
+      if (!memberId || current === memberId) {
+        return current;
+      }
+
+      return memberId;
+    });
+    setLoadingSearch(false);
+    setSearchQuery("");
+    setSearchResults([]);
   }, []);
 
   const submitTreePassword = async (event: FormEvent<HTMLFormElement>) => {
@@ -1197,6 +1252,59 @@ export default function TreePage() {
         </aside>
 
         <div className="space-y-6">
+          <div className="relative">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <label htmlFor="member-search" className="mb-2 block text-sm font-medium text-slate-900">
+                Search member
+              </label>
+              <input
+                id="member-search"
+                className="field"
+                type="text"
+                value={searchQuery}
+                onChange={(event) => {
+                  const nextQuery = event.target.value;
+                  setSearchQuery(nextQuery);
+                  setLoadingSearch(nextQuery.trim().length >= 2);
+                }}
+                placeholder="Search member..."
+                autoComplete="off"
+              />
+              {searchQuery.trim().length >= 2 && (
+                <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                  {loadingSearch ? (
+                    <p className="px-4 py-3 text-sm text-slate-500">Searching...</p>
+                  ) : searchResults.length > 0 ? (
+                    <ul className="max-h-72 overflow-y-auto py-1">
+                      {searchResults.map((member) => {
+                        const memberMeta = [member.gender && member.gender !== "unspecified" ? member.gender : null, member.isRoot ? "Root member" : null]
+                          .filter(Boolean)
+                          .join(" • ");
+
+                        return (
+                          <li key={member._id}>
+                            <button
+                              type="button"
+                              className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50"
+                              onClick={() => handleSearchResultSelect(member._id)}
+                            >
+                              <span>
+                                <span className="block text-sm font-medium text-slate-900">{member.name}</span>
+                                {memberMeta && <span className="mt-1 block text-xs text-slate-500">{memberMeta}</span>}
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="px-4 py-3 text-sm text-slate-500">No members found</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="relative">
             <TreeCanvas
               key={focusBundle?.focus?._id || "tree"}

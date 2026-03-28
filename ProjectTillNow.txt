@@ -2,6 +2,26 @@ MemoryVault - ProjectTillNow
 Date: 2026-02-28
 
 ==============================
+2026-03-28 Update
+==============================
+Completed Modules
+- Added member search + focus feature in tree page.
+- Users can now search members by name using existing search API.
+- Search results appear dynamically with debounce.
+- Clicking a result instantly shifts tree focus to selected member.
+- Fully integrated with existing dynamic focus engine (no backend changes).
+
+File Changes
+- client/app/tree/[id]/page.tsx
+
+Database Schema State
+- No changes.
+
+Notes
+- Feature is UI-only enhancement using existing searchMembers API.
+- Maintains full stability of tree engine and relation system.
+
+==============================
 2026-03-07 Update
 ==============================
 Completed Modules
