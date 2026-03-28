@@ -5,9 +5,11 @@ Date: 2026-02-28
 2026-03-28 Update
 ==============================
 Completed Modules
-- Confirmed the actual dashboard tree-list render is in `client/app/page.tsx` and updated that file directly.
-- Forced `Open Tree`, `Edit`, and `Delete` to render inside each mapped dashboard tree card action row.
-- Preserved the existing edit modal and safe delete flow with confirmation plus dashboard refetch.
+- Resolved the issue where dashboard `Edit` and `Delete` buttons were not visible.
+- Identified the incorrect component modification and corrected the actual dashboard tree-list render in `client/app/page.tsx`.
+- Buttons are now correctly injected into the tree list `trees.map(...)` loop.
+- Each tree card now includes `Open Tree`, `Edit`, and `Delete` actions.
+- UI behavior is now consistent and testable.
 
 File Changes
 - `client/app/page.tsx`
