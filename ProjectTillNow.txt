@@ -5,6 +5,50 @@ Date: 2026-02-28
 2026-03-28 Update
 ==============================
 Completed Modules
+- Confirmed the actual dashboard tree-list render is in `client/app/page.tsx` and updated that file directly.
+- Forced `Open Tree`, `Edit`, and `Delete` to render inside each mapped dashboard tree card action row.
+- Preserved the existing edit modal and safe delete flow with confirmation plus dashboard refetch.
+
+File Changes
+- `client/app/page.tsx`
+- `ProjectTillNow.txt`
+
+Database Schema State
+- No schema/model/index changes.
+- Existing tree soft-delete fields remain unchanged: `isDeleted`, `deletedAt`.
+
+Validation/build checks
+- `cd client && npm run build` -> passed with pre-existing Next.js/ESLint warnings (`no-img-element`, `react-hooks/exhaustive-deps`).
+
+Pending Tasks
+- Optional manual browser verification that every card under `List My Trees` now shows `Open Tree`, `Edit`, and `Delete` in the same action row.
+
+==============================
+2026-03-28 Update
+==============================
+Completed Modules
+- Fixed the dashboard tree list so `Edit` and `Delete` buttons render inside each tree card next to `Open Tree`.
+- Preserved the existing edit modal flow for tree name/privacy updates.
+- Preserved the existing safe delete flow with confirmation and `DELETE /api/tree/:id`, followed by dashboard refresh behavior.
+
+File Changes
+- `client/app/page.tsx`
+- `ProjectTillNow.txt`
+
+Database Schema State
+- No schema/model/index changes.
+- Existing tree soft-delete fields remain unchanged: `isDeleted`, `deletedAt`.
+
+Validation/build checks
+- `cd client && npm run build` -> passed with pre-existing Next.js/ESLint warnings (`no-img-element`, `react-hooks/exhaustive-deps`).
+
+Pending Tasks
+- Optional manual browser verification that `Edit` and `Delete` are visible for every dashboard tree card and that delete removes the tree from the list after confirmation.
+
+==============================
+2026-03-28 Update
+==============================
+Completed Modules
 - Dashboard tree management has been enhanced with new controls.
 - Added an `Add Tree` button in the `My Trees` section that opens the existing dashboard create-tree flow without introducing a new route.
 - Preserved the existing edit modal flow so tree name and privacy continue updating through the current edit API.

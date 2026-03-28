@@ -238,7 +238,7 @@ export default function HomePage() {
     }
   };
 
-  const openEditModal = (tree: FamilyTree) => {
+  const handleEdit = (tree: FamilyTree) => {
     setEditTreeId(tree._id);
     setEditForm({
       name: tree.name,
@@ -247,6 +247,10 @@ export default function HomePage() {
       treePassword: ""
     });
     setIsEditModalOpen(true);
+  };
+
+  const openTree = (treeId: string) => {
+    router.push(`/tree/${treeId}`);
   };
 
   const handleOpenCreateTreeFlow = () => {
@@ -309,7 +313,7 @@ export default function HomePage() {
     }
   };
 
-  const handleDeleteTree = async (treeId: string) => {
+  const handleDelete = async (treeId: string) => {
     const shouldDelete = window.confirm("Are you sure you want to delete this tree?");
     if (!shouldDelete) {
       return;
@@ -596,42 +600,37 @@ export default function HomePage() {
                     {t("dashboard.members")}: {tree.memberCount ?? 0}
                   </p>
 
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Link href={`/tree/${tree._id}`} className="button-primary text-xs">
-                      {t("dashboard.openTree")}
-                    </Link>
+                  <div style={{ display: "flex", gap: "10px", marginTop: "10px", flexWrap: "wrap" }}>
+                    <button type="button" onClick={() => openTree(tree._id)}>
+                      Open Tree
+                    </button>
+
+                    <button type="button" onClick={() => handleEdit(tree)} disabled={updatingTreeId === tree._id}>
+                      Edit
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(tree._id)}
+                      style={{ backgroundColor: "red", color: "white" }}
+                      disabled={deletingTreeId === tree._id}
+                    >
+                      {deletingTreeId === tree._id ? "Deleting..." : "Delete"}
+                    </button>
 
                     {tree.canEdit && (
-                      <>
-                        <button
-                          type="button"
-                          className="button-secondary text-xs"
-                          onClick={() => openEditModal(tree)}
-                          disabled={updatingTreeId === tree._id}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-70"
-                          onClick={() => handleDeleteTree(tree._id)}
-                          disabled={deletingTreeId === tree._id}
-                        >
-                          {deletingTreeId === tree._id ? t("dashboard.deletingTree") : t("dashboard.deleteTree")}
-                        </button>
-                        <button
-                          type="button"
-                          className="button-secondary text-xs"
-                          onClick={() => void handleTogglePrivacy(tree)}
-                          disabled={updatingTreeId === tree._id}
-                        >
-                          {updatingTreeId === tree._id
-                            ? "Updating..."
-                            : tree.privacy === "private"
-                              ? t("dashboard.makePublic")
-                              : t("dashboard.makePrivate")}
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        className="button-secondary text-xs"
+                        onClick={() => void handleTogglePrivacy(tree)}
+                        disabled={updatingTreeId === tree._id}
+                      >
+                        {updatingTreeId === tree._id
+                          ? "Updating..."
+                          : tree.privacy === "private"
+                            ? t("dashboard.makePublic")
+                            : t("dashboard.makePrivate")}
+                      </button>
                     )}
                   </div>
                 </li>
