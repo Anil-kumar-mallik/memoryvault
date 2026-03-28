@@ -5,6 +5,44 @@ Date: 2026-02-28
 2026-03-28 Update
 ==============================
 Completed Modules
+- Dashboard tree management has been enhanced with new controls.
+- Added an `Add Tree` button in the `My Trees` section that opens the existing dashboard create-tree flow without introducing a new route.
+- Preserved the existing edit modal flow so tree name and privacy continue updating through the current edit API.
+- Kept dashboard tree-card actions inline with `Open Tree`, including edit, delete, and the existing privacy toggle.
+- Preserved the safe delete flow with confirmation, `DELETE /api/tree/:id`, refetch-based UI refresh, and the success notice `Tree moved to bin`.
+
+File Changes
+- `client/app/page.tsx`
+- `ProjectTillNow.txt`
+
+Database Schema State
+- No schema/model/index changes.
+- Existing tree soft-delete fields remain unchanged: `isDeleted`, `deletedAt`.
+
+Validation/build checks
+- `cd client && npm run build` -> passed with pre-existing Next.js/ESLint warnings (`no-img-element`, `react-hooks/exhaustive-deps`).
+
+Pending Tasks
+- Optional manual browser verification for the dashboard `Add Tree` button, edit modal updates, and delete/refetch behavior.
+
+### Dashboard Tree Management Enhancements
+
+Dashboard tree management has been enhanced with new controls.
+
+- Added "Add Tree" button in My Trees section
+- Each tree card now includes Edit button (update name and privacy)
+- Each tree card now includes Delete button (soft delete)
+- Delete action uses confirmation dialog
+- Delete action triggers backend soft delete API
+- Delete action removes tree from UI after deletion
+- No permanent deletion occurs at this stage
+
+This improves user control while maintaining system safety and stability.
+
+==============================
+2026-03-28 Update
+==============================
+Completed Modules
 - Added production-safe soft delete support to the `FamilyTree` model with `isDeleted` and `deletedAt`.
 - Preserved existing tree fetch logic by applying default non-deleted filtering at the model query layer and explicit opt-in for deleted-tree flows.
 - Kept existing tree delete routes working while changing deletion behavior to move trees into Bin instead of removing them immediately.

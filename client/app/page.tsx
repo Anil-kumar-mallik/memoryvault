@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { clearToken, getCurrentUser, getToken } from "@/lib/auth";
 import { createTree, deleteTree, getMembers, getMySubscription, getMyTrees, updateTreeSettings } from "@/lib/api";
@@ -40,6 +40,7 @@ export default function HomePage() {
   const [dashboardEvents, setDashboardEvents] = useState<FamilyEvent[]>([]);
   const [loadingDashboardEvents, setLoadingDashboardEvents] = useState(false);
   const [dashboardEventsError, setDashboardEventsError] = useState<string | null>(null);
+  const [showCreateTreeForm, setShowCreateTreeForm] = useState(false);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editTreeId, setEditTreeId] = useState<string | null>(null);
@@ -47,6 +48,7 @@ export default function HomePage() {
 
   const router = useRouter();
   const pathname = usePathname();
+  const createTreeSectionRef = useRef<HTMLDivElement | null>(null);
 
   const loadTrees = async () => {
     try {
@@ -100,9 +102,33 @@ export default function HomePage() {
     router.replace(pathname || "/dashboard");
   }, [pathname, router, t]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (window.location.hash === "#create-tree") {
+      setShowCreateTreeForm(true);
+    }
+  }, [pathname]);
+
   const treeLimitReached = Boolean(subscription?.usage.treeLimitReached);
   const hasExistingTree = trees.length > 0;
   const primaryTree = trees[0] || null;
+  const shouldShowCreateTreeForm = !hasExistingTree || showCreateTreeForm;
+
+  useEffect(() => {
+    if (!showCreateTreeForm || typeof window === "undefined") {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      createTreeSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    });
+  }, [showCreateTreeForm]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -202,6 +228,7 @@ export default function HomePage() {
       });
 
       setCreateForm(initialCreateForm);
+      setShowCreateTreeForm(false);
       await Promise.all([loadTrees(), loadSubscription()]);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Failed to create tree.");
@@ -220,6 +247,20 @@ export default function HomePage() {
       treePassword: ""
     });
     setIsEditModalOpen(true);
+  };
+
+  const handleOpenCreateTreeFlow = () => {
+    if (treeLimitReached) {
+      setError("Tree limit reached for current plan.");
+      return;
+    }
+
+    setError(null);
+    setShowCreateTreeForm(true);
+
+    if (typeof window !== "undefined") {
+      window.location.hash = "create-tree";
+    }
   };
 
   const handleUpdateTreeSettings = async (event: FormEvent<HTMLFormElement>) => {
@@ -445,67 +486,83 @@ export default function HomePage() {
 
       <section className="grid gap-6 lg:grid-cols-[380px_1fr]">
         <article className="panel">
-          <h2 className="mb-4 text-lg font-semibold text-slate-900">
-            {hasExistingTree ? t("nav.myTrees") : t("dashboard.createTree")}
-          </h2>
-          {hasExistingTree ? (
-            <div className="space-y-3">
-              <p className="text-sm text-slate-600">You already have a tree. Open it directly.</p>
-              {primaryTree && (
-                <Link href={`/tree/${primaryTree._id}`} className="button-primary w-full text-center">
-                  {t("dashboard.myTree")}
-                </Link>
-              )}
-            </div>
-          ) : (
-            <form onSubmit={handleCreateTree} className="space-y-3">
-              <input
-                className="field"
-                type="text"
-                placeholder="Tree name"
-                value={createForm.name}
-                onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))}
-                required
-              />
-              <textarea
-                className="field min-h-24"
-                placeholder="Description"
-                value={createForm.description}
-                onChange={(event) => setCreateForm((prev) => ({ ...prev, description: event.target.value }))}
-              />
-              <select
-                className="field"
-                value={createForm.privacy}
-                onChange={(event) =>
-                  setCreateForm((prev) => ({ ...prev, privacy: event.target.value as TreePrivacy }))
-                }
-              >
-                <option value="private">Private (Password Protected)</option>
-                <option value="public">Public</option>
-              </select>
+          <div ref={createTreeSectionRef} id="create-tree">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">
+              {hasExistingTree ? t("nav.myTrees") : t("dashboard.createTree")}
+            </h2>
 
-              {createForm.privacy === "private" && (
+            {hasExistingTree && (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-600">Open your existing tree or add another one.</p>
+                <div className="flex flex-wrap gap-2">
+                  {primaryTree && (
+                    <Link href={`/tree/${primaryTree._id}`} className="button-primary text-center">
+                      {t("dashboard.myTree")}
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    className="button-secondary"
+                    onClick={handleOpenCreateTreeFlow}
+                    disabled={treeLimitReached}
+                  >
+                    Add Tree
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {shouldShowCreateTreeForm && (
+              <form onSubmit={handleCreateTree} className={hasExistingTree ? "mt-4 space-y-3" : "space-y-3"}>
                 <input
                   className="field"
-                  type="password"
-                  placeholder="Tree password"
-                  value={createForm.treePassword}
-                  onChange={(event) => setCreateForm((prev) => ({ ...prev, treePassword: event.target.value }))}
-                  minLength={4}
+                  type="text"
+                  placeholder="Tree name"
+                  value={createForm.name}
+                  onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))}
                   required
                 />
-              )}
+                <textarea
+                  className="field min-h-24"
+                  placeholder="Description"
+                  value={createForm.description}
+                  onChange={(event) => setCreateForm((prev) => ({ ...prev, description: event.target.value }))}
+                />
+                <select
+                  className="field"
+                  value={createForm.privacy}
+                  onChange={(event) =>
+                    setCreateForm((prev) => ({ ...prev, privacy: event.target.value as TreePrivacy }))
+                  }
+                >
+                  <option value="private">Private (Password Protected)</option>
+                  <option value="public">Public</option>
+                </select>
 
-              <button type="submit" className="button-primary w-full" disabled={creating || treeLimitReached}>
-                {creating ? t("dashboard.creatingButton") : t("dashboard.createButton")}
-              </button>
-              {treeLimitReached && (
-                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  {t("dashboard.limitReached")}
-                </p>
-              )}
-            </form>
-          )}
+                {createForm.privacy === "private" && (
+                  <input
+                    className="field"
+                    type="password"
+                    placeholder="Tree password"
+                    value={createForm.treePassword}
+                    onChange={(event) => setCreateForm((prev) => ({ ...prev, treePassword: event.target.value }))}
+                    minLength={4}
+                    required
+                  />
+                )}
+
+                <button type="submit" className="button-primary w-full" disabled={creating || treeLimitReached}>
+                  {creating ? t("dashboard.creatingButton") : t("dashboard.createButton")}
+                </button>
+              </form>
+            )}
+
+            {treeLimitReached && (
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                {t("dashboard.limitReached")}
+              </p>
+            )}
+          </div>
         </article>
 
         <article className="panel" id="my-trees">
@@ -549,22 +606,10 @@ export default function HomePage() {
                         <button
                           type="button"
                           className="button-secondary text-xs"
-                          onClick={() => void handleTogglePrivacy(tree)}
-                          disabled={updatingTreeId === tree._id}
-                        >
-                          {updatingTreeId === tree._id
-                            ? "Updating..."
-                            : tree.privacy === "private"
-                              ? t("dashboard.makePublic")
-                              : t("dashboard.makePrivate")}
-                        </button>
-                        <button
-                          type="button"
-                          className="button-secondary text-xs"
                           onClick={() => openEditModal(tree)}
                           disabled={updatingTreeId === tree._id}
                         >
-                          {t("dashboard.editSettings")}
+                          Edit
                         </button>
                         <button
                           type="button"
@@ -573,6 +618,18 @@ export default function HomePage() {
                           disabled={deletingTreeId === tree._id}
                         >
                           {deletingTreeId === tree._id ? t("dashboard.deletingTree") : t("dashboard.deleteTree")}
+                        </button>
+                        <button
+                          type="button"
+                          className="button-secondary text-xs"
+                          onClick={() => void handleTogglePrivacy(tree)}
+                          disabled={updatingTreeId === tree._id}
+                        >
+                          {updatingTreeId === tree._id
+                            ? "Updating..."
+                            : tree.privacy === "private"
+                              ? t("dashboard.makePublic")
+                              : t("dashboard.makePrivate")}
                         </button>
                       </>
                     )}
