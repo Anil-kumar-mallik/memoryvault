@@ -5783,3 +5783,53 @@ System guarantees:
 - Existing search behavior unchanged
 - Filters applied only when explicitly triggered
 - Fully backward compatible
+
+==============================
+2026-03-29 Update
+==============================
+Completed Modules
+- Consolidated the tree-page member search UI by moving the `Search member` input into the existing filter panel.
+- Removed the standalone main-panel search input UI without changing the existing search request path.
+- Kept the outside `Search` button in place so search execution remains explicitly triggered from the main tree view.
+- Preserved the existing tree-page query state (`query`) and reused it directly from the filter modal input.
+- Preserved last-entered search/filter values when the filter modal is closed.
+- Kept the search-results dropdown behavior and existing backend API contract unchanged.
+- Added Enter-key search support from the new filter-panel search input so the moved input still triggers the same search execution flow.
+- Ensured tree rendering, focus flow, and relation/search backend behavior remain unaffected.
+
+File Changes
+- `client/app/tree/[id]/page.tsx`
+- `ProjectTillNow.txt`
+
+Database Schema State
+- No schema/model/index changes.
+- No backend route/controller/query changes.
+- Existing member search API and response shape remain unchanged.
+
+Validation/build checks
+- `cd client && npm run build` -> passed with pre-existing Next.js/ESLint warnings (`no-img-element`, `react-hooks/exhaustive-deps`).
+- `cd server && npm run build` -> passed.
+
+Pending Tasks
+- Optional: perform manual browser verification for the consolidated search/filter panel flow, including:
+  - search-only
+  - filters-only
+  - combined search + filters
+  - Enter-key search inside the filter panel
+  - tree canvas remaining unaffected during search interactions
+
+### Search UI Consolidation
+
+Search input has been integrated into the filter panel.
+
+Improvements:
+- Cleaner UI
+- Centralized search + filter control
+- Reduced clutter in tree view
+
+System behavior:
+- Search and filters now managed from a single panel
+- Search execution remains controlled via "Search" button
+- No impact on backend or existing logic
+
+This change improves usability while preserving system stability.

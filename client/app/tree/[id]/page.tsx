@@ -220,16 +220,6 @@ function createEmptyMemberSearchFilterDraft(): MemberSearchFilterDraft {
   };
 }
 
-function createMemberSearchFilterDraft(filters: MemberSearchFilters): MemberSearchFilterDraft {
-  return {
-    birthYearFrom: filters.birthYearFrom !== undefined ? String(filters.birthYearFrom) : "",
-    birthYearTo: filters.birthYearTo !== undefined ? String(filters.birthYearTo) : "",
-    location: filters.location || "",
-    gender: filters.gender || "",
-    designation: filters.designation || ""
-  };
-}
-
 function normalizeMemberSearchFilters(draft: MemberSearchFilterDraft): MemberSearchFilters {
   const filters: MemberSearchFilters = {};
   const birthYearFrom = Number.parseInt(draft.birthYearFrom, 10);
@@ -438,7 +428,7 @@ export default function TreePage() {
   );
   const treeCanvasBundle = useMemo(() => mergeTreeDataIntoBundle(focusBundle, treeData), [focusBundle, treeData]);
   const searchQuery = memberSearch.query;
-  const activeSearchFilters = memberSearch.filters;
+  const activeSearchFilters = useMemo(() => normalizeMemberSearchFilters(searchFilterDraft), [searchFilterDraft]);
   const hasActiveSearchFilters = useMemo(() => countActiveMemberSearchFilters(activeSearchFilters) > 0, [activeSearchFilters]);
   const activeSearchFilterCount = useMemo(() => countActiveMemberSearchFilters(activeSearchFilters), [activeSearchFilters]);
   const shouldRunMemberSearch = searchQuery.trim().length >= 2 || hasActiveSearchFilters;
@@ -727,14 +717,6 @@ export default function TreePage() {
     [requiresPassword, tree, treeId]
   );
 
-  const handleSearchSubmit = useCallback(
-    (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      void executeMemberSearch(memberSearch);
-    },
-    [executeMemberSearch, memberSearch]
-  );
-
   const handleFocusChange = useCallback((memberId: string) => {
     setFocusId((current) => {
       if (!memberId || current === memberId) {
@@ -763,10 +745,9 @@ export default function TreePage() {
   }, []);
 
   const openSearchFilterModal = useCallback(() => {
-    setSearchFilterDraft(createMemberSearchFilterDraft(activeSearchFilters));
     setSearchFilterError(null);
     setIsSearchFilterModalOpen(true);
-  }, [activeSearchFilters]);
+  }, []);
 
   const closeSearchFilterModal = useCallback(() => {
     setIsSearchFilterModalOpen(false);
@@ -774,12 +755,10 @@ export default function TreePage() {
   }, []);
 
   const applySearchFilters = useCallback(() => {
-    const nextFilters = normalizeMemberSearchFilters(searchFilterDraft);
-
     if (
-      nextFilters.birthYearFrom !== undefined &&
-      nextFilters.birthYearTo !== undefined &&
-      nextFilters.birthYearFrom > nextFilters.birthYearTo
+      activeSearchFilters.birthYearFrom !== undefined &&
+      activeSearchFilters.birthYearTo !== undefined &&
+      activeSearchFilters.birthYearFrom > activeSearchFilters.birthYearTo
     ) {
       setSearchFilterError("From Year cannot be greater than To Year.");
       return;
@@ -787,13 +766,13 @@ export default function TreePage() {
 
     setMemberSearch((current) => ({
       ...current,
-      filters: nextFilters
+      filters: activeSearchFilters
     }));
     setShowSearchDropdown(false);
     setSearchResults([]);
     setLoadingSearch(false);
     closeSearchFilterModal();
-  }, [closeSearchFilterModal, searchFilterDraft]);
+  }, [activeSearchFilters, closeSearchFilterModal]);
 
   const resetSearchFilters = useCallback(() => {
     setSearchFilterDraft(createEmptyMemberSearchFilterDraft());
@@ -807,6 +786,26 @@ export default function TreePage() {
     setLoadingSearch(false);
     setIsSearchFilterModalOpen(false);
   }, []);
+
+  const triggerMemberSearch = useCallback(() => {
+    if (
+      activeSearchFilters.birthYearFrom !== undefined &&
+      activeSearchFilters.birthYearTo !== undefined &&
+      activeSearchFilters.birthYearFrom > activeSearchFilters.birthYearTo
+    ) {
+      setSearchFilterError("From Year cannot be greater than To Year.");
+      setIsSearchFilterModalOpen(true);
+      return;
+    }
+
+    const nextSearchState = {
+      ...memberSearch,
+      filters: activeSearchFilters
+    };
+
+    setMemberSearch(nextSearchState);
+    void executeMemberSearch(nextSearchState);
+  }, [activeSearchFilters, executeMemberSearch, memberSearch]);
 
   const submitTreePassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1398,34 +1397,15 @@ export default function TreePage() {
 
         <div className="space-y-6">
           <div className="relative">
-            <form className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" onSubmit={handleSearchSubmit}>
-              <label htmlFor="member-search" className="mb-2 block text-sm font-medium text-slate-900">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="mb-2 block text-sm font-medium text-slate-900">
                 Search member
-              </label>
+              </p>
               <div className="flex items-center gap-2">
-                <input
-                  id="member-search"
-                  className="field flex-1"
-                  type="text"
-                  value={searchQuery}
-                  onChange={(event) => {
-                    const nextQuery = event.target.value;
-
-                    setMemberSearch((current) => ({
-                      ...current,
-                      query: nextQuery
-                    }));
-                    setShowSearchDropdown(false);
-                    setLoadingSearch(false);
-                    setSearchResults([]);
-                  }}
-                  placeholder="Search member..."
-                  autoComplete="off"
-                />
                 <button type="button" className="button-secondary shrink-0" onClick={openSearchFilterModal}>
                   {activeSearchFilterCount > 0 ? `Filter (${activeSearchFilterCount})` : "Filter"}
                 </button>
-                <button type="submit" className="button-primary shrink-0" disabled={loadingSearch}>
+                <button type="button" className="button-primary shrink-0" disabled={loadingSearch} onClick={triggerMemberSearch}>
                   {loadingSearch ? "Searching..." : "Search"}
                 </button>
               </div>
@@ -1461,7 +1441,7 @@ export default function TreePage() {
                   )}
                 </div>
               )}
-            </form>
+            </div>
           </div>
 
           <div className="relative">
@@ -1515,6 +1495,37 @@ export default function TreePage() {
 
             <div className="space-y-4">
               <div>
+                <label htmlFor="member-search" className="mb-1 block text-sm font-medium text-slate-900">
+                  Search member
+                </label>
+                <input
+                  id="member-search"
+                  className="field"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => {
+                    const nextQuery = event.target.value;
+
+                    setMemberSearch((current) => ({
+                      ...current,
+                      query: nextQuery
+                    }));
+                    setShowSearchDropdown(false);
+                    setLoadingSearch(false);
+                    setSearchResults([]);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      triggerMemberSearch();
+                    }
+                  }}
+                  placeholder="Search member..."
+                  autoComplete="off"
+                />
+              </div>
+
+              <div>
                 <p className="mb-2 text-sm font-medium text-slate-900">Birth Year Range</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
@@ -1534,6 +1545,9 @@ export default function TreePage() {
                           birthYearFrom: event.target.value
                         }));
                         setSearchFilterError(null);
+                        setShowSearchDropdown(false);
+                        setLoadingSearch(false);
+                        setSearchResults([]);
                       }}
                       placeholder="e.g. 1950"
                     />
@@ -1555,6 +1569,9 @@ export default function TreePage() {
                           birthYearTo: event.target.value
                         }));
                         setSearchFilterError(null);
+                        setShowSearchDropdown(false);
+                        setLoadingSearch(false);
+                        setSearchResults([]);
                       }}
                       placeholder="e.g. 2000"
                     />
@@ -1576,6 +1593,9 @@ export default function TreePage() {
                       ...current,
                       location: event.target.value
                     }));
+                    setShowSearchDropdown(false);
+                    setLoadingSearch(false);
+                    setSearchResults([]);
                   }}
                   placeholder="Search location..."
                 />
@@ -1594,6 +1614,9 @@ export default function TreePage() {
                       ...current,
                       gender: event.target.value
                     }));
+                    setShowSearchDropdown(false);
+                    setLoadingSearch(false);
+                    setSearchResults([]);
                   }}
                 >
                   <option value="">All genders</option>
@@ -1617,6 +1640,9 @@ export default function TreePage() {
                       ...current,
                       designation: event.target.value
                     }));
+                    setShowSearchDropdown(false);
+                    setLoadingSearch(false);
+                    setSearchResults([]);
                   }}
                   placeholder="Search designation..."
                 />
