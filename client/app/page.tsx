@@ -49,6 +49,7 @@ export default function HomePage() {
   const router = useRouter();
   const pathname = usePathname();
   const createTreeSectionRef = useRef<HTMLDivElement | null>(null);
+  const myTreesSectionRef = useRef<HTMLElement | null>(null);
 
   const loadTrees = async () => {
     try {
@@ -251,6 +252,29 @@ export default function HomePage() {
 
   const openTree = (treeId: string) => {
     router.push(`/tree/${treeId}`);
+  };
+
+  const handleOpenMyTree = () => {
+    if (!primaryTree) {
+      return;
+    }
+
+    if (trees.length === 1) {
+      openTree(primaryTree._id);
+      return;
+    }
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      myTreesSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    });
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#my-trees`);
   };
 
   const handleOpenCreateTreeFlow = () => {
@@ -500,9 +524,9 @@ export default function HomePage() {
                 <p className="text-sm text-slate-600">Open your existing tree or add another one.</p>
                 <div className="flex flex-wrap gap-2">
                   {primaryTree && (
-                    <Link href={`/tree/${primaryTree._id}`} className="button-primary text-center">
-                      {t("dashboard.myTree")}
-                    </Link>
+                    <button type="button" className="button-primary text-center" onClick={handleOpenMyTree}>
+                      {trees.length === 1 ? t("dashboard.myTree") : t("dashboard.listTrees")}
+                    </button>
                   )}
                   <button
                     type="button"
@@ -569,7 +593,7 @@ export default function HomePage() {
           </div>
         </article>
 
-        <article className="panel" id="my-trees">
+        <article ref={myTreesSectionRef} className="panel" id="my-trees">
           <h2 className="mb-4 text-lg font-semibold text-slate-900">{t("dashboard.listTrees")}</h2>
           {loading ? (
             <p className="text-sm text-slate-500">{t("common.loading")}</p>
@@ -621,7 +645,7 @@ export default function HomePage() {
                     <button
                       type="button"
                       onClick={() => handleDelete(tree._id)}
-                      style={{ backgroundColor: "red", color: "white" }}
+                      className="cursor-pointer rounded-md bg-red-500 px-3 py-1 text-xs font-semibold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-70"
                       disabled={deletingTreeId === tree._id}
                     >
                       {deletingTreeId === tree._id ? "Deleting..." : "Delete"}

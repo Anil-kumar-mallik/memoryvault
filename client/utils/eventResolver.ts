@@ -1,4 +1,4 @@
-import { formatCalendarDate, resolveMemberImportantDates, resolveNextImportantDateOccurrence } from "@/lib/importantDates";
+import { formatCalendarDate, parseImportantDateValue, resolveMemberImportantDates } from "@/lib/importantDates";
 import { Member } from "@/types";
 
 export type FamilyEvent = {
@@ -11,6 +11,32 @@ export type FamilyEvent = {
 
 function startOfDay(value: Date): Date {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function resolveUpcomingOccurrence(value: string, fromDate: Date): Date | null {
+  const parsed = parseImportantDateValue(value, "auto");
+  if (!parsed) {
+    return null;
+  }
+
+  const start = startOfDay(fromDate);
+
+  for (let yearOffset = 0; yearOffset <= 8; yearOffset += 1) {
+    const occurrence = new Date(start.getFullYear() + yearOffset, parsed.month - 1, parsed.day);
+    if (
+      Number.isNaN(occurrence.getTime()) ||
+      occurrence.getMonth() !== parsed.month - 1 ||
+      occurrence.getDate() !== parsed.day
+    ) {
+      continue;
+    }
+
+    if (occurrence >= start) {
+      return occurrence;
+    }
+  }
+
+  return null;
 }
 
 function labelForEvent(type: string, label?: string): string {
@@ -33,7 +59,7 @@ function labelForEvent(type: string, label?: string): string {
 
 export function resolveUpcomingEvents(members: Member[], daysAhead: number = 7): FamilyEvent[] {
   const today = startOfDay(new Date());
-  const events: FamilyEvent[] = [];
+  const events: Array<FamilyEvent & { occurrenceTime: number }> = [];
 
   for (const member of members) {
     const importantDates = resolveMemberImportantDates(member);
@@ -42,7 +68,7 @@ export function resolveUpcomingEvents(members: Member[], daysAhead: number = 7):
     }
 
     for (const entry of importantDates) {
-      const nextOccurrence = resolveNextImportantDateOccurrence(entry.value, today, "auto");
+      const nextOccurrence = resolveUpcomingOccurrence(entry.value, today);
       if (!nextOccurrence) {
         continue;
       }
@@ -57,20 +83,23 @@ export function resolveUpcomingEvents(members: Member[], daysAhead: number = 7):
         memberName: member.name,
         label: labelForEvent(entry.type, entry.label),
         date: formatCalendarDate(nextOccurrence),
-        daysLeft: diff
+        daysLeft: diff,
+        occurrenceTime: nextOccurrence.getTime()
       });
     }
   }
 
-  return events.sort((left, right) => {
-    if (left.daysLeft !== right.daysLeft) {
-      return left.daysLeft - right.daysLeft;
-    }
+  return events
+    .sort((left, right) => {
+      if (left.occurrenceTime !== right.occurrenceTime) {
+        return left.occurrenceTime - right.occurrenceTime;
+      }
 
-    if (left.memberName !== right.memberName) {
-      return left.memberName.localeCompare(right.memberName);
-    }
+      if (left.memberName !== right.memberName) {
+        return left.memberName.localeCompare(right.memberName);
+      }
 
-    return left.label.localeCompare(right.label);
-  });
+      return left.label.localeCompare(right.label);
+    })
+    .map(({ occurrenceTime: _occurrenceTime, ...event }) => event);
 }

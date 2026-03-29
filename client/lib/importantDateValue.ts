@@ -18,6 +18,8 @@ export type ParsedImportantDateValue = {
 
 const BACKEND_FULL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const BACKEND_PARTIAL_DATE_PATTERN = /^(\d{2})-(\d{2})$/;
+const BACKEND_DAY_FIRST_FULL_DATE_PATTERN = /^(\d{2})-(\d{2})-(\d{4})$/;
+const BACKEND_DAY_FIRST_PARTIAL_DATE_PATTERN = /^(\d{2})-(\d{2})$/;
 const INPUT_FULL_DATE_PATTERN = /^(\d{2})-(\d{2})-(\d{4})$/;
 const INPUT_PARTIAL_DATE_PATTERN = /^(\d{2})-(\d{2})$/;
 const DISPLAY_FULL_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
@@ -144,6 +146,35 @@ const parseBackendStrictImportantDateValue = (value: string): ParsedImportantDat
   return null;
 };
 
+const parseBackendDayFirstImportantDateValue = (value: string): ParsedImportantDateValue | null => {
+  const fullMatch = value.match(BACKEND_DAY_FIRST_FULL_DATE_PATTERN);
+  if (fullMatch) {
+    const day = Number.parseInt(fullMatch[1], 10);
+    const month = Number.parseInt(fullMatch[2], 10);
+    const year = Number.parseInt(fullMatch[3], 10);
+
+    if (!isValidCalendarDate(year, month, day)) {
+      return null;
+    }
+
+    return buildParsedImportantDateValue({ day, month, year });
+  }
+
+  const partialMatch = value.match(BACKEND_DAY_FIRST_PARTIAL_DATE_PATTERN);
+  if (partialMatch) {
+    const day = Number.parseInt(partialMatch[1], 10);
+    const month = Number.parseInt(partialMatch[2], 10);
+
+    if (!isValidCalendarDate(2000, month, day)) {
+      return null;
+    }
+
+    return buildParsedImportantDateValue({ day, month, year: null });
+  }
+
+  return null;
+};
+
 export const parseStrictImportantDateValue = (value: string): ParsedImportantDateValue | null => {
   const fullMatch = value.match(INPUT_FULL_DATE_PATTERN);
   if (fullMatch) {
@@ -200,11 +231,12 @@ export function parseImportantDateValue(
   }
 
   if (source === "backend") {
-    return parseBackendStrictImportantDateValue(trimmed) || parseLegacyImportantDateValue(trimmed);
+    return parseBackendStrictImportantDateValue(trimmed) || parseBackendDayFirstImportantDateValue(trimmed) || parseLegacyImportantDateValue(trimmed);
   }
 
   return (
     parseBackendStrictImportantDateValue(trimmed) ||
+    parseBackendDayFirstImportantDateValue(trimmed) ||
     parseStrictImportantDateValue(trimmed) ||
     parseLegacyImportantDateValue(trimmed)
   );

@@ -403,6 +403,10 @@ export function searchMembers(
     params.set("designation", filters.designation.trim());
   }
 
+  if (filters.phone?.trim()) {
+    params.set("phone", filters.phone.trim());
+  }
+
   return request<PaginatedMembersResponse>(
     `/trees/${treeId}/members?${params.toString()}`,
     {},

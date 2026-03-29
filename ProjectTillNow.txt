@@ -5873,3 +5873,91 @@ Improvements:
 - Improved user interaction experience
 
 No functional changes were made.
+
+==============================
+2026-03-29 Update
+==============================
+Completed Modules
+- Extended tree-page advanced member search with an optional `phone` filter in the existing filter panel without changing explicit search execution behavior.
+- Extended the existing member search backend to apply additive phone-based filtering only when the new filter is present.
+- Improved dashboard tree actions so `Delete` now uses a proper danger-button style while keeping the existing delete confirmation and API flow unchanged.
+- Updated the dashboard primary tree button behavior so:
+  - a single tree still opens directly,
+  - multiple trees now smooth-scroll to `List My Trees` instead of auto-opening the first tree.
+- Added marriage-anniversary spouse synchronization in the existing member create/update transaction flow.
+- Hardened important-date normalization and upcoming-event resolution so day-first legacy values are normalized correctly and reminders sort by the next actual occurrence.
+
+File Changes
+- `client/app/tree/[id]/page.tsx`
+- `client/lib/api.ts`
+- `client/types/index.ts`
+- `client/app/page.tsx`
+- `client/lib/importantDateValue.ts`
+- `client/utils/eventResolver.ts`
+- `server/src/routes/memberRoutes.js`
+- `server/src/controllers/memberController.js`
+- `server/src/utils/dateNormalizer.js`
+- `ProjectTillNow.txt`
+
+Database Schema State
+- No schema/model/index changes.
+- Existing member search API response shape remains unchanged.
+- No tree navigation route changes were introduced.
+- Phone filtering is query-only and checks legacy/current phone-shaped fields without altering stored schemas.
+
+Validation/build checks
+- `cd client && npm run build` -> passed with pre-existing Next.js/ESLint warnings (`no-img-element`, `react-hooks/exhaustive-deps`).
+- `cd server && npm run build` -> passed.
+- Server-side important-date smoke passed:
+  - `25-12` anniversary normalized to `12-25`
+  - `25-12-2010` anniversary normalized to `2010-12-25`
+- Client-side date parsing smoke passed:
+  - `29-03` resolved to next occurrence `2026-03-29`
+  - `30-03-2020` resolved to next occurrence `2026-03-30`
+  - `2026-04-02` resolved to next occurrence `2026-04-02`
+
+Pending Tasks
+- Optional: manually verify live tree-page member search with the new phone filter against real tree data.
+- Optional: manually verify dashboard `My Tree` behavior for both:
+  - exactly one tree
+  - multiple trees
+- Optional: manually verify spouse anniversary synchronization end-to-end in the browser/API against a real database.
+
+### Search Enhancement – Phone Filter
+
+Search system now supports phone number-based filtering.
+
+- Case-insensitive matching
+- Works alongside existing filters
+
+---
+
+### Dashboard UX Improvements
+
+- Delete button upgraded to proper styled danger button
+- "My Tree" button now adapts based on tree count:
+  - Single tree -> direct open
+  - Multiple trees -> opens list view
+
+---
+
+### Marriage Anniversary Sync Engine
+
+Marriage anniversaries are now automatically synchronized between spouses.
+
+- Ensures data consistency
+- Prevents missing spouse events
+- Avoids duplication
+
+---
+
+### Upcoming Events Fix
+
+Event reminder engine corrected to properly detect upcoming events.
+
+Fixes include:
+- Accurate date normalization
+- Proper current + future month detection
+- Correct chronological sorting
+
+This ensures users always see upcoming family events.

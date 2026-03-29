@@ -351,6 +351,7 @@ export interface MemberSearchFilters {
   location?: string;
   gender?: Gender;
   designation?: string;
+  phone?: string;
 }
 
 export interface PaginatedMembersResponse {

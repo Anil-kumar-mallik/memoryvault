@@ -72,6 +72,7 @@ type MemberSearchFilterDraft = {
   location: string;
   gender: string;
   designation: string;
+  phone: string;
 };
 
 const TOAST_TIMEOUT_MS = 3600;
@@ -216,7 +217,8 @@ function createEmptyMemberSearchFilterDraft(): MemberSearchFilterDraft {
     birthYearTo: "",
     location: "",
     gender: "",
-    designation: ""
+    designation: "",
+    phone: ""
   };
 }
 
@@ -227,6 +229,7 @@ function normalizeMemberSearchFilters(draft: MemberSearchFilterDraft): MemberSea
   const location = draft.location.trim();
   const gender = draft.gender.trim().toLowerCase();
   const designation = draft.designation.trim();
+  const phone = draft.phone.trim();
 
   if (Number.isFinite(birthYearFrom)) {
     filters.birthYearFrom = birthYearFrom;
@@ -248,6 +251,10 @@ function normalizeMemberSearchFilters(draft: MemberSearchFilterDraft): MemberSea
     filters.designation = designation;
   }
 
+  if (phone) {
+    filters.phone = phone;
+  }
+
   return filters;
 }
 
@@ -257,7 +264,8 @@ function countActiveMemberSearchFilters(filters: MemberSearchFilters): number {
     filters.birthYearTo !== undefined,
     Boolean(filters.location),
     Boolean(filters.gender),
-    Boolean(filters.designation)
+    Boolean(filters.designation),
+    Boolean(filters.phone)
   ].filter(Boolean).length;
 }
 
@@ -1645,6 +1653,28 @@ export default function TreePage() {
                     setSearchResults([]);
                   }}
                   placeholder="Search designation..."
+                />
+              </div>
+
+              <div>
+                <label htmlFor="member-filter-phone" className="mb-1 block text-sm font-medium text-slate-900">
+                  Phone Number
+                </label>
+                <input
+                  id="member-filter-phone"
+                  className="field"
+                  type="text"
+                  value={searchFilterDraft.phone}
+                  onChange={(event) => {
+                    setSearchFilterDraft((current) => ({
+                      ...current,
+                      phone: event.target.value
+                    }));
+                    setShowSearchDropdown(false);
+                    setLoadingSearch(false);
+                    setSearchResults([]);
+                  }}
+                  placeholder="Search phone number..."
                 />
               </div>
             </div>

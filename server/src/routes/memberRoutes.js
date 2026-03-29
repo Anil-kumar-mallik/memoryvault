@@ -40,6 +40,7 @@ router
       query("birthYearTo").optional().isInt({ min: 0, max: 9999 }).withMessage("birthYearTo must be 0-9999."),
       query("location").optional().isLength({ max: 160 }).withMessage("location max length is 160."),
       query("designation").optional().isLength({ max: 160 }).withMessage("designation max length is 160."),
+      query("phone").optional().isLength({ max: 80 }).withMessage("phone max length is 80."),
       query("gender").optional().trim().toLowerCase().isIn(["male", "female", "other", "unspecified"]).withMessage(
         "gender must be one of male, female, other, unspecified."
       )

@@ -21,6 +21,7 @@ const OPTIONAL_MEMBER_TEXT_FIELDS = [
   "importantNotes"
 ];
 const SEARCHABLE_LOCATION_FIELDS = ["location", "addressPermanent", "addressCurrent"];
+const SEARCHABLE_PHONE_FIELDS = ["phone", "phoneNumber", "metadata.phone", "metadata.phoneNumber"];
 const DEFAULT_CHILDREN_LIMIT = 18;
 const MAX_CHILDREN_LIMIT = 100;
 const DEFAULT_SIDE_RELATION_LIMIT = 30;
@@ -129,7 +130,8 @@ const parseMemberSearchFilters = (query = {}) => ({
   birthYearTo: parseOptionalYearQuery(query.birthYearTo),
   location: String(query.location || "").trim(),
   gender: normalizeGender(query.gender),
-  designation: String(query.designation || "").trim()
+  designation: String(query.designation || "").trim(),
+  phone: String(query.phone || "").trim()
 });
 
 const buildBirthYearStringExpression = (valueExpression) => ({
@@ -290,6 +292,14 @@ const buildMemberListQuery = ({ treeId, search, filters }) => {
   if (filters.designation) {
     filterConditions.push({
       designation: { $regex: escapeRegex(filters.designation), $options: "i" }
+    });
+  }
+
+  if (filters.phone) {
+    filterConditions.push({
+      $or: SEARCHABLE_PHONE_FIELDS.map((field) => ({
+        [field]: { $regex: escapeRegex(filters.phone), $options: "i" }
+      }))
     });
   }
 
@@ -531,6 +541,59 @@ const withNormalizedImportantDates = (member) => {
     ...member,
     importantDates: normalizeDatesFromLegacy(member)
   };
+};
+
+const buildImportantDateEntryKey = (entry) => `${entry.type}|${entry.value}`;
+
+const syncMarriageAnniversaryToSpouses = async ({ treeId, member, session = null }) => {
+  const spouseIds = uniqueIds(member?.spouses || []);
+  if (!spouseIds.length) {
+    return;
+  }
+
+  const anniversaryEntries = normalizeDatesFromLegacy(member).filter((entry) => entry.type === "anniversary");
+  if (!anniversaryEntries.length) {
+    return;
+  }
+
+  const anniversaryValues = new Set(anniversaryEntries.map((entry) => entry.value));
+  const spouses = await withSession(Member.find({ treeId, _id: { $in: spouseIds } }), session);
+
+  for (const spouse of spouses) {
+    const spouseImportantDates = normalizeDatesFromLegacy(spouse);
+    const spouseAnniversaryEntries = spouseImportantDates.filter((entry) => entry.type === "anniversary");
+
+    if (spouseAnniversaryEntries.some((entry) => !anniversaryValues.has(entry.value))) {
+      continue;
+    }
+
+    const nextImportantDates = [...spouseImportantDates];
+    const existingKeys = new Set(spouseImportantDates.map(buildImportantDateEntryKey));
+    let changed = false;
+
+    for (const entry of anniversaryEntries) {
+      const entryKey = buildImportantDateEntryKey(entry);
+      if (existingKeys.has(entryKey)) {
+        continue;
+      }
+
+      nextImportantDates.push(entry);
+      existingKeys.add(entryKey);
+      changed = true;
+    }
+
+    if (!changed) {
+      continue;
+    }
+
+    const normalizedImportantDates = normalizeDatesFromLegacy({ importantDateEntries: nextImportantDates });
+    const mappedLegacyDates = mapImportantDatesToLegacy(normalizedImportantDates);
+
+    spouse.importantDateEntries = normalizedImportantDates;
+    spouse.anniversaryDate = mappedLegacyDates.anniversaryDate;
+
+    await spouse.save(sessionOptions(session));
+  }
 };
 
 const parseMetadataInput = (rawValue) => {
@@ -1870,6 +1933,11 @@ const createMember = async (req, res, next) => {
       });
 
       await member.save(sessionOptions(session));
+      await syncMarriageAnniversaryToSpouses({
+        treeId,
+        member,
+        session
+      });
 
       if (!treeRootMemberId) {
         tree.rootMember = member._id;
@@ -2054,6 +2122,11 @@ const updateMember = async (req, res, next) => {
       }
 
       await member.save(sessionOptions(session));
+      await syncMarriageAnniversaryToSpouses({
+        treeId,
+        member,
+        session
+      });
       await rebuildDerivedRelations(treeId, session);
 
       const nextPayload = await buildMemberWithRelations(treeId, member._id, relationOptions, session);

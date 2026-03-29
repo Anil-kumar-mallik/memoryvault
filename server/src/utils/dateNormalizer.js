@@ -1,6 +1,8 @@
 const IMPORTANT_DATE_TYPES = new Set(["dob", "anniversary", "death", "custom"]);
 const FULL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const PARTIAL_DATE_PATTERN = /^(\d{2})-(\d{2})$/;
+const DAY_FIRST_FULL_DATE_PATTERN = /^(\d{2})-(\d{2})-(\d{4})$/;
+const DAY_FIRST_PARTIAL_DATE_PATTERN = /^(\d{2})-(\d{2})$/;
 
 const normalizeLabel = (value) => String(value || "").trim();
 
@@ -61,6 +63,35 @@ const parseStrictImportantDateValue = (value) => {
   return null;
 };
 
+const parseDayFirstImportantDateValue = (value) => {
+  const fullMatch = String(value).match(DAY_FIRST_FULL_DATE_PATTERN);
+  if (fullMatch) {
+    const day = Number.parseInt(fullMatch[1], 10);
+    const month = Number.parseInt(fullMatch[2], 10);
+    const year = Number.parseInt(fullMatch[3], 10);
+
+    if (!isValidCalendarDate(year, month, day)) {
+      return null;
+    }
+
+    return buildParsedImportantDateValue({ year, month, day });
+  }
+
+  const partialMatch = String(value).match(DAY_FIRST_PARTIAL_DATE_PATTERN);
+  if (partialMatch) {
+    const day = Number.parseInt(partialMatch[1], 10);
+    const month = Number.parseInt(partialMatch[2], 10);
+
+    if (!isValidCalendarDate(2000, month, day)) {
+      return null;
+    }
+
+    return buildParsedImportantDateValue({ year: null, month, day });
+  }
+
+  return null;
+};
+
 const parseLegacyImportantDateValue = (value) => {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
@@ -80,7 +111,7 @@ const parseImportantDateValue = (rawValue) => {
     return null;
   }
 
-  return parseStrictImportantDateValue(trimmed) || parseLegacyImportantDateValue(trimmed);
+  return parseStrictImportantDateValue(trimmed) || parseDayFirstImportantDateValue(trimmed) || parseLegacyImportantDateValue(trimmed);
 };
 
 const normalizeImportantDateValue = (rawValue) => parseImportantDateValue(rawValue)?.normalizedValue || null;
