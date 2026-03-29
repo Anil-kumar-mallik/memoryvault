@@ -600,12 +600,21 @@ export default function HomePage() {
                     {t("dashboard.members")}: {tree.memberCount ?? 0}
                   </p>
 
-                  <div style={{ display: "flex", gap: "10px", marginTop: "10px", flexWrap: "wrap" }}>
-                    <button type="button" onClick={() => openTree(tree._id)}>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="button-primary cursor-pointer text-xs"
+                      onClick={() => openTree(tree._id)}
+                    >
                       Open Tree
                     </button>
 
-                    <button type="button" onClick={() => handleEdit(tree)} disabled={updatingTreeId === tree._id}>
+                    <button
+                      type="button"
+                      className="button-secondary cursor-pointer text-xs disabled:cursor-not-allowed"
+                      onClick={() => handleEdit(tree)}
+                      disabled={updatingTreeId === tree._id}
+                    >
                       Edit
                     </button>
 

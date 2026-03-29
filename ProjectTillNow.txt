@@ -5833,3 +5833,43 @@ System behavior:
 - No impact on backend or existing logic
 
 This change improves usability while preserving system stability.
+
+==============================
+2026-03-29 Update
+==============================
+Completed Modules
+- Improved dashboard tree-list action styling so `Open Tree` now uses the shared primary button UI.
+- Improved dashboard tree-list action styling so `Edit` now uses the shared secondary button UI.
+- Replaced the inline dashboard action-row layout styles with existing utility classes for consistent spacing and wrapping.
+- Preserved all existing dashboard action handlers, routing flow, and delete behavior without functional changes.
+
+File Changes
+- `client/app/page.tsx`
+- `ProjectTillNow.txt`
+
+Database Schema State
+- No database schema, model, query, or index changes.
+- No API or navigation logic changes.
+- Dashboard action update is frontend-only and styling-only.
+
+Validation/build checks
+- `cd client && npm run build` -> passed with pre-existing Next.js/ESLint warnings (`no-img-element`, `react-hooks/exhaustive-deps`).
+- `cd server && npm run build` -> passed.
+
+Pending Tasks
+- Optional: manually verify dashboard tree-card interactions in the browser for:
+  - `Open Tree`
+  - `Edit`
+  - `Delete`
+  - action-row wrapping on smaller screens
+
+### Dashboard Action Button UI Improvement
+
+Dashboard actions "Open Tree" and "Edit" have been upgraded from text links to proper button components.
+
+Improvements:
+- Better visual clarity
+- Consistent UI with system buttons
+- Improved user interaction experience
+
+No functional changes were made.
