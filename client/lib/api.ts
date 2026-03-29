@@ -9,6 +9,7 @@ import {
   DeleteTreeResponse,
   FamilyTree,
   MemberGraphResponse,
+  MemberSearchFilters,
   MemberRelationMutationPayload,
   MemberRelationMutationResponse,
   NotificationsResponse,
@@ -370,7 +371,8 @@ export function searchMembers(
   treeId: string,
   search: string,
   page: number = 1,
-  limit: number = 40
+  limit: number = 40,
+  filters: MemberSearchFilters = {}
 ): Promise<PaginatedMembersResponse> {
   const params = new URLSearchParams({
     page: String(page),
@@ -379,6 +381,22 @@ export function searchMembers(
 
   if (search.trim()) {
     params.set("search", search.trim());
+  }
+
+  if (filters.birthYearFrom !== undefined) {
+    params.set("birthYearFrom", String(filters.birthYearFrom));
+  }
+
+  if (filters.birthYearTo !== undefined) {
+    params.set("birthYearTo", String(filters.birthYearTo));
+  }
+
+  if (filters.location?.trim()) {
+    params.set("location", filters.location.trim());
+  }
+
+  if (filters.gender?.trim()) {
+    params.set("gender", filters.gender.trim());
   }
 
   return request<PaginatedMembersResponse>(

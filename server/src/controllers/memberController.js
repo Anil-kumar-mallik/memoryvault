@@ -20,6 +20,7 @@ const OPTIONAL_MEMBER_TEXT_FIELDS = [
   "addressCurrent",
   "importantNotes"
 ];
+const SEARCHABLE_LOCATION_FIELDS = ["addressPermanent", "addressCurrent"];
 const DEFAULT_CHILDREN_LIMIT = 18;
 const MAX_CHILDREN_LIMIT = 100;
 const DEFAULT_SIDE_RELATION_LIMIT = 30;
@@ -113,6 +114,191 @@ const uniqueIds = (values) => {
 };
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const parseOptionalYearQuery = (rawValue) => {
+  if (rawValue === undefined || rawValue === null || rawValue === "") {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(String(rawValue), 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const parseMemberSearchFilters = (query = {}) => ({
+  birthYearFrom: parseOptionalYearQuery(query.birthYearFrom),
+  birthYearTo: parseOptionalYearQuery(query.birthYearTo),
+  location: String(query.location || "").trim(),
+  gender: normalizeGender(query.gender)
+});
+
+const buildBirthYearStringExpression = (valueExpression) => ({
+  $let: {
+    vars: {
+      stringValue: valueExpression,
+      isoParsedDate: {
+        $dateFromString: {
+          dateString: valueExpression,
+          onError: null,
+          onNull: null
+        }
+      },
+      dayFirstParsedDate: {
+        $dateFromString: {
+          dateString: valueExpression,
+          format: "%d-%m-%Y",
+          onError: null,
+          onNull: null
+        }
+      }
+    },
+    in: {
+      $switch: {
+        branches: [
+          {
+            case: { $regexMatch: { input: "$$stringValue", regex: /^\d{4}-\d{2}-\d{2}$/ } },
+            then: { $toInt: { $substrCP: ["$$stringValue", 0, 4] } }
+          },
+          {
+            case: { $regexMatch: { input: "$$stringValue", regex: /^\d{2}-\d{2}-\d{4}$/ } },
+            then: { $toInt: { $substrCP: ["$$stringValue", 6, 4] } }
+          },
+          {
+            case: { $regexMatch: { input: "$$stringValue", regex: /^\d{4}$/ } },
+            then: { $toInt: "$$stringValue" }
+          },
+          {
+            case: { $regexMatch: { input: "$$stringValue", regex: /^\d{2}-\d{2}$/ } },
+            then: null
+          },
+          {
+            case: { $ne: ["$$isoParsedDate", null] },
+            then: { $year: "$$isoParsedDate" }
+          },
+          {
+            case: { $ne: ["$$dayFirstParsedDate", null] },
+            then: { $year: "$$dayFirstParsedDate" }
+          }
+        ],
+        default: null
+      }
+    }
+  }
+});
+
+const buildBirthYearSourceExpression = (valueExpression) => ({
+  $let: {
+    vars: {
+      valueType: { $type: valueExpression }
+    },
+    in: {
+      $switch: {
+        branches: [
+          {
+            case: { $eq: ["$$valueType", "date"] },
+            then: { $year: valueExpression }
+          },
+          {
+            case: { $eq: ["$$valueType", "string"] },
+            then: buildBirthYearStringExpression(valueExpression)
+          }
+        ],
+        default: null
+      }
+    }
+  }
+});
+
+const buildBirthYearFilterCondition = ({ birthYearFrom, birthYearTo }) => {
+  if (birthYearFrom === undefined && birthYearTo === undefined) {
+    return null;
+  }
+
+  const dobEntryValueExpression = {
+    $let: {
+      vars: {
+        dobEntry: {
+          $first: {
+            $filter: {
+              input: { $ifNull: ["$importantDateEntries", []] },
+              as: "entry",
+              cond: { $eq: ["$$entry.type", "dob"] }
+            }
+          }
+        }
+      },
+      in: "$$dobEntry.value"
+    }
+  };
+
+  const birthYearExpression = {
+    $ifNull: [
+      buildBirthYearSourceExpression("$birthDate"),
+      {
+        $ifNull: [
+          buildBirthYearSourceExpression("$dateOfBirth"),
+          buildBirthYearSourceExpression(dobEntryValueExpression)
+        ]
+      }
+    ]
+  };
+
+  const comparisons = [{ $ne: ["$$birthYear", null] }];
+
+  if (birthYearFrom !== undefined) {
+    comparisons.push({ $gte: ["$$birthYear", birthYearFrom] });
+  }
+
+  if (birthYearTo !== undefined) {
+    comparisons.push({ $lte: ["$$birthYear", birthYearTo] });
+  }
+
+  return {
+    $expr: {
+      $let: {
+        vars: {
+          birthYear: birthYearExpression
+        },
+        in: comparisons.length === 1 ? comparisons[0] : { $and: comparisons }
+      }
+    }
+  };
+};
+
+const buildMemberListQuery = ({ treeId, search, filters }) => {
+  const query = { treeId };
+  const conditions = [];
+
+  if (search) {
+    conditions.push({
+      name: { $regex: escapeRegex(search), $options: "i" }
+    });
+  }
+
+  if (filters.location) {
+    conditions.push({
+      $or: SEARCHABLE_LOCATION_FIELDS.map((field) => ({
+        [field]: { $regex: escapeRegex(filters.location), $options: "i" }
+      }))
+    });
+  }
+
+  if (filters.gender) {
+    conditions.push({
+      gender: filters.gender
+    });
+  }
+
+  const birthYearCondition = buildBirthYearFilterCondition(filters);
+  if (birthYearCondition) {
+    conditions.push(birthYearCondition);
+  }
+
+  if (conditions.length) {
+    query.$and = conditions;
+  }
+
+  return query;
+};
 
 const addUniqueId = (collection, value) => {
   const normalized = normalizeId(value);
@@ -1952,11 +2138,17 @@ const listMembers = async (req, res, next) => {
     const page = Math.max(Number.parseInt(String(req.query.page || "1"), 10), 1);
     const limit = Math.min(Math.max(Number.parseInt(String(req.query.limit || "20"), 10), 1), 100);
     const search = String(req.query.search || "").trim();
+    const filters = parseMemberSearchFilters(req.query);
 
-    const query = { treeId };
-    if (search) {
-      query.name = { $regex: escapeRegex(search), $options: "i" };
+    if (
+      filters.birthYearFrom !== undefined &&
+      filters.birthYearTo !== undefined &&
+      filters.birthYearFrom > filters.birthYearTo
+    ) {
+      throw badRequest("birthYearFrom cannot be greater than birthYearTo.");
     }
+
+    const query = buildMemberListQuery({ treeId, search, filters });
 
     const total = await Member.countDocuments(query);
     const members = await Member.find(query)

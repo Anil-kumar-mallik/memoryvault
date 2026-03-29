@@ -345,6 +345,13 @@ export interface MemberGraphResponse {
   }>;
 }
 
+export interface MemberSearchFilters {
+  birthYearFrom?: number;
+  birthYearTo?: number;
+  location?: string;
+  gender?: Gender;
+}
+
 export interface PaginatedMembersResponse {
   members: Member[];
   page: number;

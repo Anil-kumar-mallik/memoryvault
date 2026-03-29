@@ -35,7 +35,13 @@ router
       param("treeId").isMongoId().withMessage("Valid tree id is required."),
       query("page").optional().isInt({ min: 1 }).withMessage("Page must be >= 1."),
       query("limit").optional().isInt({ min: 1, max: 100 }).withMessage("Limit must be 1-100."),
-      query("search").optional().isLength({ max: 140 }).withMessage("search max length is 140.")
+      query("search").optional().isLength({ max: 140 }).withMessage("search max length is 140."),
+      query("birthYearFrom").optional().isInt({ min: 0, max: 9999 }).withMessage("birthYearFrom must be 0-9999."),
+      query("birthYearTo").optional().isInt({ min: 0, max: 9999 }).withMessage("birthYearTo must be 0-9999."),
+      query("location").optional().isLength({ max: 160 }).withMessage("location max length is 160."),
+      query("gender").optional().trim().toLowerCase().isIn(["male", "female", "other", "unspecified"]).withMessage(
+        "gender must be one of male, female, other, unspecified."
+      )
     ],
     attachTreeContext,
     requireTreeReadAccess,

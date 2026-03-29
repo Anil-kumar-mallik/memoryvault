@@ -30,6 +30,7 @@ import { getCurrentUser, getToken } from "@/lib/auth";
 import {
   AddMemberPayload,
   Member,
+  MemberSearchFilters,
   MemberWithRelationsResponse,
   RelationMutationAction,
   RelationMutationType,
@@ -58,6 +59,18 @@ type ToastItem = {
   id: number;
   kind: ToastKind;
   message: string;
+};
+
+type MemberSearchState = {
+  query: string;
+  filters: MemberSearchFilters;
+};
+
+type MemberSearchFilterDraft = {
+  birthYearFrom: string;
+  birthYearTo: string;
+  location: string;
+  gender: string;
 };
 
 const TOAST_TIMEOUT_MS = 3600;
@@ -196,6 +209,56 @@ function replaceMemberInTreeData(treeData: Member[], updatedMember: Member): Mem
   return treeData.map((member) => (member._id === updatedMember._id ? { ...member, ...updatedMember } : member));
 }
 
+function createEmptyMemberSearchFilterDraft(): MemberSearchFilterDraft {
+  return {
+    birthYearFrom: "",
+    birthYearTo: "",
+    location: "",
+    gender: ""
+  };
+}
+
+function createMemberSearchFilterDraft(filters: MemberSearchFilters): MemberSearchFilterDraft {
+  return {
+    birthYearFrom: filters.birthYearFrom !== undefined ? String(filters.birthYearFrom) : "",
+    birthYearTo: filters.birthYearTo !== undefined ? String(filters.birthYearTo) : "",
+    location: filters.location || "",
+    gender: filters.gender || ""
+  };
+}
+
+function normalizeMemberSearchFilters(draft: MemberSearchFilterDraft): MemberSearchFilters {
+  const filters: MemberSearchFilters = {};
+  const birthYearFrom = Number.parseInt(draft.birthYearFrom, 10);
+  const birthYearTo = Number.parseInt(draft.birthYearTo, 10);
+  const location = draft.location.trim();
+  const gender = draft.gender.trim().toLowerCase();
+
+  if (Number.isFinite(birthYearFrom)) {
+    filters.birthYearFrom = birthYearFrom;
+  }
+
+  if (Number.isFinite(birthYearTo)) {
+    filters.birthYearTo = birthYearTo;
+  }
+
+  if (location) {
+    filters.location = location;
+  }
+
+  if (gender) {
+    filters.gender = gender as MemberSearchFilters["gender"];
+  }
+
+  return filters;
+}
+
+function countActiveMemberSearchFilters(filters: MemberSearchFilters): number {
+  return [filters.birthYearFrom !== undefined, filters.birthYearTo !== undefined, Boolean(filters.location), Boolean(filters.gender)].filter(
+    Boolean
+  ).length;
+}
+
 function createDownload(fileName: string, content: Blob): void {
   const link = document.createElement("a");
   const objectUrl = URL.createObjectURL(content);
@@ -300,7 +363,14 @@ export default function TreePage() {
   const [focusId, setFocusId] = useState<string | null>(null);
   const [focusBundle, setFocusBundle] = useState<MemberWithRelationsResponse | null>(null);
   const [treeData, setTreeData] = useState<Member[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [memberSearch, setMemberSearch] = useState<MemberSearchState>({
+    query: "",
+    filters: {}
+  });
+  const [isSearchFilterModalOpen, setIsSearchFilterModalOpen] = useState(false);
+  const [searchFilterDraft, setSearchFilterDraft] = useState<MemberSearchFilterDraft>(createEmptyMemberSearchFilterDraft());
+  const [searchFilterError, setSearchFilterError] = useState<string | null>(null);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [searchResults, setSearchResults] = useState<Member[]>([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
 
@@ -355,6 +425,11 @@ export default function TreePage() {
       String(focusBundle.focus.linkedUserId) === String(currentUserId)
   );
   const treeCanvasBundle = useMemo(() => mergeTreeDataIntoBundle(focusBundle, treeData), [focusBundle, treeData]);
+  const searchQuery = memberSearch.query;
+  const activeSearchFilters = memberSearch.filters;
+  const hasActiveSearchFilters = useMemo(() => countActiveMemberSearchFilters(activeSearchFilters) > 0, [activeSearchFilters]);
+  const activeSearchFilterCount = useMemo(() => countActiveMemberSearchFilters(activeSearchFilters), [activeSearchFilters]);
+  const shouldRunMemberSearch = searchQuery.trim().length >= 2 || hasActiveSearchFilters;
 
   const isPasswordError = (message: string) => {
     const normalized = message.toLowerCase();
@@ -533,6 +608,16 @@ export default function TreePage() {
     setFocusId(null);
     setFocusBundle(null);
     setTreeData([]);
+    setMemberSearch({
+      query: "",
+      filters: {}
+    });
+    setSearchResults([]);
+    setLoadingSearch(false);
+    setShowSearchDropdown(false);
+    setIsSearchFilterModalOpen(false);
+    setSearchFilterDraft(createEmptyMemberSearchFilterDraft());
+    setSearchFilterError(null);
     setSubscription(null);
     setRequiresPassword(false);
     setPasswordError(null);
@@ -571,7 +656,7 @@ export default function TreePage() {
   useEffect(() => {
     const normalizedQuery = searchQuery.trim();
 
-    if (!treeId || !tree || requiresPassword || normalizedQuery.length < 2) {
+    if (!showSearchDropdown || !treeId || !tree || requiresPassword || !shouldRunMemberSearch) {
       setSearchResults([]);
       setLoadingSearch(false);
       return;
@@ -582,7 +667,7 @@ export default function TreePage() {
 
     const timer = window.setTimeout(async () => {
       try {
-        const result = await searchMembers(treeId, normalizedQuery, 1, 20);
+        const result = await searchMembers(treeId, normalizedQuery, 1, 20, activeSearchFilters);
 
         if (!active) {
           return;
@@ -605,7 +690,7 @@ export default function TreePage() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [requiresPassword, searchQuery, tree, treeId]);
+  }, [activeSearchFilters, requiresPassword, searchQuery, shouldRunMemberSearch, showSearchDropdown, tree, treeId]);
 
   useEffect(() => {
     if (!modalState.isOpen || !tree?.canEdit || !detailBundle) {
@@ -659,9 +744,73 @@ export default function TreePage() {
       return memberId;
     });
     setLoadingSearch(false);
-    setSearchQuery("");
+    setShowSearchDropdown(false);
+    setMemberSearch((current) => ({
+      ...current,
+      query: ""
+    }));
     setSearchResults([]);
   }, []);
+
+  const openSearchFilterModal = useCallback(() => {
+    setSearchFilterDraft(createMemberSearchFilterDraft(activeSearchFilters));
+    setSearchFilterError(null);
+    setIsSearchFilterModalOpen(true);
+  }, [activeSearchFilters]);
+
+  const closeSearchFilterModal = useCallback(() => {
+    setIsSearchFilterModalOpen(false);
+    setSearchFilterError(null);
+  }, []);
+
+  const applySearchFilters = useCallback(() => {
+    const nextFilters = normalizeMemberSearchFilters(searchFilterDraft);
+
+    if (
+      nextFilters.birthYearFrom !== undefined &&
+      nextFilters.birthYearTo !== undefined &&
+      nextFilters.birthYearFrom > nextFilters.birthYearTo
+    ) {
+      setSearchFilterError("From Year cannot be greater than To Year.");
+      return;
+    }
+
+    const nextShouldRunSearch = searchQuery.trim().length >= 2 || countActiveMemberSearchFilters(nextFilters) > 0;
+
+    setMemberSearch((current) => ({
+      ...current,
+      filters: nextFilters
+    }));
+    setShowSearchDropdown(nextShouldRunSearch);
+    if (!nextShouldRunSearch) {
+      setSearchResults([]);
+      setLoadingSearch(false);
+    } else {
+      setLoadingSearch(true);
+    }
+
+    closeSearchFilterModal();
+  }, [closeSearchFilterModal, searchFilterDraft, searchQuery]);
+
+  const resetSearchFilters = useCallback(() => {
+    const nextShouldRunSearch = searchQuery.trim().length >= 2;
+
+    setSearchFilterDraft(createEmptyMemberSearchFilterDraft());
+    setSearchFilterError(null);
+    setMemberSearch((current) => ({
+      ...current,
+      filters: {}
+    }));
+    setShowSearchDropdown(nextShouldRunSearch);
+    if (!nextShouldRunSearch) {
+      setSearchResults([]);
+      setLoadingSearch(false);
+    } else {
+      setLoadingSearch(true);
+    }
+
+    setIsSearchFilterModalOpen(false);
+  }, [searchQuery]);
 
   const submitTreePassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1257,20 +1406,34 @@ export default function TreePage() {
               <label htmlFor="member-search" className="mb-2 block text-sm font-medium text-slate-900">
                 Search member
               </label>
-              <input
-                id="member-search"
-                className="field"
-                type="text"
-                value={searchQuery}
-                onChange={(event) => {
-                  const nextQuery = event.target.value;
-                  setSearchQuery(nextQuery);
-                  setLoadingSearch(nextQuery.trim().length >= 2);
-                }}
-                placeholder="Search member..."
-                autoComplete="off"
-              />
-              {searchQuery.trim().length >= 2 && (
+              <div className="flex items-center gap-2">
+                <input
+                  id="member-search"
+                  className="field flex-1"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => {
+                    const nextQuery = event.target.value;
+                    const nextShouldRunSearch = nextQuery.trim().length >= 2 || hasActiveSearchFilters;
+
+                    setMemberSearch((current) => ({
+                      ...current,
+                      query: nextQuery
+                    }));
+                    setShowSearchDropdown(nextShouldRunSearch);
+                    setLoadingSearch(nextShouldRunSearch);
+                    if (!nextShouldRunSearch) {
+                      setSearchResults([]);
+                    }
+                  }}
+                  placeholder="Search member..."
+                  autoComplete="off"
+                />
+                <button type="button" className="button-secondary shrink-0" onClick={openSearchFilterModal}>
+                  {activeSearchFilterCount > 0 ? `Filter (${activeSearchFilterCount})` : "Filter"}
+                </button>
+              </div>
+              {showSearchDropdown && shouldRunMemberSearch && (
                 <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
                   {loadingSearch ? (
                     <p className="px-4 py-3 text-sm text-slate-500">Searching...</p>
@@ -1334,6 +1497,128 @@ export default function TreePage() {
           <TimelineView members={treeData} />
         </div>
       </section>
+
+      {isSearchFilterModalOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 px-4" onClick={closeSearchFilterModal}>
+          <div
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-slate-900">Search Filters</h2>
+              <button type="button" className="button-secondary" onClick={closeSearchFilterModal}>
+                Close
+              </button>
+            </div>
+
+            {searchFilterError && (
+              <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {searchFilterError}
+              </p>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <p className="mb-2 text-sm font-medium text-slate-900">Birth Year Range</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="member-filter-birth-year-from" className="mb-1 block text-xs font-medium text-slate-600">
+                      From Year
+                    </label>
+                    <input
+                      id="member-filter-birth-year-from"
+                      className="field"
+                      type="number"
+                      min="0"
+                      max="9999"
+                      value={searchFilterDraft.birthYearFrom}
+                      onChange={(event) => {
+                        setSearchFilterDraft((current) => ({
+                          ...current,
+                          birthYearFrom: event.target.value
+                        }));
+                        setSearchFilterError(null);
+                      }}
+                      placeholder="e.g. 1950"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="member-filter-birth-year-to" className="mb-1 block text-xs font-medium text-slate-600">
+                      To Year
+                    </label>
+                    <input
+                      id="member-filter-birth-year-to"
+                      className="field"
+                      type="number"
+                      min="0"
+                      max="9999"
+                      value={searchFilterDraft.birthYearTo}
+                      onChange={(event) => {
+                        setSearchFilterDraft((current) => ({
+                          ...current,
+                          birthYearTo: event.target.value
+                        }));
+                        setSearchFilterError(null);
+                      }}
+                      placeholder="e.g. 2000"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="member-filter-location" className="mb-1 block text-sm font-medium text-slate-900">
+                  Location
+                </label>
+                <input
+                  id="member-filter-location"
+                  className="field"
+                  type="text"
+                  value={searchFilterDraft.location}
+                  onChange={(event) => {
+                    setSearchFilterDraft((current) => ({
+                      ...current,
+                      location: event.target.value
+                    }));
+                  }}
+                  placeholder="Search location..."
+                />
+              </div>
+
+              <div>
+                <label htmlFor="member-filter-gender" className="mb-1 block text-sm font-medium text-slate-900">
+                  Gender
+                </label>
+                <select
+                  id="member-filter-gender"
+                  className="field"
+                  value={searchFilterDraft.gender}
+                  onChange={(event) => {
+                    setSearchFilterDraft((current) => ({
+                      ...current,
+                      gender: event.target.value
+                    }));
+                  }}
+                >
+                  <option value="">All genders</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button type="button" className="button-secondary" onClick={resetSearchFilters}>
+                Reset
+              </button>
+              <button type="button" className="button-primary" onClick={applySearchFilters}>
+                Apply Filters
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {requiresPassword && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/55 px-4">
