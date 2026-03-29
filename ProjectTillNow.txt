@@ -5961,3 +5961,56 @@ Fixes include:
 - Correct chronological sorting
 
 This ensures users always see upcoming family events.
+
+==============================
+2026-03-29 Update
+==============================
+Completed Modules
+- Updated the shared upcoming-events resolver to use a rolling 30-day window instead of the previous 7-day reminder window.
+- Kept the existing event system intact while adjusting next-occurrence calculation to:
+  - build the next event date from the current year,
+  - roll past events into the next year,
+  - filter only events within the next 30 days,
+  - sort nearest events first by `daysLeft`.
+- Updated the dashboard upcoming-events flow to use the shared 30-day reminder window.
+- Updated the tree sidebar upcoming-events panel to use the same shared 30-day reminder window.
+- Kept the event calendar flow unchanged and left the existing member fetch limit unchanged.
+
+File Changes
+- `client/utils/eventResolver.ts`
+- `client/components/UpcomingEvents.tsx`
+- `client/app/page.tsx`
+- `ProjectTillNow.txt`
+
+Database Schema State
+- No schema/model/index changes.
+- No API/request/response changes.
+- Important Date storage remains unchanged and continues using existing supported date parsing paths.
+
+Validation/build checks
+- `cd client && npm run build` -> passed with pre-existing Next.js/ESLint warnings (`no-img-element`, `react-hooks/exhaustive-deps`).
+- `cd server && npm run build` -> passed.
+- Fixed-date smoke test passed for `today = 2026-03-23`:
+  - `04-05` -> included (`2026-04-05`, 13 days)
+  - `04-10` -> included (`2026-04-10`, 18 days)
+  - `04-30` -> excluded (`2026-04-30`, 38 days)
+  - `03-23` -> included (`2026-03-23`, 0 days)
+  - `01-01` -> rolled to next year (`2027-01-01`) and excluded
+  - `2020-04-05` -> included
+  - `05-04-2020` -> included
+
+Pending Tasks
+- Optional: manually verify dashboard and tree-sidebar upcoming-event panels against live member data in the browser.
+- Optional: if legacy ambiguous partial dates exist in old data, spot-check those records to confirm their stored format matches the existing important-date normalization path.
+
+### Upcoming Events Enhancement (30-Day Window)
+
+The upcoming events system has been enhanced to display events within a rolling 30-day window instead of limiting to the current month.
+
+Improvements:
+- Cross-month event visibility
+- Accurate future event detection
+- Year-boundary safe handling
+- Chronological sorting based on nearest event
+
+This ensures users always see relevant upcoming family events.

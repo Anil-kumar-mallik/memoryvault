@@ -7,7 +7,7 @@ import { clearToken, getCurrentUser, getToken } from "@/lib/auth";
 import { createTree, deleteTree, getMembers, getMySubscription, getMyTrees, updateTreeSettings } from "@/lib/api";
 import { FamilyTree, SubscriptionSummaryResponse, TreePrivacy, TreeSettingsPayload, User } from "@/types";
 import { useI18n } from "@/lib/i18n/provider";
-import { resolveUpcomingEvents, type FamilyEvent } from "@/utils/eventResolver";
+import { resolveUpcomingEvents, type FamilyEvent, UPCOMING_EVENTS_WINDOW_DAYS } from "@/utils/eventResolver";
 
 type TreeFormState = {
   name: string;
@@ -165,7 +165,7 @@ export default function HomePage() {
           return;
         }
 
-        const events = resolveUpcomingEvents(payload.members, 7);
+        const events = resolveUpcomingEvents(payload.members, UPCOMING_EVENTS_WINDOW_DAYS);
         setDashboardEvents(events);
       } catch (loadError) {
         if (isCancelled) {

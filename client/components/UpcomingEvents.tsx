@@ -2,14 +2,14 @@
 
 import { useMemo } from "react";
 import { Member } from "@/types";
-import { resolveUpcomingEvents } from "@/utils/eventResolver";
+import { resolveUpcomingEvents, UPCOMING_EVENTS_WINDOW_DAYS } from "@/utils/eventResolver";
 
 interface Props {
   members: Member[];
 }
 
 export default function UpcomingEvents({ members }: Props) {
-  const events = useMemo(() => resolveUpcomingEvents(members, 7), [members]);
+  const events = useMemo(() => resolveUpcomingEvents(members, UPCOMING_EVENTS_WINDOW_DAYS), [members]);
 
   if (!events.length) {
     return null;

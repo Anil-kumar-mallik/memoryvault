@@ -9,6 +9,9 @@ export type FamilyEvent = {
   daysLeft: number;
 };
 
+export const UPCOMING_EVENTS_WINDOW_DAYS = 30;
+const DAY_IN_MS = 1000 * 60 * 60 * 24;
+
 function startOfDay(value: Date): Date {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
 }
@@ -19,21 +22,26 @@ function resolveUpcomingOccurrence(value: string, fromDate: Date): Date | null {
     return null;
   }
 
-  const start = startOfDay(fromDate);
+  const today = startOfDay(fromDate);
+  let eventYear = today.getFullYear();
 
-  for (let yearOffset = 0; yearOffset <= 8; yearOffset += 1) {
-    const occurrence = new Date(start.getFullYear() + yearOffset, parsed.month - 1, parsed.day);
+  for (let attempt = 0; attempt <= 8; attempt += 1) {
+    const eventDate = new Date(eventYear, parsed.month - 1, parsed.day);
     if (
-      Number.isNaN(occurrence.getTime()) ||
-      occurrence.getMonth() !== parsed.month - 1 ||
-      occurrence.getDate() !== parsed.day
+      Number.isNaN(eventDate.getTime()) ||
+      eventDate.getMonth() !== parsed.month - 1 ||
+      eventDate.getDate() !== parsed.day
     ) {
+      eventYear += 1;
       continue;
     }
 
-    if (occurrence >= start) {
-      return occurrence;
+    if (eventDate < today) {
+      eventYear += 1;
+      continue;
     }
+
+    return eventDate;
   }
 
   return null;
@@ -57,7 +65,10 @@ function labelForEvent(type: string, label?: string): string {
   }
 }
 
-export function resolveUpcomingEvents(members: Member[], daysAhead: number = 7): FamilyEvent[] {
+export function resolveUpcomingEvents(
+  members: Member[],
+  daysAhead: number = UPCOMING_EVENTS_WINDOW_DAYS
+): FamilyEvent[] {
   const today = startOfDay(new Date());
   const events: Array<FamilyEvent & { occurrenceTime: number }> = [];
 
@@ -73,8 +84,9 @@ export function resolveUpcomingEvents(members: Member[], daysAhead: number = 7):
         continue;
       }
 
-      const diff = Math.round((nextOccurrence.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      if (diff < 0 || diff > daysAhead) {
+      const diffTime = nextOccurrence.getTime() - today.getTime();
+      const diffDays = Math.round(diffTime / DAY_IN_MS);
+      if (diffDays < 0 || diffDays > daysAhead) {
         continue;
       }
 
@@ -83,7 +95,7 @@ export function resolveUpcomingEvents(members: Member[], daysAhead: number = 7):
         memberName: member.name,
         label: labelForEvent(entry.type, entry.label),
         date: formatCalendarDate(nextOccurrence),
-        daysLeft: diff,
+        daysLeft: diffDays,
         occurrenceTime: nextOccurrence.getTime()
       });
     }
@@ -91,6 +103,10 @@ export function resolveUpcomingEvents(members: Member[], daysAhead: number = 7):
 
   return events
     .sort((left, right) => {
+      if (left.daysLeft !== right.daysLeft) {
+        return left.daysLeft - right.daysLeft;
+      }
+
       if (left.occurrenceTime !== right.occurrenceTime) {
         return left.occurrenceTime - right.occurrenceTime;
       }
