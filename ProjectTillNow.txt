@@ -5715,3 +5715,71 @@ System ensures:
 - Clean UI integration
 
 This enhancement improves usability for large family trees.
+
+==============================
+2026-03-29 Update
+==============================
+Completed Modules
+- Fixed the tree-page member search flow so search requests execute only on explicit submit.
+- Added a dedicated `Search` button beside the existing search input and filter button.
+- Preserved Enter-to-search by moving the tree-page search bar onto a form submit flow.
+- Stopped member-search API calls from firing automatically while typing in the tree-page search input.
+- Extended advanced member search filters with:
+  - `designation`
+- Kept the existing `searchMembers` client helper and existing paginated member search API route.
+- Updated backend member search filtering so:
+  - search-only requests keep the original query shape,
+  - filter conditions are added only when filters are present,
+  - designation filtering uses case-insensitive string matching.
+- Preserved backward-compatible location filtering by checking legacy/current address-based location fields without changing the schema.
+
+File Changes
+- `client/app/tree/[id]/page.tsx`
+- `client/lib/api.ts`
+- `client/types/index.ts`
+- `server/src/controllers/memberController.js`
+- `server/src/routes/memberRoutes.js`
+- `ProjectTillNow.txt`
+
+Database Schema State
+- No schema/model/index changes.
+- Existing `Member` fields remain unchanged.
+- Search execution fix reuses existing fields:
+  - `birthDate`
+  - `dateOfBirth`
+  - `importantDateEntries`
+  - `gender`
+  - `designation`
+  - `addressPermanent`
+  - `addressCurrent`
+  - legacy-compatible `location` query matching
+
+Validation/build checks
+- `cd server && npm run build` -> passed.
+- `cd client && npm run build` -> passed with pre-existing Next.js/ESLint warnings (`no-img-element`, `react-hooks/exhaustive-deps`).
+- Member search API smoke test passed:
+  - search without filters (`Alice`) -> 2 results
+  - search with filters (`Alice` + birth year + location + gender + designation) -> 1 result
+  - only filters (`designation=Architect`, `location=Delhi`) -> 2 results
+  - larger-tree smoke verified on a 124-member tree with limit unchanged at `20`
+
+Pending Tasks
+- Optional: manually verify the tree-page Search button, Enter submit, and stale-result hiding behavior in the browser.
+- Optional: add focused automated coverage for explicit member-search submit flow and designation filtering.
+
+### Search Execution Fix + Extended Filters
+
+Search system improved with controlled execution.
+
+Enhancements:
+- Added explicit "Search" button to trigger filtered queries
+- Prevents unnecessary API calls
+- Ensures stable and predictable behavior
+
+New filter added:
+- Designation-based search
+
+System guarantees:
+- Existing search behavior unchanged
+- Filters applied only when explicitly triggered
+- Fully backward compatible

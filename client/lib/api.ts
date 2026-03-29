@@ -399,6 +399,10 @@ export function searchMembers(
     params.set("gender", filters.gender.trim());
   }
 
+  if (filters.designation?.trim()) {
+    params.set("designation", filters.designation.trim());
+  }
+
   return request<PaginatedMembersResponse>(
     `/trees/${treeId}/members?${params.toString()}`,
     {},

@@ -350,6 +350,7 @@ export interface MemberSearchFilters {
   birthYearTo?: number;
   location?: string;
   gender?: Gender;
+  designation?: string;
 }
 
 export interface PaginatedMembersResponse {

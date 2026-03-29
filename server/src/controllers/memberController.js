@@ -20,7 +20,7 @@ const OPTIONAL_MEMBER_TEXT_FIELDS = [
   "addressCurrent",
   "importantNotes"
 ];
-const SEARCHABLE_LOCATION_FIELDS = ["addressPermanent", "addressCurrent"];
+const SEARCHABLE_LOCATION_FIELDS = ["location", "addressPermanent", "addressCurrent"];
 const DEFAULT_CHILDREN_LIMIT = 18;
 const MAX_CHILDREN_LIMIT = 100;
 const DEFAULT_SIDE_RELATION_LIMIT = 30;
@@ -128,7 +128,8 @@ const parseMemberSearchFilters = (query = {}) => ({
   birthYearFrom: parseOptionalYearQuery(query.birthYearFrom),
   birthYearTo: parseOptionalYearQuery(query.birthYearTo),
   location: String(query.location || "").trim(),
-  gender: normalizeGender(query.gender)
+  gender: normalizeGender(query.gender),
+  designation: String(query.designation || "").trim()
 });
 
 const buildBirthYearStringExpression = (valueExpression) => ({
@@ -265,17 +266,15 @@ const buildBirthYearFilterCondition = ({ birthYearFrom, birthYearTo }) => {
 };
 
 const buildMemberListQuery = ({ treeId, search, filters }) => {
-  const query = { treeId };
-  const conditions = [];
-
-  if (search) {
-    conditions.push({
-      name: { $regex: escapeRegex(search), $options: "i" }
-    });
-  }
+  const searchCondition = search
+    ? {
+        name: { $regex: escapeRegex(search), $options: "i" }
+      }
+    : null;
+  const filterConditions = [];
 
   if (filters.location) {
-    conditions.push({
+    filterConditions.push({
       $or: SEARCHABLE_LOCATION_FIELDS.map((field) => ({
         [field]: { $regex: escapeRegex(filters.location), $options: "i" }
       }))
@@ -283,21 +282,51 @@ const buildMemberListQuery = ({ treeId, search, filters }) => {
   }
 
   if (filters.gender) {
-    conditions.push({
+    filterConditions.push({
       gender: filters.gender
+    });
+  }
+
+  if (filters.designation) {
+    filterConditions.push({
+      designation: { $regex: escapeRegex(filters.designation), $options: "i" }
     });
   }
 
   const birthYearCondition = buildBirthYearFilterCondition(filters);
   if (birthYearCondition) {
-    conditions.push(birthYearCondition);
+    filterConditions.push(birthYearCondition);
   }
 
-  if (conditions.length) {
-    query.$and = conditions;
+  if (!filterConditions.length) {
+    if (searchCondition) {
+      return {
+        treeId,
+        ...searchCondition
+      };
+    }
+
+    return { treeId };
   }
 
-  return query;
+  if (searchCondition) {
+    return {
+      treeId,
+      $and: [searchCondition, ...filterConditions]
+    };
+  }
+
+  if (filterConditions.length === 1) {
+    return {
+      treeId,
+      ...filterConditions[0]
+    };
+  }
+
+  return {
+    treeId,
+    $and: filterConditions
+  };
 };
 
 const addUniqueId = (collection, value) => {
